@@ -1,0 +1,10 @@
+# Локално състояние на Worker-а и зависимости.
+backend/.wrangler/
+backend/node_modules/
+backend/.dev.vars
+.wrangler/
+
+# Локални файлове.
+*.zip
+.DS_Store
+Thumbs.db

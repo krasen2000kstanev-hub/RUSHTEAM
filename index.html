@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="color-scheme" content="dark">
+<title>Team Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="login" class="login" hidden>
+  <div class="login-card">
+    <div class="brand"><i></i>Team Hub</div>
+    <p id="login-msg">Влезте с Google акаунта си, за да видите задачите на вашия екип.</p>
+    <div id="gbtn"></div>
+    <p class="small muted" id="login-note"></p>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="top">
+    <div class="brand"><i></i>Team Hub</div>
+    <nav class="tabs" id="tabs">
+      <a href="#timer">Таймер</a>
+      <a href="#board">Видео създаване</a>
+      <a href="#web">Сайтове</a>
+      <a href="#events">Събития</a>
+      <a href="#design">Дизайн</a>
+      <a href="#due">Преглед</a>
+      <a href="#calendar">Календар</a>
+      <a href="#reports">Отчети</a>
+      <a href="#team">Екип и клиенти</a>
+      <a href="#hr">Подбор</a>
+    </nav>
+    <div class="who"><span id="who"></span> <button class="btn ghost" type="button" id="signout" hidden>Изход</button></div>
+  </div>
+
+  <div class="banner" id="banner" hidden></div>
+
+  <div class="timer w-only" id="timer">
+    <input type="text" id="t-desc" placeholder="Върху какво работите?" aria-label="Описание" maxlength="200">
+    <select id="t-client" aria-label="Клиент"></select>
+    <select id="t-video" aria-label="Видео"></select>
+    <select id="t-act" aria-label="Дейност"></select>
+    <div class="clock" id="t-clock">0:00:00</div>
+    <button class="btn primary" id="t-toggle" type="button">Старт</button>
+  </div>
+
+  <main id="view"></main>
+</div>
+
+<!-- запис на време -->
+<dialog id="d-entry"><form id="f-entry">
+  <h2 id="e-h">Запис на време</h2>
+  <div class="fg">
+    <label class="f w">Описание<input type="text" id="e-desc" maxlength="200"></label>
+    <label class="f">Клиент<select id="e-client"></select></label>
+    <label class="f">Задача<select id="e-video"></select></label>
+    <label class="f">Дейност<select id="e-act"></select></label>
+    <label class="f">Дата<input type="date" id="e-date" required></label>
+    <label class="f">Начало<input type="time" id="e-start" required></label>
+    <label class="f">Край<input type="time" id="e-end" required></label>
+  </div>
+  <div class="dfoot"><button type="button" class="btn danger" id="e-del">Изтрий</button><span class="sp"></span>
+    <button type="button" class="btn" data-close>Отказ</button><button class="btn primary">Запази</button></div>
+</form></dialog>
+
+<!-- видео -->
+<dialog id="d-video"><form id="f-video">
+  <h2 id="v-h">Видео</h2>
+  <div class="fg">
+    <label class="f w">Заглавие<input type="text" id="v-title" required maxlength="140"></label>
+    <label class="f">Клиент<select id="v-client"></select></label>
+    <label class="f">Етап<select id="v-stage"></select></label>
+    <label class="f">Отговорник<select id="v-who"></select></label>
+    <label class="f">Срок<input type="date" id="v-due"></label>
+    <label class="f">Планирани часове<input type="number" id="v-est" min="0" step="0.5"></label>
+    <label class="f" id="v-fmt-l">Формат<select id="v-fmt"></select></label>
+    <label class="f">Кръгове ревизии<input type="number" id="v-revs" min="0" step="1"></label>
+    <label class="f m-only">Публикуване и резултати<select id="v-track"><option value="">Следим ги</option><option value="nodata">Нямаме данни (не се грижим за това)</option></select></label>
+    <label class="f m-only">Линк към публикацията<input type="text" id="v-publink" maxlength="500" placeholder="https://"></label>
+    <label class="f w m-only">Резултати<textarea id="v-results" maxlength="2000" placeholder="Гледания, обхват, реакции, обратна връзка от клиента"></textarea></label>
+    <label class="f e-only">Дата на събитието<input type="date" id="v-edate"></label>
+    <label class="f e-only">Локация<input type="text" id="v-eloc" maxlength="140"></label>
+    <label class="f e-only">Начало<input type="time" id="v-estart"></label>
+    <label class="f e-only">Край<input type="time" id="v-eend"></label>
+    <label class="f w">Бележки<textarea id="v-notes" maxlength="4000" placeholder="Бриф, насоки за монтажа, забележки от клиента"></textarea></label>
+  </div>
+  <div>
+    <h3>Линкове към материали</h3>
+    <p class="small muted" style="margin:2px 0 8px">Файлове не се качват тук. Поставете линк към папката в Google Drive или към вашето приложение.</p>
+    <div id="v-links" style="display:flex;flex-direction:column;gap:6px"></div>
+    <button type="button" class="btn ghost" id="v-addlink" style="margin-top:6px">+ Добави линк</button>
+  </div>
+  <div class="e-only">
+    <h3>Допълнителни услуги</h3>
+    <p class="small muted" style="margin:2px 0 8px">Подредете ги в реда, в който се случват. Със стрелките се местят нагоре и надолу.</p>
+    <div class="chk" id="v-svc"></div>
+    <div class="lk3"><input type="text" id="v-newsvc" maxlength="80" placeholder="Услуга, напр. кетъринг" aria-label="Нова услуга"><input type="text" id="v-newsvcd" maxlength="120" placeholder="Доставчик, час или бележка" aria-label="Подробности"><button type="button" class="btn" id="v-addsvc">Добави</button></div>
+  </div>
+  <div>
+    <h3 style="margin-bottom:6px">Чеклист</h3>
+    <div class="chk" id="v-check"></div>
+    <div class="lk2"><input type="text" id="v-newstep" maxlength="80" placeholder="Нова стъпка, напр. субтитри" aria-label="Нова стъпка"><button type="button" class="btn" id="v-addstep">Добави</button></div>
+  </div>
+  <div id="v-cbox">
+    <h3 style="margin-bottom:6px">Коментари</h3>
+    <div id="v-comments"></div>
+    <div class="lk2"><input type="text" id="v-newc" maxlength="500" placeholder="Напишете коментар" aria-label="Нов коментар"><button type="button" class="btn" id="v-addc">Изпрати</button></div>
+  </div>
+  <div class="dfoot"><button type="button" class="btn danger a-only" id="v-del">Изтрий</button><span class="sp"></span>
+    <button type="button" class="btn" data-close>Отказ</button><button class="btn primary">Запази</button></div>
+</form></dialog>
+
+<!-- снимачен ден -->
+<dialog id="d-shoot"><form id="f-shoot">
+  <h2 id="s-h">Снимачен ден</h2>
+  <div class="fg">
+    <label class="f w">Какво снимаме<input type="text" id="s-title" required maxlength="140"></label>
+    <label class="f">Клиент<select id="s-client"></select></label>
+    <label class="f">Видео<select id="s-video"></select></label>
+    <label class="f">Дата<input type="date" id="s-date" required></label>
+    <label class="f">Локация<input type="text" id="s-loc" maxlength="140"></label>
+    <label class="f">От<input type="time" id="s-start"></label>
+    <label class="f">До<input type="time" id="s-end"></label>
+    <label class="f w">Техника<input type="text" id="s-gear" maxlength="300" placeholder="Камери, обективи, осветление, звук"></label>
+    <label class="f w">Линк (колшийт, локация, папка)<input type="text" id="s-link" maxlength="500" placeholder="https://"></label>
+  </div>
+  <div><h3 style="margin-bottom:6px">Екип на терен</h3><div class="checks" id="s-crew"></div></div>
+  <div class="dfoot"><button type="button" class="btn danger" id="s-del">Изтрий</button><span class="sp"></span>
+    <button type="button" class="btn" data-close>Отказ</button><button class="btn primary">Запази</button></div>
+</form></dialog>
+
+<!-- клиент -->
+<dialog id="d-client"><form id="f-client">
+  <h2 id="c-h">Клиент</h2>
+  <div class="fg">
+    <label class="f w">Име<input type="text" id="c-name" required maxlength="80"></label>
+    <label class="f">Договорени часове на месец<input type="number" id="c-hours" min="0" step="1"></label>
+    <label class="f">Папка с материали<input type="text" id="c-link" maxlength="500" placeholder="https://drive.google.com/…"></label>
+  </div>
+  <div><h3 style="margin-bottom:6px">Цвят</h3><div class="swatches" id="c-colors"></div></div>
+  <div class="dfoot"><button type="button" class="btn danger" id="c-del">Архивирай</button><span class="sp"></span>
+    <button type="button" class="btn" data-close>Отказ</button><button class="btn primary">Запази</button></div>
+</form></dialog>
+
+<!-- отчет -->
+<dialog id="d-rep"><form id="f-rep">
+  <h2>Отчет за изпращане</h2>
+  <div class="checks">
+    <label><input type="checkbox" id="p-notes" checked> С бележките</label>
+  </div>
+  <textarea id="p-text" readonly aria-label="Текст на отчета"></textarea>
+  <div class="dfoot"><button type="button" class="btn primary" id="p-copy">Копирай</button><button type="button" class="btn" id="p-save">Свали като файл</button><span class="sp"></span>
+    <button type="button" class="btn" data-close>Затвори</button></div>
+</form></dialog>
+
+<div id="toast" hidden></div>
+
+<script src="config.js"></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

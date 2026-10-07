@@ -1,0 +1,15 @@
+{
+  "name": "team-hub-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "dev": "wrangler dev --config wrangler.test.toml --local --port 8787",
+    "migrate:local": "wrangler d1 migrations apply team-hub --local --config wrangler.test.toml",
+    "migrate:remote": "wrangler d1 migrations apply team-hub --remote",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4"
+  }
+}

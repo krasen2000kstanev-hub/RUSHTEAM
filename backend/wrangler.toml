@@ -1,0 +1,19 @@
+name = "team-hub-api"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+[vars]
+# Адресът на сайта в GitHub Pages (може няколко, разделени със запетая).
+ALLOWED_ORIGINS = "https://krasen2000kstanev-hub.github.io"
+# OAuth клиентът от Google Cloud (същата стойност е и в config.js).
+GOOGLE_CLIENT_ID = "REPLACE_WITH_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+# Имейли, които стават мениджъри при първия си вход.
+ADMIN_EMAILS = "hr.rushforpractice@gmail.com"
+# Google таблиците, които раздел „Подбор“ може да чете.
+HR_SHEET_IDS = "1OcLHccAgxivh4O5Gc1GS0fYRACNpMzCtGUqqrV0HkdE,1nXn7EePnzUPL764WlCxyxsBzdKwLMGvXqDvCJ3QveEw,1JbyKGFEa464j_HtxiBa743FfyfcWUaVnC5nphMl-Q6U,10taVLzhPT7eLJwgaOZjp4e3rK-BoXF_IiciFd8sJ6WU"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "team-hub"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "migrations"
