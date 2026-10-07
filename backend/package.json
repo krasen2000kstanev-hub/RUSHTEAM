@@ -4,10 +4,16 @@
   "type": "module",
   "scripts": {
     "test": "node --test test/*.test.mjs",
-    "dev": "wrangler dev --config wrangler.test.toml --local --port 8787",
-    "migrate:local": "wrangler d1 migrations apply team-hub --local --config wrangler.test.toml",
-    "migrate:remote": "wrangler d1 migrations apply team-hub --remote",
-    "deploy": "wrangler deploy"
+    "dev": "sam local start-api --template template.yaml --port 8787",
+    "build": "sam build --template-file template.yaml",
+    "deploy": "sam deploy --guided --template-file template.yaml",
+    "test:aws": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.896.0",
+    "@aws-sdk/client-lambda": "^3.896.0",
+    "@aws-sdk/client-sesv2": "^3.896.0",
+    "@aws-sdk/lib-dynamodb": "^3.896.0"
   },
   "devDependencies": {
     "wrangler": "^4"

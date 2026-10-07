@@ -3,6 +3,8 @@ backend/.wrangler/
 backend/node_modules/
 backend/.dev.vars
 .wrangler/
+.aws-sam/
+backend/template.packaged.yaml
 
 # Локални файлове.
 *.zip

@@ -1,4 +1,4 @@
-name: Deploy Worker
+name: Deploy AWS backend
 
 on:
   push:
@@ -12,6 +12,9 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -23,20 +26,17 @@ jobs:
         working-directory: backend
         run: npm test
 
-      - name: Apply D1 migrations
-        uses: cloudflare/wrangler-action@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: backend
-          wranglerVersion: "4"
-          command: d1 migrations apply team-hub --remote
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: eu-central-1
 
-      - name: Deploy Worker
-        uses: cloudflare/wrangler-action@v4
+      - name: Deploy SAM stack
+        uses: aws-actions/setup-sam@v2
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: backend
-          wranglerVersion: "4"
-          command: deploy
+          use-installer: true
+
+      - name: Build and deploy
+        working-directory: backend
+        run: sam build --template-file template.yaml && sam deploy --no-confirm-changeset --no-fail-on-empty-changeset --template-file .aws-sam/build/template.yaml --stack-name team-hub --capabilities CAPABILITY_IAM --resolve-s3 --region eu-central-1 --parameter-overrides "GoogleClientId=${{ secrets.GOOGLE_CLIENT_ID }}" "AdminEmails=${{ secrets.ADMIN_EMAILS }}" "HrSheetIds=${{ secrets.HR_SHEET_IDS }}" "SessionSecret=${{ secrets.SESSION_SECRET }}" "GoogleServiceAccountJson=${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}" "SesFromEmail=noreply@sofiasummit.bg" "FrontendUrl=https://krasen2000kstanev-hub.github.io/RUSHTEAM/"

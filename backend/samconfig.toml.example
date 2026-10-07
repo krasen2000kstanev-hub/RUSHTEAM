@@ -1,0 +1,10 @@
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "team-hub"
+resolve_s3 = true
+s3_prefix = "team-hub"
+region = "eu-central-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "GoogleClientId=REPLACE AdminEmails=admin@example.com HrSheetIds=REPLACE SessionSecret=REPLACE GoogleServiceAccountJson='REPLACE' SesFromEmail=noreply@sofiasummit.bg FrontendUrl=https://krasen2000kstanev-hub.github.io/RUSHTEAM/"

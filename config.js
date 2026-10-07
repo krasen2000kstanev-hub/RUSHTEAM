@@ -1,7 +1,7 @@
 // Настройки на сайта. Тези стойности са публични – тайните стоят само в Cloudflare.
 window.TEAM_HUB_CONFIG = {
-  // Адресът на Cloudflare Worker-а (без наклонена черта накрая).
-  apiBase: "https://team-hub-api.krasen2000-k-stanev.workers.dev",
+  // Адресът на AWS API Gateway (без наклонена черта накрая).
+  apiBase: "https://4hj7bckbo5.execute-api.eu-central-1.amazonaws.com",
   // OAuth Client ID от Google Cloud Console (тип „Web application“).
   googleClientId: "REPLACE_WITH_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
   // На колко секунди страницата проверява за промени от колегите.

@@ -1,72 +1,67 @@
 # Team Hub API
 
-Cloudflare Worker + D1. Държи потребителите, екипите и всички данни на платформата и прилага правилата за достъп.
+AWS Lambda + API Gateway + DynamoDB backend. Lambda прилага правилата за достъп и задейства SES известия след успешен запис.
 
 ## Файлове
 
-- `src/index.js` — маршрути и работа с базата.
+- `src/index.js` — API Gateway Lambda handler и маршрути.
+- `src/store.js` — DynamoDB документен слой.
 - `src/rules.js` — правилата за достъп като чисти функции.
-- `src/auth.js` — проверка на Google ID token и сесии, подписани с HMAC.
-- `src/sheets.js` — четене на Google таблици със сервизен акаунт.
-- `migrations/` — схемата на D1. `schema.sql` е същото за нова база.
-- `wrangler.toml` — продукция. `wrangler.test.toml` — само локално, никога не се deploy-ва.
-
-## Настройки
-
-Променливи в `wrangler.toml`:
-
-| Име | Значение |
-|---|---|
-| `ALLOWED_ORIGINS` | Адресите на сайта, разделени със запетая. Само те получават CORS. |
-| `GOOGLE_CLIENT_ID` | OAuth Client ID. Трябва да съвпада с `config.js`. |
-| `ADMIN_EMAILS` | Имейли, които са мениджъри. Прилага се при всеки вход. |
-| `HR_SHEET_IDS` | Таблиците, които раздел „Подбор“ може да чете. Други ID-та се отказват. |
-
-Тайни (`npx wrangler secret put ...`):
-
-| Име | Значение |
-|---|---|
-| `SESSION_SECRET` | Дълъг случаен низ. Смяната му изкарва всички от системата. |
-| `GOOGLE_SERVICE_ACCOUNT_JSON` | JSON ключ на сервизен акаунт с право „Viewer“ върху таблиците. |
+- `src/auth.js` — Google ID token и HMAC сесии.
+- `src/sheets.js` — четене на Google таблици със service account.
+- `src/notify.js` — асинхронни SES известия.
+- `template.yaml` — AWS SAM stack.
 
 ## API
 
 Всички маршрути освен `health` и `auth` искат `Authorization: Bearer <сесия>`.
 
 - `GET /api/health`
-- `POST /api/auth/google` — `{credential}` от бутона на Google → `{token, user}`.
+- `POST /api/auth/google` — `{credential}` → `{token, user}`.
 - `GET /api/me`
-- `GET /api/users` — имена за показване; имейли само за мениджър.
-- `POST /api/sync` — `{queries:[{collection, where}]}` → списъците, филтрирани по правата на човека. Страницата го вика на всеки 15 секунди с всички отворени списъци в една заявка.
-- `GET | PUT | PATCH | DELETE /api/doc?path=<колекция>/<id>` — един документ. `PATCH` слива полетата и иска документът да съществува.
-- `GET /api/sheets/:id` — първият лист на таблицата като CSV в base64.
+- `GET /api/users`
+- `POST /api/sync` — `{queries:[{collection, where}]}`.
+- `GET | PUT | PATCH | DELETE /api/doc?path=<колекция>/<id>`.
+- `GET /api/sheets/:id` — първият лист като CSV в base64.
 
-## Колекции и права
+## AWS настройки
 
-| Колекция | Чете | Пише |
-|---|---|---|
-| `videos` (всички задачи; поле `team`) | хората от екипа на задачата | хората от екипа; задача не може да се мести в чужд екип |
-| `clients` | всички освен само-подбор | мениджър |
-| `shoots` | видео екипът | видео екипът |
-| `members` (роля като текст) | хората с екип; всеки своя ред | всеки своя ред |
-| `time/<userId>/days` | само собственикът | само собственикът |
-| `depts` (екипи и роля; виртуална върху `users`) | хората с екип | мениджър, но не за себе си |
+SAM parameters/environment:
 
-Мениджърът чете и пише всичко. Отказан запис връща 403; скрит документ изглежда като липсващ.
+| Име | Значение |
+|---|---|
+| `TABLE_NAME` | Създава се от SAM template-а. |
+| `ALLOWED_ORIGINS` | GitHub Pages адресът и локалните адреси. |
+| `GOOGLE_CLIENT_ID` | OAuth Client ID от Google Cloud. |
+| `ADMIN_EMAILS` | Имейли, които стават мениджъри. |
+| `HR_SHEET_IDS` | Разрешените 4 Google Sheet ID-та. |
+| `SESSION_SECRET` | Дълъг случаен низ. Смяната му изкарва всички от системата. |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | Read-only service account JSON за таблиците. |
+| `SES_FROM_EMAIL` | `noreply@sofiasummit.bg`. |
+| `FRONTEND_URL` | Публичният GitHub Pages адрес. |
 
-## Google таблици
+Не записвайте тези стойности в Git. За deploy използвайте SAM параметри или GitHub Actions secrets.
 
-Раздел „Подбор“ чете четири таблици: проследяване, изисквания за позициите, обяви и допълнителни задачи. Споделете всяка с имейла на сервизния акаунт (`client_email` в JSON ключа) с право „Viewer“. Може да се ползва същият сервизен акаунт като в `sofiasummitcenter`. Worker-ът чете само първия лист, диапазон `A1:Z3000`, и пази резултата 30 секунди.
+## SES и Cloudflare DNS
 
-## Лимити
+В SES верифицирайте `sofiasummit.bg`, добавете DKIM CNAME записите в Cloudflare DNS и поискайте production access. В sandbox SES изпраща само към потвърдени получатели.
 
-На безплатния план на Cloudflare има дневен лимит на заявките. При 15 души с отворена страница по цял ден проверката на 15 секунди прави около 30 хиляди заявки дневно. Ако стане тясно, увеличете `pollSeconds` в `config.js`.
-
-## Миграции и deploy
+## Локално
 
 ```bash
-npx wrangler d1 migrations apply team-hub --remote
-npx wrangler deploy
+npm install
+npm test
+sam build --template-file template.yaml
+sam local start-api --template template.yaml --port 8787
 ```
 
-GitHub Actions прави същото при push към `main`. Нови промени по схемата се добавят като нов файл в `migrations/`, без да се редактират старите.
+За локална API проверка задайте `ALLOW_TEST_LOGIN=1`, `TABLE_NAME` към DynamoDB Local/тестова таблица и `API=http://127.0.0.1:8787 node tests/api.e2e.mjs`.
+
+## Deploy
+
+```bash
+sam build --template-file template.yaml
+sam deploy --guided --template-file template.yaml
+```
+
+След deploy сложете SAM output `ApiUrl` в `config.js` като `apiBase`. GitHub Actions използва OIDC role от secret `AWS_ROLE_ARN` и deploy-ва `eu-central-1`.

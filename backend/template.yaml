@@ -1,0 +1,133 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Team Hub serverless API
+
+Parameters:
+  AllowedOrigins:
+    Type: String
+    Default: https://krasen2000kstanev-hub.github.io
+  GoogleClientId:
+    Type: String
+    NoEcho: true
+  AdminEmails:
+    Type: String
+  HrSheetIds:
+    Type: String
+  SessionSecret:
+    Type: String
+    NoEcho: true
+  GoogleServiceAccountJson:
+    Type: String
+    NoEcho: true
+  SesFromEmail:
+    Type: String
+    Default: noreply@sofiasummit.bg
+  FrontendUrl:
+    Type: String
+    Default: https://krasen2000kstanev-hub.github.io/RUSHTEAM/
+
+Globals:
+  Function:
+    Runtime: nodejs22.x
+    Timeout: 15
+    MemorySize: 256
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref TeamHubTable
+        ALLOWED_ORIGINS: !Ref AllowedOrigins
+        GOOGLE_CLIENT_ID: !Ref GoogleClientId
+        ADMIN_EMAILS: !Ref AdminEmails
+        HR_SHEET_IDS: !Ref HrSheetIds
+        SESSION_SECRET: !Ref SessionSecret
+        GOOGLE_SERVICE_ACCOUNT_JSON: !Ref GoogleServiceAccountJson
+        SES_FROM_EMAIL: !Ref SesFromEmail
+        FRONTEND_URL: !Ref FrontendUrl
+
+Resources:
+  TeamHubApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: $default
+      CorsConfiguration:
+        AllowOrigins: !Split [',', !Ref AllowedOrigins]
+        AllowHeaders: [Authorization, Content-Type]
+        AllowMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/index.handler
+      Environment:
+        Variables:
+          NOTIFIER_FUNCTION_NAME: !Ref NotificationFunction
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TeamHubTable
+        - LambdaInvokePolicy:
+            FunctionName: !Ref NotificationFunction
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TeamHubApi
+            Path: /{proxy+}
+            Method: ANY
+
+  NotificationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/notify.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref TeamHubTable
+        - Statement:
+            - Effect: Allow
+              Action: ses:SendEmail
+              Resource: '*'
+
+  TeamHubTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+        - AttributeName: gsi1pk
+          AttributeType: S
+        - AttributeName: gsi1sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: CollectionIndex
+          KeySchema:
+            - AttributeName: gsi1pk
+              KeyType: HASH
+            - AttributeName: gsi1sk
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 5
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway URL
+    Value: !Sub https://${TeamHubApi}.execute-api.${AWS::Region}.amazonaws.com
+  TableName:
+    Value: !Ref TeamHubTable
+  NotificationFunctionName:
+    Value: !Ref NotificationFunction
