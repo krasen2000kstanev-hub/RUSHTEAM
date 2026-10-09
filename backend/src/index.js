@@ -1,6 +1,6 @@
 import { verifyGoogleIdToken, signSession, verifySession } from './auth.js';
-import { ALL_TEAMS, parsePath, collectionKind, normalizeTeams, canReadDoc, canWriteDoc, canReadSheets, matchesWhere, deepMerge, isFounder } from './rules.js';
-import { readSheetCsv, textToBase64 } from './sheets.js';
+import { ALL_TEAMS, parsePath, collectionKind, normalizeTeams, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, isFounder } from './rules.js';
+import { appendSheetRow, readSheetCsv, textToBase64 } from './sheets.js';
 import { createUser, deleteDoc, findUser, getDoc, getUser, listDocs, listUsers, putDoc, updateUser } from './store.js';
 import { enqueueNotification } from './notify.js';
 
@@ -137,6 +137,8 @@ async function route(request) {
   if (path === '/api/doc') return handleDoc(request, user, url);
   const sheet = path.match(/^\/api\/sheets\/([A-Za-z0-9_-]{5,120})$/);
   if (sheet && method === 'GET') { if (!canReadSheets(user)) throw new HttpError(403, 'not_in_manifest', 'Not allowed'); const allowed = String(env().HR_SHEET_IDS || '').split(',').map((v) => v.trim()).filter(Boolean); if (!allowed.includes(sheet[1])) throw new HttpError(404, 'tool_error', 'Unknown sheet'); try { return { content: textToBase64(await readSheetCsv(sheet[1], env())) }; } catch (error) { if (error.status === 403 || error.status === 404) throw new HttpError(502, 'tool_error', 'Sheet is not shared with the service account'); throw new HttpError(502, 'server_unavailable', 'Google Sheets is unavailable'); } }
+  const sheetRow = path.match(/^\/api\/sheets\/([A-Za-z0-9_-]{5,120})\/rows$/);
+  if (sheetRow && method === 'POST') { if (!canWriteSheets(user)) throw new HttpError(403, 'not_in_manifest', 'Not allowed'); const allowed = String(env().HR_SHEET_IDS || '').split(',').map((v) => v.trim()).filter(Boolean); if (!allowed.includes(sheetRow[1])) throw new HttpError(404, 'tool_error', 'Unknown sheet'); const body = await readJson(request); if (!plainObject(body)) throw new HttpError(400, 'invalid_argument', 'Row must be an object'); try { await appendSheetRow(sheetRow[1], body, env()); return { ok: true }; } catch (error) { if (error.status === 403 || error.status === 404) throw new HttpError(502, 'tool_error', 'Таблицата не позволява запис от сервизния акаунт'); throw new HttpError(502, 'server_unavailable', 'Google Sheets is unavailable'); } }
   throw new HttpError(404, 'invalid_argument', 'Not found');
 }
 

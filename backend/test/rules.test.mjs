@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parsePath, collectionKind, canReadDoc, canWriteDoc, canReadSheets, matchesWhere, deepMerge, normalizeTeams } from '../src/rules.js';
+import { parsePath, collectionKind, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, normalizeTeams } from '../src/rules.js';
 
 const admin = { id: 'u_admin', role: 'admin', teams: [], active: true };
 const manager = { id: 'u_manager', role: 'manager', teams: ['design'], active: true };
@@ -88,6 +88,13 @@ test('recruitment sheets: only the hr team and managers', () => {
   assert.equal(canReadSheets(admin), true);
   assert.equal(canReadSheets(editor), false);
   assert.equal(canReadSheets({ ...recruiter, active: false }), false);
+});
+
+test('recruitment sheets: only founders and hr managers can write', () => {
+  assert.equal(canWriteSheets(admin), true);
+  assert.equal(canWriteSheets({ ...recruiter, role: 'manager' }), true);
+  assert.equal(canWriteSheets(recruiter), false);
+  assert.equal(canWriteSheets({ ...editor, role: 'manager' }), false);
 });
 
 test('shoots belong to the video team', () => {

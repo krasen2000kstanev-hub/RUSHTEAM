@@ -1,4 +1,4 @@
-// Четене на Google таблици със сервизен акаунт (само за четене).
+// Четене и добавяне на редове в Google таблици със сервизен акаунт.
 let tokenCache = null;
 const encoder = new TextEncoder();
 const b64url = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -10,7 +10,7 @@ async function accessToken(env) {
   const account = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON);
   const now = Math.floor(Date.now() / 1000);
   const unsigned = `${b64urlText(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))}.${b64urlText(JSON.stringify({
-    iss: account.client_email, scope: 'https://www.googleapis.com/auth/spreadsheets.readonly',
+    iss: account.client_email, scope: 'https://www.googleapis.com/auth/spreadsheets',
     aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600,
   }))}`;
   const pem = account.private_key.replace(/-----[^-]+-----/g, '').replace(/\s+/g, '');
@@ -58,4 +58,24 @@ export async function readSheetCsv(sheetId, env) {
   const csv = rowsToCsv((await response.json()).values || []);
   sheetCache.set(sheetId, { csv, expiresAt: Date.now() + 30000 });
   return csv;
+}
+
+const headerKey = (header) => String(header || '').trim().toLowerCase();
+const fieldMatches = {
+  company: (h) => h.includes('компан') || h.includes('company'), title: (h) => h.includes('позици') || h === 'position', task: (h) => h.includes('задач') || h === 'task',
+  description: (h) => h.includes('описание') || h.includes('description'), who: (h) => h.includes('човек') || h.includes('отговор') || h.includes('рекрут') || h.includes('who'),
+  status: (h) => h.includes('статус') || h === 'status', heads: (h) => h.includes('търсен') || h.includes('нужн') || h.includes('heads'), sent: (h) => h.includes('изпрат') || h.includes('sent'),
+  interview: (h) => h.includes('интерв') || h.includes('interview'), offer: (h) => h.includes('оферт') || h.includes('offer'), hired: (h) => h.includes('нает') || h.includes('hired'),
+  platform: (h) => h.includes('платформ') || h.includes('platform'), link: (h) => h.includes('линк') || h.includes('url') || h.includes('link'), from: (h) => h.includes('качен'), to: (h) => h.includes('валид'), notes: (h) => h.includes('бележ') || h.includes('notes'),
+};
+
+export async function appendSheetRow(sheetId, row, env) {
+  const token = await accessToken(env); const base = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}`;
+  const headResponse = await fetch(`${base}/values/A1:Z1?majorDimension=ROWS`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!headResponse.ok) { const error = new Error(`Sheet unavailable (${headResponse.status})`); error.status = headResponse.status; throw error; }
+  const headers = ((await headResponse.json()).values || [])[0] || []; if (!headers.length) throw new Error('Sheet has no header row');
+  const values = headers.map((raw) => { const h = headerKey(raw); const key = Object.keys(fieldMatches).find((candidate) => row[candidate] != null && fieldMatches[candidate](h)); return key ? String(row[key] ?? '') : ''; });
+  const response = await fetch(`${base}/values/A:Z:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ values: [values] }) });
+  if (!response.ok) { const error = new Error(`Sheet write failed (${response.status})`); error.status = response.status; throw error; }
+  sheetCache.delete(sheetId);
 }

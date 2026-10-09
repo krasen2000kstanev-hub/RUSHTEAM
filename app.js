@@ -458,6 +458,12 @@ function hrErr(code){
     bad_sheet:"В таблицата липсват колоните „Компания“ и „Позиция“ на първия ред.",
     server_unavailable:"Google Sheets не отговаря в момента. Опитайте пак след малко."};
   return m[code]||"Таблицата не се зареди. Опитайте пак с „Обнови“.";}
+function hrCanWrite(){const d=S.depts[S.uid]||{};return Boolean(S.canWrite&&S.db&&(S.isAdmin||(d.manager&&(d.teams||[]).includes("hr"))));}
+const hrRowInput=id=>$("#hr-row-"+id).value.trim();
+function syncHrRowForm(){const table=$("#hr-row-table").value;$("#hr-row-title-label").hidden=table==="tasks";$("#hr-row-task-label").hidden=table!=="tasks";$("#hr-row-link-label").hidden=table!=="ads";$("#hr-row-platform-label").hidden=table!=="ads";$("#hr-row-due-label").hidden=table!=="tasks";}
+function openHrRow(){if(!hrCanWrite())return;$("#f-hr-row").reset();syncHrRowForm();$("#d-hr-row").showModal();}
+$("#hr-row-table").addEventListener("change",syncHrRowForm);
+$("#f-hr-row").addEventListener("submit",async e=>{e.preventDefault();const table=$("#hr-row-table").value,row={company:hrRowInput("company"),title:hrRowInput("title"),task:hrRowInput("task"),who:hrRowInput("who"),status:hrRowInput("status"),description:hrRowInput("description"),link:hrRowInput("link"),platform:hrRowInput("platform"),due:hrRowInput("due")};if(!row.company||((table!=="tasks")&&!row.title)||(table==="tasks"&&!row.task)){toast("Попълнете компания и име на позицията/задачата.");return;}try{await window.teamHubApi("/api/sheets/"+encodeURIComponent(SHEET[table])+"/rows",{method:"POST",body:row});$("#d-hr-row").close();S.hr.rows=null;S.hr.loading=false;loadHr();toast("Добавено в таблицата.");}catch(x){toast(x&&x.code==="not_in_manifest"?"Само мениджърът на подбор и основателите могат да добавят.":"Записът не се добави. Проверете дали таблицата е споделена с права за редактиране.");}});
 function sheetDate(v){v=String(v||"").trim();let m=v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return m[1]+"-"+p2(m[2])+"-"+p2(m[3]);
   m=v.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})/);if(m&&+m[2]<=12)return m[3]+"-"+p2(m[2])+"-"+p2(m[1]);return "";}
 function vAds(root){
@@ -503,6 +509,7 @@ function vHr(){
     h("span",{class:"sp"}),
     H.at?h("span",{class:"small muted mono",id:"h-at"},atText()):null,
     h("button",{class:"btn",type:"button",id:"h-refresh",disabled:H.loading,onclick:()=>{S.hr.err="";loadHr();}},H.loading?"Зареждане…":"Обнови"),
+    hrCanWrite()?h("button",{class:"btn primary",type:"button",onclick:openHrRow},"+ Добави в таблица"):null,
     rows.length?h("button",{class:"btn",type:"button",onclick:()=>openReport(null)},"Общ отчет"):null,
     h("a",{class:"btn primary",href:sheetUrl(SHEET.track),target:"_blank",rel:"noopener noreferrer",style:"text-decoration:none"},"Отвори таблицата ↗")));
   root.append(h("p",{class:"small muted",style:"margin:0"},"Данните се въвеждат само в Google таблицата „Подбор – проследяване“. Тук се показват за преглед и за отчет."));

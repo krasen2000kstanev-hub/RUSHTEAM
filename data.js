@@ -37,6 +37,7 @@
     if (!response.ok) throw { code: (body && body.code) || "unavailable", message: (body && body.error) || String(response.status) };
     return body;
   }
+  window.teamHubApi = api;
 
   // ---------- вход ----------
   function showLogin(message) {

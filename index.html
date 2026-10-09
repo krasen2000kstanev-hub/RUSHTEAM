@@ -68,6 +68,23 @@
     <button type="button" class="btn" data-close>Отказ</button><button class="btn primary">Запази</button></div>
 </form></dialog>
 
+<dialog id="d-hr-row"><form id="f-hr-row">
+  <h2>Добави в таблица „Подбор“</h2>
+  <div class="fg">
+    <label class="f w">Таблица<select id="hr-row-table"><option value="track">Проследяване</option><option value="req">Изисквания</option><option value="ads">Обяви</option><option value="tasks">Допълнителни задачи</option></select></label>
+    <label class="f">Компания<input id="hr-row-company" maxlength="200"></label>
+    <label class="f" id="hr-row-title-label">Позиция<input id="hr-row-title" maxlength="200"></label>
+    <label class="f" id="hr-row-task-label">Задача<input id="hr-row-task" maxlength="300"></label>
+    <label class="f">Човек от екипа<input id="hr-row-who" maxlength="200"></label>
+    <label class="f">Статус<input id="hr-row-status" maxlength="80" placeholder="Отворена"></label>
+    <label class="f">Описание / бележки<textarea id="hr-row-description" maxlength="2000"></textarea></label>
+    <label class="f" id="hr-row-link-label">Линк<input id="hr-row-link" maxlength="500" placeholder="https://"></label>
+    <label class="f" id="hr-row-platform-label">Платформа<input id="hr-row-platform" maxlength="100"></label>
+    <label class="f" id="hr-row-due-label">Срок<input id="hr-row-due" type="date"></label>
+  </div>
+  <div class="dfoot"><span class="sp"></span><button type="button" class="btn" data-close>Отказ</button><button class="btn primary">Добави</button></div>
+</form></dialog>
+
 <!-- видео -->
 <dialog id="d-video"><form id="f-video">
   <h2 id="v-h">Видео</h2>
