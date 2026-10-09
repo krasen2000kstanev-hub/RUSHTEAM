@@ -36,7 +36,7 @@ test('tasks are visible only to their team', () => {
 
 test('founders see everything; managers stay team-scoped', () => {
   assert.equal(canReadDoc({ ...admin, role: 'founder' }, K('clients'), 'a', {}), true);
-  assert.equal(canReadDoc(manager, K('clients'), 'a', {}), true);
+  assert.equal(canReadDoc(manager, K('clients'), 'a', { team: 'design' }), true);
   assert.equal(canWriteDoc(manager, K('depts'), 'u_d', null, { teams: ['hr'] }), false);
 });
 
@@ -62,6 +62,8 @@ test('clients: only managers write; recruiters do not read', () => {
   assert.equal(canWriteDoc(admin, K('clients'), 'c', null, {}), true);
   assert.equal(canReadDoc(editor, K('clients'), 'c', {}), true);
   assert.equal(canReadDoc(recruiter, K('clients'), 'c', {}), false);
+  assert.equal(canReadDoc(manager, K('clients'), 'c', { team: 'design' }), true);
+  assert.equal(canReadDoc(manager, K('clients'), 'c', { team: 'web' }), false);
 });
 
 test('access to teams: only a manager changes it, and never their own', () => {

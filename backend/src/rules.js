@@ -32,7 +32,7 @@ export function canReadDoc(user, kind, id, data) {
   if (!usable(user) || !kind) return false;
   if (isFounder(user)) return true;
   switch (kind.kind) {
-    case 'clients': return user.teams.some((team) => team !== 'hr');
+    case 'clients': return user.teams.includes(docTeam(data));
     case 'members': return user.teams.length > 0 || id === user.id;
     case 'depts': return id === user.id || (user.teams.length > 0 && data?.teams?.some((team) => user.teams.includes(team)));
     case 'videos': return user.teams.includes(docTeam(data));
