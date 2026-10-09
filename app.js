@@ -424,16 +424,19 @@ function parseCsv(t){const rows=[];let row=[],cell="",q=false;t=t.replace(/^﻿/
     else cell+=c;}
   if(cell!==""||row.length){row.push(cell);rows.push(row);}
   return rows;}
+const sheetCache=new Map();
 async function readSheet(id){
-  const call=()=>S.mcp.callTool(GD,"download_file_content",{fileId:id,exportMimeType:"text/csv"});
-  let r;try{r=await call();}catch(e){if(e&&e.retryable){await new Promise(ok=>setTimeout(ok,Math.min(e.retryAfterMs||1500,8000)+Math.random()*500));r=await call();}else throw e;}
-  const pl=r&&r.payload,c=pl&&typeof pl==="object"?pl.content:null;if(typeof c!=="string")throw {code:"upstream_error"};
-  return parseCsv(b64text(c));}
+  const cached=sheetCache.get(id);if(cached&&cached.expires>Date.now())return cached.rows;
+  let rows=null;
+  if(window.teamHubApi){try{const out=await window.teamHubApi("/api/sheets/"+encodeURIComponent(id));if(typeof out.content==="string")rows=parseCsv(b64text(out.content));}catch(e){/* fallback към Drive */}}
+  if(!rows){const call=()=>S.mcp.callTool(GD,"download_file_content",{fileId:id,exportMimeType:"text/csv"});let r;try{r=await call();}catch(e){if(e&&e.retryable){await new Promise(ok=>setTimeout(ok,Math.min(e.retryAfterMs||1500,8000)+Math.random()*500));r=await call();}else throw e;}const pl=r&&r.payload,c=pl&&typeof pl==="object"?pl.content:null;if(typeof c!=="string")throw {code:"upstream_error"};rows=parseCsv(b64text(c));}
+  sheetCache.set(id,{rows,expires:Date.now()+30000});return rows;
+}
 const num=v=>{const n=parseInt(String(v||"").replace(/[^\d-]/g,""),10);return isFinite(n)&&n>0?n:0;};
 const pstOf=v=>{v=String(v||"").toLowerCase();return v.includes("затвор")?"closed":v.includes("пауз")?"paused":"open";};
 async function loadHr(silent){
   if(S.hr.loading)return;
-  if(!S.mcp){S.hr.err="nomcp";schedule();return;}
+  if(!S.mcp&&!window.teamHubApi){S.hr.err="nomcp";schedule();return;}
   if(window.teamHubApi&&!S.hr.configLoaded){try{const cfg=await window.teamHubApi("/api/sheets/config");Object.assign(SHEET,cfg.sheets||{});S.hr.configLoaded=true;}catch(e){S.hr.err=e.code||"upstream_error";schedule();return;}}
   S.hr.loading=true;if(!silent){S.hr.err="";schedule();}
   const sameSource=[SHEET.track,SHEET.req,SHEET.ads,SHEET.tasks].every(id=>id===SHEET.track);let source;
@@ -526,7 +529,7 @@ function vHr(){
       big(H.rows?new Set(rows.flatMap(r=>r.who)).size:"–","Хора от екипа"),big(H.rows?rows.reduce((a,r)=>a+r.sent,0):"–","Изпратени CV-та"),big(H.rows?rows.reduce((a,r)=>a+r.hired,0):"–","Наети")),
     h("span",{class:"sp"}),
     H.at?h("span",{class:"small muted mono",id:"h-at"},atText()):null,
-    h("button",{class:"btn",type:"button",id:"h-refresh",disabled:H.loading,onclick:()=>{S.hr.err="";loadHr();}},H.loading?"Зареждане…":"Обнови"),
+    h("button",{class:"btn",type:"button",id:"h-refresh",disabled:H.loading,onclick:()=>{sheetCache.clear();S.hr.err="";loadHr();}},H.loading?"Зареждане…":"Обнови"),
     hrCanWrite()?h("button",{class:"btn primary",type:"button",onclick:openHrRow},"+ Добави в таблица"):null,
     hrCanWrite()?h("button",{class:"btn",type:"button",onclick:openHrConfig},"⚙ Таблици"):null,
     rows.length?h("button",{class:"btn",type:"button",onclick:()=>openReport(null)},"Общ отчет"):null,
