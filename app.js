@@ -148,10 +148,10 @@ $("#t-desc").addEventListener("keydown",e=>{if(e.key==="Enter"&&!running())$("#t
 
 function teamsOf(id){const d=S.depts[id]||{};if(d.founder||d.admin)return ALLT;return Array.isArray(d.teams)?d.teams:[];}
 function myTeams(){return S.isAdmin?ALLT:teamsOf(S.uid);}
-function allowed(t){const m=myTeams();if(t==="hr")return m.includes("hr");if(TAB_TEAM[t])return m.includes(TAB_TEAM[t]);if(t==="calendar")return m.includes("media")||m.includes("events");if(t==="timer"||t==="reports")return m.some(x=>x!=="hr"&&x!=="events");return m.some(x=>x!=="hr");}
+function allowed(t){const m=myTeams();if(t==="today")return true;if(t==="hr")return m.includes("hr");if(TAB_TEAM[t])return m.includes(TAB_TEAM[t]);if(t==="calendar")return m.includes("media")||m.includes("events");if(t==="timer"||t==="reports")return m.some(x=>x!=="hr"&&x!=="events");return m.some(x=>x!=="hr");}
 /* ---------- views ---------- */
 function render(){
-  const onlyHr=!myTeams().some(x=>x!=="hr"&&x!=="events");const rdy=S.booted&&(S.isAdmin||S.deptsLoaded);if(rdy&&!allowed(S.tab))S.tab=["timer","board","web","events","design","due","calendar","reports","team","hr"].find(allowed)||"timer";document.body.dataset.tab=S.tab;
+  const onlyHr=!myTeams().some(x=>x!=="hr"&&x!=="events");const rdy=S.booted&&(S.isAdmin||S.deptsLoaded);if(rdy&&!allowed(S.tab))S.tab=["today","timer","board","web","events","design","due","calendar","reports","team","hr"].find(allowed)||"today";document.body.dataset.tab=S.tab;
   $("#timer").hidden=onlyHr||S.tab==="hr"||S.tab==="events";
   if(S.tab==="hr"&&S.booted&&!S.hr.rows&&!S.hr.loading&&!S.hr.err)loadHr();
   document.body.classList.toggle("ro",!S.canWrite||!S.db);document.body.classList.toggle("adm",S.isAdmin);
@@ -164,13 +164,24 @@ function render(){
   v.textContent="";
   if(!rdy){v.append(h("div",{class:"panel empty"},"Зареждане…"));return;}
   if(!allowed(S.tab)){v.append(h("div",{class:"panel empty"},"Още нямате достъп до нито един екип. Помолете мениджър да ви добави от „Екип и клиенти“."));return;}
-  v.append(({timer:vTimer,board:vBoard,web:vBoard,events:vBoard,design:vBoard,due:vDue,hr:vHr,calendar:vCal,reports:vReports,team:vTeam}[S.tab]||vTimer)());
+  v.append(({today:vToday,timer:vTimer,board:vBoard,web:vBoard,events:vBoard,design:vBoard,due:vDue,hr:vHr,calendar:vCal,reports:vReports,team:vTeam}[S.tab]||vToday)());
   const bd=v.querySelector(".board");if(bd&&scx)bd.scrollLeft=scx;
   v.querySelectorAll(".tw table").forEach(t=>{const hs=[...t.querySelectorAll("thead th")].map(x=>x.textContent);t.querySelectorAll("tbody tr").forEach(r=>[...r.children].forEach((td,i)=>td.setAttribute("data-label",hs[i]||"")));});
 }
 function entryMeta(e){const vid=S.videos[e.v];return h("div",{class:"meta"},
   h("span",{class:"dot",style:"--c:"+cColor(e.c)}),h("span",null,cName(e.c)),vid?h("span",null,"· "+vid.title):null,h("span",{class:"pill"},actName(e.a)));}
 async function deleteEntry(e){if(!window.confirm("Изтриване на този запис за време?"))return;await tryW(writeDay(e.date,es=>{delete es[e.id];}));}
+
+function vToday(){
+  const root=h("div",{style:"display:flex;flex-direction:column;gap:14px"}),today=ymd(new Date()),soon=ymd(addDays(new Date(),7));
+  const mine=Object.entries(S.videos).filter(([,v])=>myTeams().includes(teamOf(v))&&!isDone(v)).sort((a,b)=>(a[1].due||"9999").localeCompare(b[1].due||"9999"));
+  const late=mine.filter(([,v])=>v.due&&v.due<today),next=mine.filter(([,v])=>v.due&&v.due>=today&&v.due<=soon);
+  root.append(h("div",{class:"bar"},h("div",{class:"sum"},h("div",null,h("b",null,mine.length),h("span",null,"Активни задачи")),h("div",null,h("b",{class:late.length?"late":""},late.length),h("span",null,"Просрочени")),h("div",null,h("b",null,next.length),h("span",null,"До 7 дни"))),h("span",{class:"sp"}),h("a",{class:"btn",href:"#due"},"Преглед на всички")));
+  const panel=h("section",{class:"panel"},h("div",{class:"ph"},h("span",null,"Моите задачи за днес"),h("span",{class:"mono"},mine.length)));
+  if(!mine.length)panel.append(h("div",{class:"empty"},"Няма активни задачи. Добра работа!"));
+  mine.slice(0,12).forEach(([id,v])=>panel.append(h("div",{class:"drow"},h("div",{style:"min-width:0"},h("button",{class:"t",type:"button",onclick:()=>openVideo(id)},v.title),h("div",{class:"small muted"},cName(v.client)+" · "+nameOf(v.who))),h("span",{class:"pill"},TNAME[teamOf(v)]),v.due?h("span",{class:"mono small"+(v.due<today?" late":"")},shortDate(v.due)):h("span",{class:"small muted"},"без срок"))));
+  root.append(panel);return root;
+}
 
 function vTimer(){
   const root=h("div",{style:"display:flex;flex-direction:column;gap:14px"});
@@ -726,7 +737,7 @@ $("#f-client").addEventListener("submit",async ev=>{ev.preventDefault();const id
 arm($("#c-del"),async()=>{const c=S.clients[cur.client];if(await tryW(S.db.doc("clients/"+cur.client).set(Object.assign({},c,{archived:true}))))$("#d-client").close();});
 
 /* ---------- boot ---------- */
-function route(){const t=(location.hash||"").slice(1);S.tab=["timer","board","web","events","design","due","calendar","reports","team","hr"].includes(t)?t:"timer";schedule();}
+function route(){const t=(location.hash||"").slice(1);S.tab=["today","timer","board","web","events","design","due","calendar","reports","team","hr"].includes(t)?t:"today";schedule();}
 window.addEventListener("hashchange",route);
 fillSelects();route();
 
