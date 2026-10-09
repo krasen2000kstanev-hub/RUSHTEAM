@@ -26,7 +26,7 @@ const STAGE_ACT={idea:"script",script:"script",shoot:"shoot",edit:"edit",review:
 const COLORS=["#2f7ed8","#d9534f","#e08a1e","#3a9d5d","#8e5bd1","#c7498f","#1a9aa0","#7a8a2e"];
 const FORMATS=[["short","Reels / Shorts / TikTok"],["long","YouTube (дълго видео)"],["ad","Реклама"],["corp","Корпоративно"],["event","Събитие"],["photo","Фотосесия"],["other","Друго"]];
 const fmtName=id=>(FORMATS.find(a=>a[0]===id)||[0,"Без формат"])[1];
-const GD="Google Drive",SHEET={track:"1OcLHccAgxivh4O5Gc1GS0fYRACNpMzCtGUqqrV0HkdE",req:"1nXn7EePnzUPL764WlCxyxsBzdKwLMGvXqDvCJ3QveEw",ads:"1JbyKGFEa464j_HtxiBa743FfyfcWUaVnC5nphMl-Q6U",tasks:"10taVLzhPT7eLJwgaOZjp4e3rK-BoXF_IiciFd8sJ6WU"};
+const GD="Google Drive",SHEET={track:"1mzKA-mzzmQqNzb5glSvcDXdWXb9rTzr4ZwL4r7RMnzY",req:"1mzKA-mzzmQqNzb5glSvcDXdWXb9rTzr4ZwL4r7RMnzY",ads:"1mzKA-mzzmQqNzb5glSvcDXdWXb9rTzr4ZwL4r7RMnzY",tasks:"1mzKA-mzzmQqNzb5glSvcDXdWXb9rTzr4ZwL4r7RMnzY"};
 const WHO=["човек","екип","служител","отговорник","рекрутър","консултант"];
 const SHEETS_CFG=(window.TEAM_HUB_CONFIG||{}).sheets||{};Object.assign(SHEET,SHEETS_CFG);
 const sheetUrl=id=>"https://docs.google.com/spreadsheets/d/"+id+"/edit";
