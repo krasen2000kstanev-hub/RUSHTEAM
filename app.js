@@ -436,8 +436,10 @@ async function loadHr(silent){
   if(!S.mcp){S.hr.err="nomcp";schedule();return;}
   if(window.teamHubApi&&!S.hr.configLoaded){try{const cfg=await window.teamHubApi("/api/sheets/config");Object.assign(SHEET,cfg.sheets||{});S.hr.configLoaded=true;}catch(e){S.hr.err=e.code||"upstream_error";schedule();return;}}
   S.hr.loading=true;if(!silent){S.hr.err="";schedule();}
+  const sameSource=[SHEET.track,SHEET.req,SHEET.ads,SHEET.tasks].every(id=>id===SHEET.track);let source;
+  const readConfigured=id=>sameSource?(source||(source=readSheet(SHEET.track))):readSheet(id);
   try{
-    const t=await readSheet(SHEET.track),hd=(t[0]||[]).map(x=>x.trim().toLowerCase()),ix=k=>hd.findIndex(x=>x.includes(k)),ex=k=>{const e=hd.indexOf(k);return e>=0?e:hd.findIndex(x=>x.includes(k)&&!x.includes("описание")&&!x.includes("бележки"));};
+    const t=await readConfigured(SHEET.track),hd=(t[0]||[]).map(x=>x.trim().toLowerCase()),ix=k=>hd.findIndex(x=>x.includes(k)),ex=k=>{const e=hd.indexOf(k);return e>=0?e:hd.findIndex(x=>x.includes(k)&&!x.includes("описание")&&!x.includes("бележки"));};
     const c={cdesc:hd.findIndex(x=>x.includes("описание")&&x.includes("компани")),pdesc:hd.findIndex(x=>x.includes("описание")&&x.includes("позици")),co:ex("компания"),title:ex("позиция"),status:ix("статус"),heads:ix("търсени"),need:ix("нужни"),sent:ix("изпратени"),interview:ix("интервю"),offer:ix("оферт"),hired:ix("наети"),notes:ix("бележки")};
     c.who=WHO.map(ix).find(i=>i>=0);if(c.who==null)c.who=-1;S.hr.hasWho=c.who>=0;
     if(c.co<0||c.title<0)throw {code:"bad_sheet"};
@@ -446,15 +448,15 @@ async function loadHr(silent){
       interview:num(g(r,"interview")),offer:num(g(r,"offer")),hired:num(g(r,"hired")),notes:g(r,"notes"),cdesc:g(r,"cdesc"),pdesc:g(r,"pdesc")})).filter(r=>r.co||r.title);
     S.hr.at=Date.now();if(S.hr.err){S.hr.err="";S.hr.sig="";}
   }catch(e){S.hr.loading=false;if(!silent||!S.hr.rows){S.hr.err=(e&&e.code)||"upstream_error";schedule();}return;}
-  try{const q=await readSheet(SHEET.req),hd=(q[0]||[]).map(x=>x.trim().toLowerCase()),pi=hd.findIndex(x=>x.includes("позиция")),ci=hd.findIndex(x=>x.includes("компания"));
+  try{const q=await readConfigured(SHEET.req),hd=(q[0]||[]).map(x=>x.trim().toLowerCase()),pi=hd.findIndex(x=>x.includes("позиция")),ci=hd.findIndex(x=>x.includes("компания"));
     const jd={};if(pi>=0&&ci>=0)q.slice(1).forEach(r=>{const txt=r.filter((x,i)=>i!==pi&&i!==ci&&x.trim()).sort((a,b)=>b.length-a.length)[0];
       if(txt)jd[((r[ci]||"")+"|"+(r[pi]||"")).trim().toLowerCase()]=txt.trim();});
     S.hr.jd=jd;}catch(e){S.hr.jd={};}
-  try{const a=await readSheet(SHEET.ads),hd=(a[0]||[]).map(x=>x.trim().toLowerCase()),ix=k=>hd.findIndex(x=>x.includes(k)),
+  try{const a=await readConfigured(SHEET.ads),hd=(a[0]||[]).map(x=>x.trim().toLowerCase()),ix=k=>hd.findIndex(x=>x.includes(k)),
       c={co:ix("компания"),title:ix("позиция"),plat:ix("платформа"),url:ix("линк"),from:ix("качена"),to:ix("валидна"),who:Math.max(-1,...WHO.map(ix)),notes:ix("бележки")},g=(r,k)=>c[k]<0?"":(r[c[k]]||"").trim();
     S.hr.ads=a.slice(1).map(r=>({co:g(r,"co"),title:g(r,"title"),plat:g(r,"plat"),url:safeUrl(g(r,"url")),from:g(r,"from"),to:g(r,"to"),who:g(r,"who"),notes:g(r,"notes")})).filter(r=>r.title||r.plat||r.url);
     S.hr.adsErr=false;}catch(e){S.hr.ads=[];S.hr.adsErr=true;}
-  try{const a=await readSheet(SHEET.tasks),hd=(a[0]||[]).map(x=>x.trim().toLowerCase()),ix=k=>hd.findIndex(x=>x.includes(k)),
+  try{const a=await readConfigured(SHEET.tasks),hd=(a[0]||[]).map(x=>x.trim().toLowerCase()),ix=k=>hd.findIndex(x=>x.includes(k)),
       c={co:ix("компания"),task:ix("задача"),who:Math.max(-1,...WHO.map(ix)),due:ix("срок"),status:ix("статус"),notes:ix("бележки")},g=(r,k)=>c[k]<0?"":(r[c[k]]||"").trim();
     S.hr.tasks=a.slice(1).map(r=>({co:g(r,"co"),task:g(r,"task"),who:g(r,"who"),due:g(r,"due"),status:g(r,"status"),notes:g(r,"notes")})).filter(r=>r.task);
     S.hr.tasksErr=false;}catch(e){S.hr.tasks=[];S.hr.tasksErr=true;}
