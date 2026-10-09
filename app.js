@@ -116,6 +116,7 @@ function fillSelects(){
   [["#t-video","#t-client"],["#e-video","#e-client"],["#s-video","#s-client"]].forEach(p=>fill($(p[0]),videoOpts($(p[1]).value),"Без задача"));
   fill($("#v-who"),memberIds().map(id=>[id,nameOf(id)]),"Без отговорник");
 }
+function videoTeams(){return Object.entries(TEAMS).filter(([id])=>myTeams().includes(id)).map(([id,t])=>[id,t.name]);}
 function memberIds(){const ids=new Set(Object.keys(S.members));if(S.uid)ids.add(S.uid);return [...ids].sort((a,b)=>nameOf(a).localeCompare(nameOf(b),"bg"));}
 function pairSelects(c,v){$(c).addEventListener("change",()=>fill($(v),videoOpts($(c).value),"Без задача"));
   $(v).addEventListener("change",()=>{const vid=S.videos[$(v).value];if(vid&&vid.client&&$(c).value!==vid.client){$(c).value=vid.client;}});}
@@ -622,11 +623,12 @@ function linkRow(l){const row=h("div",{class:"lk"},h("input",{type:"text",placeh
   h("button",{type:"button",class:"btn ghost","aria-label":"Премахни линка",onclick:()=>row.remove()},"×"));return row;}
 $("#v-addlink").addEventListener("click",()=>{if($("#v-links").children.length<8)$("#v-links").append(linkRow({}));});
 function openVideo(id,team,date){cur.video=id;const v=id?S.videos[id]:null;cur.team=v?teamOf(v):(TEAMS[team]?team:"media");const T=TEAMS[cur.team];
+  fill($("#v-team"),videoTeams());
   fill($("#v-stage"),T.stages);$("#v-fmt-l").hidden=cur.team!=="media";document.querySelectorAll("#d-video .m-only").forEach(x=>{x.hidden=cur.team!=="media";});document.querySelectorAll("#d-video .e-only").forEach(x=>{x.hidden=cur.team!=="events";});
   $("#v-notes").placeholder=cur.team==="media"?"Бриф, насоки за монтажа, забележки от клиента":"Бриф, изисквания и забележки от клиента";$("#v-edate").value=v?v.edate||"":(date||"");$("#v-eloc").value=v?v.eloc||"":"";$("#v-estart").value=v?v.estart||"":"";$("#v-eend").value=v?v.eend||"":"";
   cur.svc=v&&v.svc?JSON.parse(JSON.stringify(v.svc)):[];renderSvc();$("#v-newsvc").value="";$("#v-newsvcd").value="";fillSelects();
   $("#v-h").textContent=(v?"Редакция: ":"Добавяне: ")+T.one;$("#v-del").hidden=!v;
-  $("#v-title").value=v?v.title:"";$("#v-client").value=v?v.client||"":S.fClient;$("#v-stage").value=v?stageId(v):T.stages[0][0];
+  $("#v-title").value=v?v.title:"";$("#v-client").value=v?v.client||"":S.fClient;$("#v-team").value=cur.team;$("#v-stage").value=v?stageId(v):T.stages[0][0];
   $("#v-who").value=v?v.who||"":"";$("#v-due").value=v?v.due||"":"";$("#v-est").value=v&&v.est?v.est:"";$("#v-notes").value=v?v.notes||"":"";
   $("#v-fmt").value=v?v.fmt||"":S.fFmt;$("#v-revs").value=v&&v.revs?v.revs:"";
   $("#v-track").value=v?v.track||"":"";$("#v-publink").value=v?v.publink||"":"";$("#v-results").value=v?v.results||"":"";
@@ -634,11 +636,13 @@ function openVideo(id,team,date){cur.video=id;const v=id?S.videos[id]:null;cur.t
   $("#v-cbox").hidden=!v;if(v)renderComments();
   const box=$("#v-links");box.textContent="";((v&&v.links)||[]).forEach(l=>box.append(linkRow(l)));if(!box.children.length)box.append(linkRow({label:cur.team==="media"?"Суров материал":"Материали"}));
   $("#d-video").showModal();}
+$("#v-team").addEventListener("change",()=>{const team=$("#v-team").value;if(!TEAMS[team])return;cur.team=team;fill($("#v-stage"),TEAMS[team].stages);$("#v-stage").value=TEAMS[team].stages[0][0];$("#v-fmt-l").hidden=team!=="media";document.querySelectorAll("#d-video .m-only").forEach(x=>{x.hidden=team!=="media";});document.querySelectorAll("#d-video .e-only").forEach(x=>{x.hidden=team!=="events";});});
 $("#f-video").addEventListener("submit",async ev=>{ev.preventDefault();const id=cur.video,old=id?S.videos[id]:null;
   const links=[];let bad=false;[...$("#v-links").children].forEach(r=>{const i=r.querySelectorAll("input"),raw=i[1].value.trim();if(!raw)return;const u=safeUrl(raw);if(!u){bad=true;return;}links.push({label:i[0].value.trim(),url:u});});
   if(bad){toast("Един от линковете не е валиден адрес. Трябва да започва с https://");return;}
   const praw=$("#v-publink").value.trim(),pu=safeUrl(praw);if(praw&&!pu){toast("Линкът към публикацията не е валиден адрес. Трябва да започва с https://");return;}
-  const rec={title:$("#v-title").value.trim(),client:$("#v-client").value,stage:$("#v-stage").value||TEAMS[cur.team].stages[0][0],who:$("#v-who").value,due:$("#v-due").value,
+  const selectedTeam=$("#v-team").value||cur.team;cur.team=selectedTeam;const teamStages=TEAMS[selectedTeam].stages;
+  const rec={title:$("#v-title").value.trim(),client:$("#v-client").value,stage:teamStages.some(([s])=>s===$("#v-stage").value)?$("#v-stage").value:teamStages[0][0],who:$("#v-who").value,due:$("#v-due").value,
     est:+$("#v-est").value||0,notes:$("#v-notes").value.trim(),links:links,created:(old&&old.created)||Date.now(),
     fmt:$("#v-fmt").value,revs:Math.max(0,Math.round(+$("#v-revs").value||0)),check:cur.check||[],comments:(old&&old.comments)||[]};
   rec.moved=(old&&old.stage===rec.stage)?(old.moved||0):Date.now();rec.team=cur.team;if(cur.team!=="media")rec.fmt="";

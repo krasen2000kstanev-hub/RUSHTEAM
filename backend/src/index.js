@@ -142,7 +142,8 @@ async function route(request) {
 
 function eventRequest(event) {
   const headers = new Headers(event.headers || {}); const method = event.requestContext?.http?.method || event.httpMethod || 'GET'; const rawBody = event.isBase64Encoded ? Buffer.from(event.body || '', 'base64').toString() : event.body || '';
-  return new Request(`https://${event.requestContext?.http?.domainName || 'localhost'}${event.rawPath || event.path || '/'}`, { method, headers, body: ['GET', 'HEAD'].includes(method) ? undefined : rawBody });
+  const query = event.rawQueryString ? `?${event.rawQueryString}` : '';
+  return new Request(`https://${event.requestContext?.http?.domainName || 'localhost'}${event.rawPath || event.path || '/'}${query}`, { method, headers, body: ['GET', 'HEAD'].includes(method) ? undefined : rawBody });
 }
 
 export async function handler(event) {
