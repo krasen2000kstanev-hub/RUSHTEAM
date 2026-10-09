@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { parsePath, collectionKind, canReadDoc, canWriteDoc, canReadSheets, matchesWhere, deepMerge, normalizeTeams } from '../src/rules.js';
 
 const admin = { id: 'u_admin', role: 'admin', teams: [], active: true };
+const manager = { id: 'u_manager', role: 'manager', teams: ['design'], active: true };
 const designer = { id: 'u_d', role: 'member', teams: ['design'], active: true };
 const editor = { id: 'u_m', role: 'member', teams: ['media'], active: true };
 const recruiter = { id: 'u_h', role: 'member', teams: ['hr'], active: true };
@@ -29,6 +30,14 @@ test('tasks are visible only to their team', () => {
   assert.equal(canReadDoc(editor, K('videos'), 'a', video), true);
   assert.equal(canReadDoc(recruiter, K('videos'), 'a', video), false);
   assert.equal(canReadDoc(admin, K('videos'), 'a', web), true);
+  assert.equal(canReadDoc(manager, K('videos'), 'a', design), true);
+  assert.equal(canReadDoc(manager, K('videos'), 'a', web), false);
+});
+
+test('founders see everything; managers stay team-scoped', () => {
+  assert.equal(canReadDoc({ ...admin, role: 'founder' }, K('clients'), 'a', {}), true);
+  assert.equal(canReadDoc(manager, K('clients'), 'a', {}), true);
+  assert.equal(canWriteDoc(manager, K('depts'), 'u_d', null, { teams: ['hr'] }), false);
 });
 
 test('a member cannot move a task into or out of a team they are not in', () => {

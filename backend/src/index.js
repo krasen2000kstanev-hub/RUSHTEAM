@@ -1,5 +1,5 @@
 import { verifyGoogleIdToken, signSession, verifySession } from './auth.js';
-import { ALL_TEAMS, parsePath, collectionKind, normalizeTeams, canReadDoc, canWriteDoc, canReadSheets, matchesWhere, deepMerge } from './rules.js';
+import { ALL_TEAMS, parsePath, collectionKind, normalizeTeams, canReadDoc, canWriteDoc, canReadSheets, matchesWhere, deepMerge, isFounder } from './rules.js';
 import { readSheetCsv, textToBase64 } from './sheets.js';
 import { createUser, deleteDoc, findUser, getDoc, getUser, listDocs, listUsers, putDoc, updateUser } from './store.js';
 import { enqueueNotification } from './notify.js';
@@ -53,18 +53,18 @@ async function upsertUser({ sub, email, name, picture }) {
   const admins = String(env().ADMIN_EMAILS || '').split(',').map((v) => v.trim().toLowerCase()).filter(Boolean);
   const existing = await findUser(env(), sub, normalizedEmail); const now = new Date().toISOString();
   if (existing) {
-    const role = admins.includes(normalizedEmail) ? 'admin' : existing.role;
+    const role = admins.includes(normalizedEmail) ? 'founder' : (existing.role === 'admin' ? 'founder' : existing.role);
     await updateUser(env(), existing.id, { googleSub: sub, email: normalizedEmail, name: name || existing.name, picture: picture || existing.picture, role, updatedAt: now });
     return toUser({ ...existing, googleSub: sub, email: normalizedEmail, name: name || existing.name, picture: picture || existing.picture, role });
   }
   const id = `u_${crypto.randomUUID().replace(/-/g, '').slice(0, 22)}`;
-  const role = admins.includes(normalizedEmail) ? 'admin' : 'member';
+  const role = admins.includes(normalizedEmail) ? 'founder' : 'member';
   const user = { id, googleSub: sub, email: normalizedEmail, name: name || normalizedEmail, picture: picture || '', role, teams: [], active: true, createdAt: now, updatedAt: now };
   await createUser(env(), user); return toUser(user);
 }
 
 async function listDepts(user) {
-  return (await listUsers(env())).map(toUser).filter((row) => canReadDoc(user, { kind: 'depts' }, row.id, null)).map((row) => ({ id: row.id, data: { teams: row.teams, admin: row.role === 'admin' } }));
+  return (await listUsers(env())).map(toUser).filter((row) => canReadDoc(user, { kind: 'depts' }, row.id, row)).map((row) => ({ id: row.id, data: { teams: row.teams, founder: isFounder(row), manager: row.role === 'manager' } }));
 }
 
 async function listCollection(user, collection, where) {
@@ -83,7 +83,8 @@ async function writeDepts(user, id, body) {
   if (!await getUser(env(), id)) throw new HttpError(404, 'invalid_argument', 'Unknown user');
   const fields = { updatedAt: new Date().toISOString() };
   if ('teams' in body) fields.teams = normalizeTeams(body.teams);
-  if ('admin' in body) fields.role = body.admin ? 'admin' : 'member';
+  if ('manager' in body) fields.role = body.manager ? 'manager' : 'member';
+  if ('admin' in body) fields.role = body.admin ? 'manager' : 'member';
   await updateUser(env(), id, fields); await notify({ action: 'updated', collection: 'depts', id, newData: fields }, user);
 }
 
@@ -131,7 +132,7 @@ async function route(request) {
   if (path === '/api/auth/test' && method === 'POST' && env().ALLOW_TEST_LOGIN === '1') { const body = await readJson(request); const email = String(body.email || '').trim().toLowerCase(); if (!/^[^@\s]+@example\.test$/.test(email)) throw new HttpError(400, 'invalid_argument', 'Test logins use @example.test'); const user = await upsertUser({ sub: `test:${email}`, email, name: body.name || email, picture: '' }); return { token: await signSession(user.id, env().SESSION_SECRET), user: publicUser(user) }; }
   const user = await requireUser(request);
   if (path === '/api/me' && method === 'GET') return { user: publicUser(user) };
-  if (path === '/api/users' && method === 'GET') { const rows = (await listUsers(env())).map(toUser).filter((row) => row.active); const visible = user.role === 'admin' || user.teams.length > 0; return { users: rows.filter((row) => visible || row.id === user.id).map((row) => ({ id: row.id, name: row.name, picture: row.picture, ...(user.role === 'admin' ? { email: row.email } : {}) })) }; }
+  if (path === '/api/users' && method === 'GET') { const rows = (await listUsers(env())).map(toUser).filter((row) => row.active); const visible = isFounder(user) || user.teams.length > 0; return { users: rows.filter((row) => visible || row.id === user.id).map((row) => ({ id: row.id, name: row.name, picture: row.picture, ...(isFounder(user) ? { email: row.email } : {}) })) }; }
   if (path === '/api/sync' && method === 'POST') { const body = await readJson(request); const queries = Array.isArray(body.queries) ? body.queries : []; if (queries.length > MAX_SYNC_QUERIES) throw new HttpError(400, 'resource_exhausted', 'Too many queries'); const results = []; for (const query of queries) { try { results.push({ docs: await listCollection(user, String(query.collection || ''), Array.isArray(query.where) ? query.where : []) }); } catch (error) { results.push({ error: error.code || 'invalid_argument' }); } } return { results, user: publicUser(user) }; }
   if (path === '/api/doc') return handleDoc(request, user, url);
   const sheet = path.match(/^\/api\/sheets\/([A-Za-z0-9_-]{5,120})$/);

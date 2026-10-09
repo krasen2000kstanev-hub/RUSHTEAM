@@ -175,8 +175,8 @@
 
   const user = {
     id: async () => me.id,
-    isOwner: async () => me.role === "admin",
-    canEdit: async () => me.role === "admin",
+    isOwner: async () => me.role === "founder" || me.role === "admin",
+    canEdit: async () => me.role === "founder" || me.role === "admin",
     can: async () => true,
     me: async () => ({ id: me.id, name: me.name, email: me.email }),
     profiles: async (ids) => {

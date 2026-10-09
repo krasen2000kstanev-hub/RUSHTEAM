@@ -24,17 +24,17 @@ export function normalizeTeams(value) {
 // Задачите без поле team са от видео екипа (така е и във фронтенда).
 export const docTeam = (data) => (['media', 'web', 'events', 'design'].includes(data?.team) ? data.team : 'media');
 
-const isAdmin = (user) => user?.role === 'admin';
+export const isFounder = (user) => user?.role === 'founder' || user?.role === 'admin';
 const usable = (user) => Boolean(user && user.active);
 const tracksTime = (user) => user.teams.some((team) => team !== 'hr' && team !== 'events');
 
 export function canReadDoc(user, kind, id, data) {
   if (!usable(user) || !kind) return false;
-  if (isAdmin(user)) return true;
+  if (isFounder(user)) return true;
   switch (kind.kind) {
     case 'clients': return user.teams.some((team) => team !== 'hr');
     case 'members': return user.teams.length > 0 || id === user.id;
-    case 'depts': return user.teams.length > 0 || id === user.id;
+    case 'depts': return id === user.id || (user.teams.length > 0 && data?.teams?.some((team) => user.teams.includes(team)));
     case 'videos': return user.teams.includes(docTeam(data));
     case 'shoots': return user.teams.includes('media');
     case 'time': return kind.owner === user.id && tracksTime(user);
@@ -44,8 +44,8 @@ export function canReadDoc(user, kind, id, data) {
 
 export function canWriteDoc(user, kind, id, oldData, newData) {
   if (!usable(user) || !kind) return false;
-  if (kind.kind === 'depts') return isAdmin(user) && id !== user.id;
-  if (isAdmin(user)) return true;
+  if (kind.kind === 'depts') return isFounder(user) && id !== user.id;
+  if (isFounder(user)) return true;
   switch (kind.kind) {
     case 'clients': return false;
     case 'members': return id === user.id;
@@ -57,7 +57,7 @@ export function canWriteDoc(user, kind, id, oldData, newData) {
   }
 }
 
-export const canReadSheets = (user) => usable(user) && (isAdmin(user) || user.teams.includes('hr'));
+export const canReadSheets = (user) => usable(user) && (isFounder(user) || user.teams.includes('hr'));
 
 export function matchesWhere(data, where) {
   return (where || []).every(([field, op, value]) => {

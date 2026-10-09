@@ -143,7 +143,7 @@ $("#t-toggle").addEventListener("click",async()=>{const b=$("#t-toggle");b.disab
   setTimeout(()=>{const f=timerFields();tryW(writeDay(r.date,es=>{if(es[r.id])Object.assign(es[r.id],f);}));},0);}));
 $("#t-desc").addEventListener("keydown",e=>{if(e.key==="Enter"&&!running())$("#t-toggle").click();});
 
-function teamsOf(id){const d=S.depts[id]||{};if(d.admin)return ALLT;return Array.isArray(d.teams)?d.teams:[];}
+function teamsOf(id){const d=S.depts[id]||{};if(d.founder||d.admin)return ALLT;return Array.isArray(d.teams)?d.teams:[];}
 function myTeams(){return S.isAdmin?ALLT:teamsOf(S.uid);}
 function allowed(t){const m=myTeams();if(t==="hr")return m.includes("hr");if(TAB_TEAM[t])return m.includes(TAB_TEAM[t]);if(t==="calendar")return m.includes("media")||m.includes("events");if(t==="timer"||t==="reports")return m.some(x=>x!=="hr"&&x!=="events");return m.some(x=>x!=="hr");}
 /* ---------- views ---------- */
@@ -154,7 +154,7 @@ function render(){
   document.body.classList.toggle("ro",!S.canWrite||!S.db);document.body.classList.toggle("adm",S.isAdmin);
   document.querySelectorAll("#tabs a").forEach(a=>{a.hidden=!allowed(a.getAttribute("href").slice(1));if(a.getAttribute("href")==="#"+S.tab)a.setAttribute("aria-current","page");else a.removeAttribute("aria-current");});
   {const ac=document.querySelector('#tabs a[aria-current]'),tb=$("#tabs");if(ac&&tb.scrollWidth>tb.clientWidth)tb.scrollLeft=Math.max(0,ac.offsetLeft-tb.offsetLeft-(tb.clientWidth-ac.offsetWidth)/2);}
-  $("#who").textContent=S.uid?(nameOf(S.uid)+" · "+(S.isAdmin?"мениджър":"член на екипа")):"";
+  $("#who").textContent=S.uid?(nameOf(S.uid)+" · "+(S.isAdmin?"основател":"член на екипа")):"";
   syncTimerBar();
   const v=$("#view");
   const scx=(v.querySelector(".board")||{}).scrollLeft||0;
@@ -582,8 +582,8 @@ function vTeam(){
         onchange:e=>tryW(S.db.doc("members/"+id).set(Object.assign({},m,{role:e.target.value.trim(),joined:m.joined||Date.now()})),"Запазено")}):null,
       (S.isAdmin&&S.canWrite&&S.db&&!mine)?h("div",{class:"checks small",style:"flex:1 1 100%"},ALLT.map(t=>h("label",null,h("input",{type:"checkbox",id:"m-t-"+t+"-"+id,checked:((S.depts[id]||{}).teams||[]).includes(t),
         onchange:e=>{const set=new Set((S.depts[id]||{}).teams||[]);if(e.target.checked)set.add(t);else set.delete(t);tryW(S.db.doc("depts/"+id).update({teams:ALLT.filter(x=>set.has(x))}),"Запазено");}}),TNAME[t])),
-          h("label",{style:"font-weight:700"},h("input",{type:"checkbox",id:"m-adm-"+id,checked:!!(S.depts[id]||{}).admin,onchange:e=>tryW(S.db.doc("depts/"+id).update({admin:e.target.checked}),"Запазено")}),"Мениджър"))
-        :h("span",{class:"pill"},((S.depts[id]||{}).admin||(mine&&S.isAdmin))?"Мениджър · вижда всичко":(teamsOf(id).map(t=>TNAME[t]).join(", ")||"Без достъп"))));});
+        h("label",{style:"font-weight:700"},h("input",{type:"checkbox",id:"m-adm-"+id,checked:!!(S.depts[id]||{}).manager,onchange:e=>tryW(S.db.doc("depts/"+id).update({manager:e.target.checked}),"Запазено")}),"Мениджър на екипа"))
+        :h("span",{class:"pill"},((S.depts[id]||{}).founder||(mine&&S.isAdmin))?"Основател · вижда всичко":((S.depts[id]||{}).manager?"Мениджър · само своя екип":(teamsOf(id).map(t=>TNAME[t]).join(", ")||"Без достъп")))));});
   const cl=h("section",{class:"panel"},h("div",{class:"box"},h("div",{class:"bar"},h("h2",null,"Клиенти"),h("span",{class:"sp"}),
     h("button",{class:"btn primary a-only w-only",type:"button",onclick:()=>openClient(null)},"+ Клиент"))));
   const cs=Object.entries(S.clients).filter(e=>!e[1].archived).sort((a,b)=>a[1].name.localeCompare(b[1].name,"bg"));
