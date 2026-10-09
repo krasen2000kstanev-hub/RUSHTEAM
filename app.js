@@ -17,6 +17,7 @@ const TEAMS={
   web:{name:"Сайтове",one:"сайт",add:"+ Нов сайт",stages:[["brief","Бриф"],["design","Дизайн"],["dev","Разработка"],["backend","Backend"],["content","Съдържание"],["review","Преглед от клиента"],["done","Пуснат"]]},
   events:{name:"Събития",one:"събитие",add:"+ Ново събитие",stages:[["request","Запитване"],["plan","Планиране"],["vendors","Локация и доставчици"],["promo","Промоция"],["ready","Готово за провеждане"],["done","Проведено"]]},
   design:{name:"Дизайн",one:"дизайн задача",add:"+ Нова задача",stages:[["brief","Бриф"],["concept","Концепция"],["work","Изработка"],["review","Ревизия"],["done","Предадено"]]}};
+const TASK_TEMPLATES={media:[["Сценарий","Потвърден бриф","Сценарий/структура","Заснемане","Монтаж","Вътрешна ревизия","Одобрение от клиент","Публикуване"]],web:[["Уеб проект","Събрани изисквания","Структура и дизайн","Разработка","QA проверка","Предаване"]],events:[["Събитие","Дата и локация","Доставчици","Програма","Потвърждение с клиента","Провеждане"]],design:[["Дизайн","Бриф","Концепция","Изработка","Вътрешна ревизия","Предаване"]]};
 const TAB_TEAM={board:"media",web:"web",events:"events",design:"design"},ALLT=["media","web","events","design","hr"],TNAME={media:"Видео",web:"Сайтове",events:"Събития",design:"Дизайн",hr:"Подбор"};
 const teamOf=v=>TEAMS[v.team]?v.team:"media",stagesOf=v=>TEAMS[teamOf(v)].stages;
 const stageId=v=>{const st=stagesOf(v);return (st.find(x=>x[0]===v.stage)||st[0])[0];},stageName=v=>{const st=stagesOf(v);return (st.find(x=>x[0]===v.stage)||st[0])[1];};
@@ -117,6 +118,7 @@ function fillSelects(){
   fill($("#v-who"),memberIds().map(id=>[id,nameOf(id)]),"Без отговорник");
 }
 function videoTeams(){return Object.entries(TEAMS).filter(([id])=>myTeams().includes(id)).map(([id,t])=>[id,t.name]);}
+function fillTemplateOptions(team,selected=""){const s=$("#v-template");s.textContent="";s.append(h("option",{value:""},"Без шаблон"));(TASK_TEMPLATES[team]||[]).forEach((t,i)=>s.append(h("option",{value:String(i)},t[0])));s.value=selected;}
 function memberIds(){const ids=new Set(Object.keys(S.members));if(S.uid)ids.add(S.uid);return [...ids].sort((a,b)=>nameOf(a).localeCompare(nameOf(b),"bg"));}
 function pairSelects(c,v){$(c).addEventListener("change",()=>fill($(v),videoOpts($(c).value),"Без задача"));
   $(v).addEventListener("change",()=>{const vid=S.videos[$(v).value];if(vid&&vid.client&&$(c).value!==vid.client){$(c).value=vid.client;}});}
@@ -600,7 +602,7 @@ function vTeam(){
   if(!cs.length)cl.append(h("div",{class:"empty"},S.isAdmin?"Добавете първия клиент, за да засичате време по него.":"Мениджърът още не е добавил клиенти."));
   cs.forEach(([id,c])=>{const l=safeUrl(c.link);
     cl.append(h("div",{class:"li"},h("span",{class:"dot",style:"--c:"+c.color}),
-      h("div",{class:"g"},h("b",{style:"overflow-wrap:anywhere"},c.name),h("span",{class:"small muted"},c.hours?c.hours+" ч на месец":"Без месечен лимит"),l?h("span",{class:"small"},ext({url:l,label:"Папка с материали"})):null),
+      h("div",{class:"g"},h("b",{style:"overflow-wrap:anywhere"},c.name),h("span",{class:"small muted"},(TNAME[c.team||"media"]||"Видео")+" · "+(c.hours?c.hours+" ч на месец":"Без месечен лимит")),l?h("span",{class:"small"},ext({url:l,label:"Папка с материали"})):null),
       h("button",{class:"btn ghost a-only w-only",type:"button",onclick:()=>openClient(id)},"✎")));});
   root.append(team,cl);return root;
 }
@@ -632,7 +634,7 @@ function linkRow(l){const row=h("div",{class:"lk"},h("input",{type:"text",placeh
   h("button",{type:"button",class:"btn ghost","aria-label":"Премахни линка",onclick:()=>row.remove()},"×"));return row;}
 $("#v-addlink").addEventListener("click",()=>{if($("#v-links").children.length<8)$("#v-links").append(linkRow({}));});
 function openVideo(id,team,date){cur.video=id;const v=id?S.videos[id]:null;cur.team=v?teamOf(v):(TEAMS[team]?team:"media");const T=TEAMS[cur.team];
-  fill($("#v-team"),videoTeams());
+  fill($("#v-team"),videoTeams());fillTemplateOptions(cur.team);
   fill($("#v-stage"),T.stages);$("#v-fmt-l").hidden=cur.team!=="media";document.querySelectorAll("#d-video .m-only").forEach(x=>{x.hidden=cur.team!=="media";});document.querySelectorAll("#d-video .e-only").forEach(x=>{x.hidden=cur.team!=="events";});
   $("#v-notes").placeholder=cur.team==="media"?"Бриф, насоки за монтажа, забележки от клиента":"Бриф, изисквания и забележки от клиента";$("#v-edate").value=v?v.edate||"":(date||"");$("#v-eloc").value=v?v.eloc||"":"";$("#v-estart").value=v?v.estart||"":"";$("#v-eend").value=v?v.eend||"":"";
   cur.svc=v&&v.svc?JSON.parse(JSON.stringify(v.svc)):[];renderSvc();$("#v-newsvc").value="";$("#v-newsvcd").value="";fillSelects();
@@ -645,7 +647,8 @@ function openVideo(id,team,date){cur.video=id;const v=id?S.videos[id]:null;cur.t
   $("#v-cbox").hidden=!v;if(v)renderComments();
   const box=$("#v-links");box.textContent="";((v&&v.links)||[]).forEach(l=>box.append(linkRow(l)));if(!box.children.length)box.append(linkRow({label:cur.team==="media"?"Суров материал":"Материали"}));
   $("#d-video").showModal();}
-$("#v-team").addEventListener("change",()=>{const team=$("#v-team").value;if(!TEAMS[team])return;cur.team=team;fill($("#v-stage"),TEAMS[team].stages);$("#v-stage").value=TEAMS[team].stages[0][0];$("#v-fmt-l").hidden=team!=="media";document.querySelectorAll("#d-video .m-only").forEach(x=>{x.hidden=team!=="media";});document.querySelectorAll("#d-video .e-only").forEach(x=>{x.hidden=team!=="events";});});
+$("#v-team").addEventListener("change",()=>{const team=$("#v-team").value;if(!TEAMS[team])return;cur.team=team;fillTemplateOptions(team);fill($("#v-stage"),TEAMS[team].stages);$("#v-stage").value=TEAMS[team].stages[0][0];$("#v-fmt-l").hidden=team!=="media";document.querySelectorAll("#d-video .m-only").forEach(x=>{x.hidden=team!=="media";});document.querySelectorAll("#d-video .e-only").forEach(x=>{x.hidden=team!=="events";});});
+$("#v-template").addEventListener("change",()=>{const t=(TASK_TEMPLATES[$("#v-team").value]||[])[$("#v-template").value];if(!t)return;cur.check=t.slice(1).map(x=>({t:x,done:false}));renderCheck();});
 $("#f-video").addEventListener("submit",async ev=>{ev.preventDefault();const id=cur.video,old=id?S.videos[id]:null;
   const links=[];let bad=false;[...$("#v-links").children].forEach(r=>{const i=r.querySelectorAll("input"),raw=i[1].value.trim();if(!raw)return;const u=safeUrl(raw);if(!u){bad=true;return;}links.push({label:i[0].value.trim(),url:u});});
   if(bad){toast("Един от линковете не е валиден адрес. Трябва да започва с https://");return;}
@@ -709,14 +712,15 @@ arm($("#s-del"),async()=>{if(await tryW(S.db.doc("shoots/"+cur.shoot).delete()))
 
 function openClient(id){cur.client=id;const c=id?S.clients[id]:null;
   $("#c-h").textContent=c?"Редакция на клиент":"Нов клиент";$("#c-del").hidden=!c;
-  $("#c-name").value=c?c.name:"";$("#c-hours").value=c&&c.hours?c.hours:"";$("#c-link").value=c?c.link||"":"";
+  fill($("#c-team"),Object.entries(TEAMS).map(([k,t])=>[k,t.name]));
+  $("#c-name").value=c?c.name:"";$("#c-team").value=c?c.team||"media":"media";$("#c-hours").value=c&&c.hours?c.hours:"";$("#c-link").value=c?c.link||"":"";
   const used=Object.values(S.clients).map(x=>x.color),pick=c?c.color:(COLORS.find(x=>!used.includes(x))||COLORS[0]);
   const box=$("#c-colors");box.textContent="";COLORS.forEach((col,i)=>box.append(h("label",null,h("input",{type:"radio",name:"c-color",id:"c-col-"+i,value:col,checked:col===pick,"aria-label":"Цвят "+(i+1)}),h("span",{style:"--c:"+col}))));
   $("#d-client").showModal();}
 $("#f-client").addEventListener("submit",async ev=>{ev.preventDefault();const id=cur.client,raw=$("#c-link").value.trim(),u=safeUrl(raw);
   if(raw&&!u){toast("Линкът не е валиден адрес. Трябва да започва с https://");return;}
   const sel=$("#c-colors").querySelector("input:checked");
-  const rec={name:$("#c-name").value.trim(),hours:+$("#c-hours").value||0,link:u||"",color:sel?sel.value:COLORS[0],archived:false};
+  const rec={name:$("#c-name").value.trim(),team:$("#c-team").value||"media",hours:+$("#c-hours").value||0,link:u||"",color:sel?sel.value:COLORS[0],archived:false};
   const ref=id?S.db.doc("clients/"+id):S.db.collection("clients").doc();
   if(await tryW(ref.set(rec)))$("#d-client").close();});
 arm($("#c-del"),async()=>{const c=S.clients[cur.client];if(await tryW(S.db.doc("clients/"+cur.client).set(Object.assign({},c,{archived:true}))))$("#d-client").close();});
