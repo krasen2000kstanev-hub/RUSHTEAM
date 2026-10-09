@@ -168,6 +168,7 @@ function render(){
 }
 function entryMeta(e){const vid=S.videos[e.v];return h("div",{class:"meta"},
   h("span",{class:"dot",style:"--c:"+cColor(e.c)}),h("span",null,cName(e.c)),vid?h("span",null,"· "+vid.title):null,h("span",{class:"pill"},actName(e.a)));}
+async function deleteEntry(e){if(!window.confirm("Изтриване на този запис за време?"))return;await tryW(writeDay(e.date,es=>{delete es[e.id];}));}
 
 function vTimer(){
   const root=h("div",{style:"display:flex;flex-direction:column;gap:14px"});
@@ -188,7 +189,8 @@ function vTimer(){
       h("span",{class:"dur mono"},dur(ms(e))),
       h("span",{class:"acts w-only"},
         e.e!=null?h("button",{class:"btn ghost",type:"button",title:"Продължи със същата задача",onclick:()=>startTimer(e)},"▶"):null,
-        e.e!=null?h("button",{class:"btn ghost",type:"button",title:"Редактирай",onclick:()=>openEntry(e)},"✎"):null))));
+        e.e!=null?h("button",{class:"btn ghost",type:"button",title:"Редактирай",onclick:()=>openEntry(e)},"✎"):null,
+        e.e!=null?h("button",{class:"btn ghost danger",type:"button",title:"Изтрий директно", "aria-label":"Изтрий директно",onclick:()=>deleteEntry(e)},"×"):null))));
     root.append(day);
   });
   return root;
