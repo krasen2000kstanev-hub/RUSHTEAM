@@ -69,6 +69,18 @@
     <button type="button" class="btn" data-close>Отказ</button><button class="btn primary">Запази</button></div>
 </form></dialog>
 
+<dialog id="d-hr-config"><form id="f-hr-config">
+  <h2>Настройки на таблиците „Подбор“</h2>
+  <p class="small muted">Поставете линк към Google таблица за всяка роля. Таблицата трябва да е споделена със service account-а като Editor.</p>
+  <div class="fg">
+    <label class="f w">Проследяване<input id="hr-sheet-track" type="url" required placeholder="https://docs.google.com/spreadsheets/d/…"></label>
+    <label class="f w">Изисквания<input id="hr-sheet-req" type="url" required placeholder="https://docs.google.com/spreadsheets/d/…"></label>
+    <label class="f w">Обяви<input id="hr-sheet-ads" type="url" required placeholder="https://docs.google.com/spreadsheets/d/…"></label>
+    <label class="f w">Допълнителни задачи<input id="hr-sheet-tasks" type="url" required placeholder="https://docs.google.com/spreadsheets/d/…"></label>
+  </div>
+  <div class="dfoot"><span class="sp"></span><button type="button" class="btn" data-close>Отказ</button><button class="btn primary">Запази таблиците</button></div>
+</form></dialog>
+
 <dialog id="d-hr-row"><form id="f-hr-row">
   <h2>Добави в таблица „Подбор“</h2>
   <div class="fg">

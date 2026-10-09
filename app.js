@@ -434,6 +434,7 @@ const pstOf=v=>{v=String(v||"").toLowerCase();return v.includes("затвор")?
 async function loadHr(silent){
   if(S.hr.loading)return;
   if(!S.mcp){S.hr.err="nomcp";schedule();return;}
+  if(window.teamHubApi&&!S.hr.configLoaded){try{const cfg=await window.teamHubApi("/api/sheets/config");Object.assign(SHEET,cfg.sheets||{});S.hr.configLoaded=true;}catch(e){S.hr.err=e.code||"upstream_error";schedule();return;}}
   S.hr.loading=true;if(!silent){S.hr.err="";schedule();}
   try{
     const t=await readSheet(SHEET.track),hd=(t[0]||[]).map(x=>x.trim().toLowerCase()),ix=k=>hd.findIndex(x=>x.includes(k)),ex=k=>{const e=hd.indexOf(k);return e>=0?e:hd.findIndex(x=>x.includes(k)&&!x.includes("описание")&&!x.includes("бележки"));};
@@ -472,6 +473,8 @@ function hrErr(code){
     server_unavailable:"Google Sheets не отговаря в момента. Опитайте пак след малко."};
   return m[code]||"Таблицата не се зареди. Опитайте пак с „Обнови“.";}
 function hrCanWrite(){const d=S.depts[S.uid]||{};return Boolean(S.canWrite&&S.db&&(S.isAdmin||(d.manager&&(d.teams||[]).includes("hr"))));}
+async function openHrConfig(){if(!hrCanWrite())return;try{const cfg=await window.teamHubApi("/api/sheets/config");for(const key of ["track","req","ads","tasks"])$("#hr-sheet-"+key).value="https://docs.google.com/spreadsheets/d/"+(cfg.sheets||{})[key]+"/edit";$("#d-hr-config").showModal();}catch(e){toast("Настройките на таблиците не се заредиха.");}}
+$("#f-hr-config").addEventListener("submit",async e=>{e.preventDefault();const body={};for(const key of ["track","req","ads","tasks"])body[key]=$("#hr-sheet-"+key).value.trim();try{const cfg=await window.teamHubApi("/api/sheets/config",{method:"PUT",body});Object.assign(SHEET,cfg.sheets||{});S.hr.configLoaded=true;S.hr.rows=null;$("#d-hr-config").close();loadHr();toast("Таблиците са сменени.");}catch(x){toast(x&&x.code==="not_in_manifest"?"Само основател или HR мениджър може да сменя таблиците.":"Линкът е невалиден или таблицата не е достъпна.");}});
 const hrRowInput=id=>$("#hr-row-"+id).value.trim();
 function syncHrRowForm(){const table=$("#hr-row-table").value;$("#hr-row-title-label").hidden=table==="tasks";$("#hr-row-task-label").hidden=table!=="tasks";$("#hr-row-link-label").hidden=table!=="ads";$("#hr-row-platform-label").hidden=table!=="ads";$("#hr-row-due-label").hidden=table!=="tasks";}
 function openHrRow(){if(!hrCanWrite())return;$("#f-hr-row").reset();syncHrRowForm();$("#d-hr-row").showModal();}
@@ -523,6 +526,7 @@ function vHr(){
     H.at?h("span",{class:"small muted mono",id:"h-at"},atText()):null,
     h("button",{class:"btn",type:"button",id:"h-refresh",disabled:H.loading,onclick:()=>{S.hr.err="";loadHr();}},H.loading?"Зареждане…":"Обнови"),
     hrCanWrite()?h("button",{class:"btn primary",type:"button",onclick:openHrRow},"+ Добави в таблица"):null,
+    hrCanWrite()?h("button",{class:"btn",type:"button",onclick:openHrConfig},"⚙ Таблици"):null,
     rows.length?h("button",{class:"btn",type:"button",onclick:()=>openReport(null)},"Общ отчет"):null,
     h("a",{class:"btn primary",href:sheetUrl(SHEET.track),target:"_blank",rel:"noopener noreferrer",style:"text-decoration:none"},"Отвори таблицата ↗")));
   root.append(h("p",{class:"small muted",style:"margin:0"},"Данните се въвеждат само в Google таблицата „Подбор – проследяване“. Тук се показват за преглед и за отчет."));
