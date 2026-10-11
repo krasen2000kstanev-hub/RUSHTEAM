@@ -135,6 +135,11 @@ async function handleDoc(request, user, url) {
     next.participants = participants; next.title = String(next.title).trim(); next.description = String(next.description || '').trim(); next.due = String(next.due || '').trim();
     if (next.due && !/^\d{4}-\d{2}-\d{2}$/.test(next.due)) throw new HttpError(400, 'invalid_argument', 'Invalid task due date');
   }
+  if (kind.kind === 'videos' && next.who) {
+    const team = ALL_TEAMS.includes(next.team) ? next.team : 'media';
+    const assignee = await getUser(env(), String(next.who));
+    if (!assignee || !assignee.active || !assignee.teams.includes(team)) throw new HttpError(403, 'invalid_argument', 'Video tasks can only be assigned to this team');
+  }
   if (!canWriteDoc(user, kind, parsed.id, existing?.data || null, next)) throw new HttpError(403, 'invalid_argument', 'Not allowed');
   if (JSON.stringify(next).length > MAX_BODY_BYTES) throw new HttpError(413, 'invalid_argument', 'Document too large');
   await putDoc(env(), parsed.collection, parsed.id, next, user.id, (existing?.version || 0) + 1);
