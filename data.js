@@ -220,6 +220,8 @@
     }
     showLogin();
   })();
+  // Ако няма сесия, app.js чака capabilities.ready; входът трябва да е видим и без тях.
+  setTimeout(() => { if (!me) showLogin(); }, 1000);
 
   // За локални тестове: вход без Google срещу wrangler.test.toml.
   window.__teamHubTestLogin = async (email, name) => {
@@ -227,3 +229,4 @@
     setToken(out.token); await start(out.user);
   };
 })();
+
