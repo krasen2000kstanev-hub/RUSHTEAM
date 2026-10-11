@@ -39,7 +39,7 @@ const actName=id=>(ACTS.find(a=>a[0]===id)||[0,"Друго"])[1];
 
 const S={db:null,user:null,uid:null,isAdmin:false,canWrite:true,ready:false,
   clients:{},videos:{},shoots:{},tasks:{},members:{},depts:{},people:{},mcp:null,booted:false,hr:{rows:null,jd:{},ads:[],adsErr:false,tasks:[],tasksErr:false,clients:[],clientsErr:false,err:"",at:0,loading:false,hasWho:false},hrPaused:false,hrView:"who",prof:{},myDays:{},rep:{},hrClientNotes:{},hrSearch:"",
-  tab:"timer",preset:"month",from:"",to:"",fClient:"",fFmt:"",mine:false,fWho:"",dl:null,cal:null,runId:null,hrClientStage:"",hrClientStatus:"all"};
+  tab:"timer",preset:"month",from:"",to:"",fClient:"",fFmt:"",mine:false,fWho:"",dl:null,cal:null,runId:null,hrClientStage:"",hrClientStatus:"all",teamSearch:"",teamFilter:"all"};
 
 /* ---------- time helpers ---------- */
 const p2=n=>String(n).padStart(2,"0");
@@ -722,9 +722,15 @@ async function exportCsv(){
 
 function vTeam(){
   const root=h("div",{class:"two"});
+  const manager=Boolean(S.isAdmin||(S.depts[S.uid]||{}).manager||S.members[S.uid]?.role==="manager");
+  const teamFilter=h("select",{class:"btn",value:S.teamFilter,"aria-label":"Филтър по отдел",onchange:e=>{S.teamFilter=e.target.value;schedule();}},h("option",{value:"all"},"Всички отдели"));
+  ALLT.filter(t=>S.isAdmin||manager||myTeams().includes(t)).forEach(t=>teamFilter.append(h("option",{value:t},TNAME[t])));
+  teamFilter.value=S.teamFilter;
+  const teamSearch=h("input",{class:"team-search",type:"search",placeholder:"Търси човек…",value:S.teamSearch,"aria-label":"Търси човек",oninput:e=>{S.teamSearch=e.target.value;schedule();}});
   const team=h("section",{class:"panel"},h("div",{class:"box"},h("h2",null,"Екип"),
-    h("p",{class:"small muted",style:"margin:0"},"Виждате хората от вашите отдели и личния си профил.")));
-  const ids=visibleTeamMemberIds();
+    h("p",{class:"small muted",style:"margin:0"},manager?"Виждате всички колеги; редактирането остава според ролята ви.":"Виждате колегите от вашите отдели."),
+    h("div",{class:"team-toolbar"},teamSearch,teamFilter)));
+  const q=S.teamSearch.trim().toLocaleLowerCase("bg-BG"),ids=visibleTeamMemberIds().filter(id=>{const d=S.depts[id]||{},name=nameOf(id).toLocaleLowerCase("bg-BG"),role=String(S.members[id]?.role||"").toLocaleLowerCase("bg-BG");return (!q||name.includes(q)||role.includes(q))&&(S.teamFilter==="all"||teamsOf(id).includes(S.teamFilter));});
   const memberPanel=(title,list)=>{const panel=h("div",{class:"box"},h("div",{class:"ph"},h("span",null,title),h("span",{class:"mono"},list.length)));if(!list.length){panel.append(h("div",{class:"empty"},"Още няма членове."));return panel;}
     list.forEach(id=>{const m=S.members[id]||{},mine=id===S.uid,can=(mine||deptManager())&&S.canWrite&&S.db,manageTeams=can&&!founderId(id),teamOptions=myTeams();
       panel.append(h("div",{class:"li"},h("div",{class:"g"},h("b",null,nameOf(id)+(mine?" (вие)":"")),can?null:h("span",{class:"small muted"},m.role||"Без посочена роля")),
