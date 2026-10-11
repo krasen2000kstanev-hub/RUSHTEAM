@@ -22,7 +22,7 @@ await ok('без вход няма достъп', async () => {
   assert.equal((await call('x.y', 'POST', '/api/sync', { queries: [] })).status, 401);
 });
 await ok('имейл от ADMIN_EMAILS става мениджър, останалите са без екип', async () => {
-  assert.equal(admin.user.role, 'admin'); assert.equal(des.user.role, 'member'); assert.deepEqual(des.user.teams, []);
+  assert.equal(admin.user.role, 'founder'); assert.equal(des.user.role, 'member'); assert.deepEqual(des.user.teams, []);
 });
 await ok('нов човек без екип не вижда нищо и не може да пише задачи', async () => {
   await call(admin.token, 'PUT', doc(`videos/v-${run}`), { title: 'Видео', stage: 'idea' });
@@ -92,3 +92,4 @@ await ok('CORS: непознат сайт не получава разрешен
   assert.equal(good.headers.get('access-control-allow-origin'), 'http://127.0.0.1:8765');
 });
 console.log(`${passed} passed`);
+
