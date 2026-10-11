@@ -22,7 +22,11 @@ export function normalizeTeams(value) {
 }
 
 // Задачите без поле team са от видео екипа (така е и във фронтенда).
-export const docTeam = (data) => (['media', 'web', 'events', 'design'].includes(data?.team) ? data.team : 'media');
+export const docTeams = (data) => {
+  const teams = Array.isArray(data?.teams) ? data.teams : [data?.team];
+  return normalizeTeams(teams).length ? normalizeTeams(teams) : ['media'];
+};
+export const docTeam = (data) => docTeams(data)[0] || 'media';
 
 export const isFounder = (user) => user?.role === 'founder' || user?.role === 'admin';
 const usable = (user) => Boolean(user && user.active);
@@ -34,7 +38,7 @@ export function canReadDoc(user, kind, id, data) {
   switch (kind.kind) {
     case 'tasks': return isFounder(user) || (user.teams.length > 0 && Array.isArray(data?.participants) && data.participants.includes(user.id));
     case 'hrclients': return isFounder(user) || user.teams.includes('hr');
-    case 'clients': return user.teams.includes(docTeam(data));
+    case 'clients': return docTeams(data).some((team) => user.teams.includes(team));
     case 'members': return user.teams.length > 0 || id === user.id;
     case 'depts': return id === user.id || (user.teams.length > 0 && data?.teams?.some((team) => user.teams.includes(team)));
     case 'videos': return user.teams.includes(docTeam(data));

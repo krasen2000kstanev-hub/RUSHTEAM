@@ -73,6 +73,7 @@ test('clients: only managers write; recruiters do not read', () => {
   assert.equal(canReadDoc(recruiter, K('clients'), 'c', {}), false);
   assert.equal(canReadDoc(manager, K('clients'), 'c', { team: 'design' }), true);
   assert.equal(canReadDoc(manager, K('clients'), 'c', { team: 'web' }), false);
+  assert.equal(canReadDoc(manager, K('clients'), 'c', { teams: ['media', 'design'] }), true);
 });
 
 test('access to teams: only a manager changes it, and never their own', () => {

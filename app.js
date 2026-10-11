@@ -77,6 +77,7 @@ const nameOf=id=>{if(!id)return "Без отговорник";const p=S.prof[id]
 const client=id=>S.clients[id];
 const cColor=id=>(client(id)&&client(id).color)||"";
 const cName=id=>client(id)?client(id).name:"Без клиент";
+const cTeams=c=>{const teams=Array.isArray(c&&c.teams)?c.teams:[c&&c.team];return ALLT.filter(t=>teams.includes(t));};
 
 /* ---------- data ---------- */
 let rq=0;function schedule(){if(rq)return;rq=requestAnimationFrame(()=>{rq=0;render();});}
@@ -689,14 +690,17 @@ function vTeam(){
         onchange:e=>{const set=new Set((S.depts[id]||{}).teams||[]);if(e.target.checked)set.add(t);else set.delete(t);tryW(S.db.doc("depts/"+id).update({teams:ALLT.filter(x=>set.has(x))}),"Запазено");}}),TNAME[t])),
         h("label",{style:"font-weight:700"},h("input",{type:"checkbox",id:"m-adm-"+id,checked:!!(S.depts[id]||{}).manager,onchange:e=>tryW(S.db.doc("depts/"+id).update({manager:e.target.checked}),"Запазено")}),"Мениджър на екипа"))
         :h("span",{class:"pill"},((S.depts[id]||{}).founder||(mine&&S.isAdmin))?"Основател · вижда всичко":((S.depts[id]||{}).manager?"Мениджър · само своя екип":(teamsOf(id).map(t=>TNAME[t]).join(", ")||"Без достъп")))));});
-  const cl=h("section",{class:"panel"},h("div",{class:"box"},h("div",{class:"bar"},h("h2",null,"Клиенти"),h("span",{class:"sp"}),
+  const cl=h("section",{class:"panel"},h("div",{class:"box"},h("div",{class:"bar"},h("h2",null,"Клиенти по отдели"),h("span",{class:"sp"}),
     h("button",{class:"btn primary a-only w-only",type:"button",onclick:()=>openClient(null)},"+ Клиент"))));
   const cs=Object.entries(S.clients).filter(e=>!e[1].archived).sort((a,b)=>a[1].name.localeCompare(b[1].name,"bg"));
   if(!cs.length)cl.append(h("div",{class:"empty"},S.isAdmin?"Добавете първия клиент, за да засичате време по него.":"Мениджърът още не е добавил клиенти."));
-  cs.forEach(([id,c])=>{const l=safeUrl(c.link);
-    cl.append(h("div",{class:"li"},h("span",{class:"dot",style:"--c:"+c.color}),
-      h("div",{class:"g"},h("b",{style:"overflow-wrap:anywhere"},c.name),h("span",{class:"small muted"},(TNAME[c.team||"media"]||"Видео")+" · "+(c.hours?c.hours+" ч на месец":"Без месечен лимит")),l?h("span",{class:"small"},ext({url:l,label:"Папка с материали"})):null),
-      h("button",{class:"btn ghost a-only w-only",type:"button",onclick:()=>openClient(id)},"✎")));});
+  ALLT.forEach(team=>{const list=cs.filter(([,c])=>cTeams(c).includes(team));if(!list.length)return;
+    const group=h("section",{class:"panel box"},h("div",{class:"ph"},h("span",null,TNAME[team]),h("span",{class:"mono"},list.length)));
+    list.forEach(([id,c])=>{const l=safeUrl(c.link);
+      group.append(h("div",{class:"li"},h("span",{class:"dot",style:"--c:"+c.color}),
+        h("div",{class:"g"},h("b",{style:"overflow-wrap:anywhere"},c.name),h("span",{class:"small muted"},cTeams(c).map(t=>TNAME[t]).join(", ")+" · "+(c.hours?c.hours+" ч на месец":"Без месечен лимит")),l?h("span",{class:"small"},ext({url:l,label:"Папка с материали"})):null),
+        h("button",{class:"btn ghost a-only w-only",type:"button",onclick:()=>openClient(id)},"✎")));});
+    cl.append(group);});
   root.append(team,cl);return root;
 }
 
@@ -813,15 +817,16 @@ arm($("#s-del"),async()=>{if(await tryW(S.db.doc("shoots/"+cur.shoot).delete()))
 
 function openClient(id){cur.client=id;const c=id?S.clients[id]:null;
   $("#c-h").textContent=c?"Редакция на клиент":"Нов клиент";$("#c-del").hidden=!c;
-  fill($("#c-team"),Object.entries(TEAMS).map(([k,t])=>[k,t.name]));
-  $("#c-name").value=c?c.name:"";$("#c-team").value=c?c.team||"media":"media";$("#c-hours").value=c&&c.hours?c.hours:"";$("#c-link").value=c?c.link||"":"";
+  const selected=cTeams(c),teamsBox=$("#c-teams");teamsBox.textContent="";ALLT.forEach(t=>teamsBox.append(h("label",null,h("input",{type:"checkbox",value:t,checked:selected.includes(t)}),TNAME[t])));
+  $("#c-name").value=c?c.name:"";$("#c-hours").value=c&&c.hours?c.hours:"";$("#c-link").value=c?c.link||"":"";
   const used=Object.values(S.clients).map(x=>x.color),pick=c?c.color:(COLORS.find(x=>!used.includes(x))||COLORS[0]);
   const box=$("#c-colors");box.textContent="";COLORS.forEach((col,i)=>box.append(h("label",null,h("input",{type:"radio",name:"c-color",id:"c-col-"+i,value:col,checked:col===pick,"aria-label":"Цвят "+(i+1)}),h("span",{style:"--c:"+col}))));
   $("#d-client").showModal();}
 $("#f-client").addEventListener("submit",async ev=>{ev.preventDefault();const id=cur.client,raw=$("#c-link").value.trim(),u=safeUrl(raw);
   if(raw&&!u){toast("Линкът не е валиден адрес. Трябва да започва с https://");return;}
   const sel=$("#c-colors").querySelector("input:checked");
-  const rec={name:$("#c-name").value.trim(),team:$("#c-team").value||"media",hours:+$("#c-hours").value||0,link:u||"",color:sel?sel.value:COLORS[0],archived:false};
+  const teams=[...$("#c-teams").querySelectorAll("input:checked")].map(i=>i.value);if(!teams.length){toast("Изберете поне един отдел.");return;}
+  const rec={name:$("#c-name").value.trim(),teams:teams,team:teams[0],hours:+$("#c-hours").value||0,link:u||"",color:sel?sel.value:COLORS[0],archived:false};
   const ref=id?S.db.doc("clients/"+id):S.db.collection("clients").doc();
   if(await tryW(ref.set(rec)))$("#d-client").close();});
 arm($("#c-del"),async()=>{const c=S.clients[cur.client];if(await tryW(S.db.doc("clients/"+cur.client).set(Object.assign({},c,{archived:true}))))$("#d-client").close();});
