@@ -690,11 +690,12 @@ function vTeam(){
         onchange:e=>{const set=new Set((S.depts[id]||{}).teams||[]);if(e.target.checked)set.add(t);else set.delete(t);tryW(S.db.doc("depts/"+id).update({teams:ALLT.filter(x=>set.has(x))}),"Запазено");}}),TNAME[t])),
         h("label",{style:"font-weight:700"},h("input",{type:"checkbox",id:"m-adm-"+id,checked:!!(S.depts[id]||{}).manager,onchange:e=>tryW(S.db.doc("depts/"+id).update({manager:e.target.checked}),"Запазено")}),"Мениджър на екипа"))
         :h("span",{class:"pill"},((S.depts[id]||{}).founder||(mine&&S.isAdmin))?"Основател · вижда всичко":((S.depts[id]||{}).manager?"Мениджър · само своя екип":(teamsOf(id).map(t=>TNAME[t]).join(", ")||"Без достъп")))));});
-  const cl=h("section",{class:"panel"},h("div",{class:"box"},h("div",{class:"bar"},h("h2",null,"Клиенти по отдели"),h("span",{class:"sp"}),
+  const visibleClientTeams=S.isAdmin?ALLT:myTeams();
+  const cl=h("section",{class:"panel"},h("div",{class:"box"},h("div",{class:"bar"},h("h2",null,S.isAdmin?"Клиенти по отдели":"Клиенти във вашите отдели"),h("span",{class:"sp"}),
     h("button",{class:"btn primary a-only w-only",type:"button",onclick:()=>openClient(null)},"+ Клиент"))));
   const cs=Object.entries(S.clients).filter(e=>!e[1].archived).sort((a,b)=>a[1].name.localeCompare(b[1].name,"bg"));
   if(!cs.length)cl.append(h("div",{class:"empty"},S.isAdmin?"Добавете първия клиент, за да засичате време по него.":"Мениджърът още не е добавил клиенти."));
-  ALLT.forEach(team=>{const list=cs.filter(([,c])=>cTeams(c).includes(team));if(!list.length)return;
+  visibleClientTeams.forEach(team=>{const list=cs.filter(([,c])=>cTeams(c).includes(team));if(!list.length)return;
     const group=h("section",{class:"panel box"},h("div",{class:"ph"},h("span",null,TNAME[team]),h("span",{class:"mono"},list.length)));
     list.forEach(([id,c])=>{const l=safeUrl(c.link);
       group.append(h("div",{class:"li"},h("span",{class:"dot",style:"--c:"+c.color}),
