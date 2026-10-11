@@ -75,7 +75,7 @@
   <h2 id="task-h">Нова споделена задача</h2>
   <div class="fg">
     <label class="f w">Каква е задачата?<input type="text" id="task-title" required maxlength="200" placeholder="Напр. Подготви монтаж за клиента"></label>
-    <label class="f w">За кого / с кого е задачата?<select id="task-partner"></select></label>
+    <label class="f w">За кого / с кого е задачата?<select id="task-partner" multiple size="5" aria-describedby="task-partner-help"></select><span id="task-partner-help" class="small muted">Може да изберете повече от един човек. Оставете празно за лична задача.</span></label>
     <label class="f">Срок<input type="date" id="task-due"></label>
     <label class="f w">Какво трябва да се направи?<textarea id="task-description" maxlength="4000" placeholder="Опишете конкретните стъпки и очаквания резултат"></textarea></label>
     <label class="f" id="task-priority-label"><input type="checkbox" id="task-priority"> Приоритетна задача</label>
@@ -216,6 +216,6 @@
 
 <script src="config.js"></script>
 <script src="data.js"></script>
-<script src="app.js?v=0f79a5a1"></script>
+<script src="app.js?v=multi-task"></script>
 </body>
 </html>
