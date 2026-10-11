@@ -123,11 +123,17 @@ async function handleDoc(request, user, url) {
   const next = method === 'PATCH' ? deepMerge(existing.data, body) : body;
   if (kind.kind === 'tasks') {
     const participants = Array.isArray(next.participants) ? [...new Set(next.participants.map((id) => String(id)))] : [];
-    if (participants.length !== 2 || (!isFounder(user) && !participants.includes(user.id))) throw new HttpError(403, 'invalid_argument', 'Task must have exactly two participants');
+    const canAssign = isFounder(user) || user.role === 'manager';
+    if (!participants.length || participants.length > 2 || (!canAssign && !participants.includes(user.id))) throw new HttpError(403, 'invalid_argument', 'Invalid task participants');
+    if (!isFounder(user) && user.role === 'manager') {
+      const targets = await Promise.all(participants.filter((id) => id !== user.id).map((id) => getUser(env(), id)));
+      if (targets.some((target) => !target || !target.active || !target.teams.some((team) => user.teams.includes(team)))) throw new HttpError(403, 'invalid_argument', 'Managers can assign tasks only to their team');
+    }
     if (!existing && next.createdBy !== user.id) throw new HttpError(403, 'invalid_argument', 'Only the creator can create this task');
     if (next.priority && !isFounder(user)) throw new HttpError(403, 'invalid_argument', 'Only founders can create priority tasks');
     if (!String(next.title || '').trim() || String(next.title).length > 200 || String(next.description || '').length > 4000) throw new HttpError(400, 'invalid_argument', 'Invalid task details');
-    next.participants = participants; next.title = String(next.title).trim(); next.description = String(next.description || '').trim();
+    next.participants = participants; next.title = String(next.title).trim(); next.description = String(next.description || '').trim(); next.due = String(next.due || '').trim();
+    if (next.due && !/^\d{4}-\d{2}-\d{2}$/.test(next.due)) throw new HttpError(400, 'invalid_argument', 'Invalid task due date');
   }
   if (!canWriteDoc(user, kind, parsed.id, existing?.data || null, next)) throw new HttpError(403, 'invalid_argument', 'Not allowed');
   if (JSON.stringify(next).length > MAX_BODY_BYTES) throw new HttpError(413, 'invalid_argument', 'Document too large');
