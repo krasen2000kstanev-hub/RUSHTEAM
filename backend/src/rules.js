@@ -30,6 +30,10 @@ export const docTeam = (data) => docTeams(data)[0] || 'media';
 
 export const isFounder = (user) => user?.role === 'founder' || user?.role === 'admin';
 const usable = (user) => Boolean(user && user.active);
+// HR managers coordinate the whole company, not just their own department.
+// Only an explicitly granted allTeams flag gives company-wide manager access.
+export const isCompanyManager = (user) => usable(user) && user?.role === 'manager' && user.allTeams === true;
+const manages = (user, data) => user?.role === 'manager' && docTeams(data).some((team) => user.teams.includes(team));
 const tracksTime = (user) => user.teams.some((team) => team !== 'hr' && team !== 'events');
 
 export function canReadDoc(user, kind, id, data) {
@@ -38,9 +42,9 @@ export function canReadDoc(user, kind, id, data) {
   switch (kind.kind) {
     case 'tasks': return isFounder(user) || (user.teams.length > 0 && (data?.createdBy === user.id || (Array.isArray(data?.participants) && data.participants.includes(user.id))));
     case 'hrclients': return isFounder(user) || user.teams.includes('hr');
-    case 'clients': return docTeams(data).some((team) => user.teams.includes(team));
-    case 'members': return id === user.id || (Array.isArray(data?.teams) && data.teams.some((team) => user.teams.includes(team)));
-    case 'depts': return id === user.id || (user.teams.length > 0 && data?.teams?.some((team) => user.teams.includes(team)));
+    case 'clients': return isCompanyManager(user) || docTeams(data).some((team) => user.teams.includes(team));
+    case 'members': return isCompanyManager(user) || id === user.id || (Array.isArray(data?.teams) && data.teams.some((team) => user.teams.includes(team)));
+    case 'depts': return isCompanyManager(user) || id === user.id || (user.teams.length > 0 && data?.teams?.some((team) => user.teams.includes(team)));
     case 'videos': return user.teams.includes(docTeam(data));
     case 'shoots': return user.teams.includes('media');
     case 'time': return kind.owner === user.id && tracksTime(user);
@@ -50,13 +54,17 @@ export function canReadDoc(user, kind, id, data) {
 
 export function canWriteDoc(user, kind, id, oldData, newData) {
   if (!usable(user) || !kind) return false;
-  if (kind.kind === 'depts') return isFounder(user) && id !== user.id;
+  if (kind.kind === 'depts') {
+    const target = oldData || newData || {};
+    const nextTeams = normalizeTeams(newData?.teams ?? oldData?.teams);
+    return id !== user.id && !isFounder(target) && (isFounder(user) || isCompanyManager(user) || (manages(user, target) && nextTeams.every((team) => user.teams.includes(team))));
+  }
   if (isFounder(user)) return true;
   switch (kind.kind) {
     case 'tasks': return user.teams.length > 0 && ((newData || oldData)?.createdBy === user.id || (Array.isArray((newData || oldData)?.participants) && (newData || oldData).participants.includes(user.id)));
     case 'hrclients': return isFounder(user) || user.teams.includes('hr');
-    case 'clients': return false;
-    case 'members': return id === user.id;
+    case 'clients': return isCompanyManager(user) || (user.role === 'manager' && manages(user, oldData || newData));
+    case 'members': return isCompanyManager(user) || id === user.id || (user.role === 'manager' && manages(user, oldData));
     case 'videos':
       return (!oldData || user.teams.includes(docTeam(oldData))) && (!newData || user.teams.includes(docTeam(newData)));
     case 'shoots': return user.teams.includes('media');
@@ -90,3 +98,4 @@ export function deepMerge(target, patch) {
   }
   return out;
 }
+
