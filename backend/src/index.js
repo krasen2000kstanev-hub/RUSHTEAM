@@ -36,7 +36,7 @@ async function readJson(request) {
 
 function toUser(row) {
   if (!row) return null;
-  return { id: row.id, email: row.email, name: row.name, picture: row.picture, role: row.role, memberRole: row.memberRole || '', teams: normalizeTeams(row.teams), active: row.active !== false };
+  return { id: row.id, email: row.email, name: row.name, picture: row.picture, role: row.role, memberRole: row.memberRole || '', teams: normalizeTeams(row.teams), allTeams: row.allTeams === true, active: row.active !== false };
 }
 
 async function currentUser(request) {
