@@ -796,7 +796,7 @@ arm($("#v-del"),async()=>{if(await tryW(S.db.doc("videos/"+cur.video).delete()))
 
 $("#f-task").addEventListener("submit",async e=>{e.preventDefault();const id=cur.task,old=id?S.tasks[id]:null,partner=$("#task-partner").value,due=$("#task-due").value;
   const shared=Boolean(partner&&old&&Array.isArray(old.participants)&&old.participants.includes(S.uid));
-  const participants=partner?(shared||!S.isAdmin&&!((S.depts[S.uid]||{}).manager)?[S.uid,partner]:[partner]):[S.uid];
+  const participants=partner?(shared||!S.isAdmin&&!((S.depts[S.uid]||{}).manager)?[S.uid,partner]:[partner]):(old&&Array.isArray(old.participants)&&!old.participants.includes(S.uid)?old.participants:[S.uid]);
   const rec={title:$("#task-title").value.trim(),description:$("#task-description").value.trim(),participants,createdBy:old?old.createdBy:S.uid,due,priority:S.isAdmin&&$("#task-priority").checked,done:$("#task-done").checked,createdAt:old?old.createdAt:Date.now(),updatedAt:Date.now()};
   if(!rec.title){toast("Въведете каква е задачата.");return;}
   const ref=id?S.db.doc("tasks/"+id):S.db.collection("tasks").doc();if(await tryW(ref.set(rec)))$("#d-task").close();
