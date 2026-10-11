@@ -114,10 +114,11 @@ function fill(sel,items,empty){const v=sel.value;sel.textContent="";if(empty!=nu
   items.forEach(i=>sel.append(h("option",{value:i[0]},i[1])));sel.value=[...sel.options].some(o=>o.value===v)?v:"";}
 const clientOpts=()=>Object.entries(S.clients).filter(e=>!e[1].archived).sort((a,b)=>a[1].name.localeCompare(b[1].name,"bg")).map(e=>[e[0],e[1].name]);
 const videoOpts=cid=>Object.entries(S.videos).filter(e=>(!cid||e[1].client===cid)&&teamOf(e[1])!=="events"&&myTeams().includes(teamOf(e[1]))).sort((a,b)=>a[1].title.localeCompare(b[1].title,"bg")).map(e=>[e[0],e[1].title]);
+const assigneeOpts=team=>memberIds().filter(id=>teamsOf(id).includes(team)).map(id=>[id,nameOf(id)]);
 function fillSelects(){
   ["#t-client","#e-client","#v-client","#s-client"].forEach(s=>fill($(s),clientOpts(),"Без клиент"));
   [["#t-video","#t-client"],["#e-video","#e-client"],["#s-video","#s-client"]].forEach(p=>fill($(p[0]),videoOpts($(p[1]).value),"Без задача"));
-  fill($("#v-who"),memberIds().map(id=>[id,nameOf(id)]),"Без отговорник");
+  fill($("#v-who"),assigneeOpts(TEAMS[cur.team]?cur.team:"media"),"Без отговорник");
 }
 function videoTeams(){return Object.entries(TEAMS).filter(([id])=>myTeams().includes(id)).map(([id,t])=>[id,t.name]);}
 function fillTemplateOptions(team,selected=""){const s=$("#v-template");s.textContent="";s.append(h("option",{value:""},"Без шаблон"));(TASK_TEMPLATES[team]||[]).forEach((t,i)=>s.append(h("option",{value:String(i)},t[0])));s.value=selected;}
@@ -745,7 +746,7 @@ function openVideo(id,team,date){cur.video=id;const v=id?S.videos[id]:null;cur.t
   $("#v-cbox").hidden=!v;if(v)renderComments();
   const box=$("#v-links");box.textContent="";((v&&v.links)||[]).forEach(l=>box.append(linkRow(l)));if(!box.children.length)box.append(linkRow({label:cur.team==="media"?"Суров материал":"Материали"}));
   $("#d-video").showModal();}
-$("#v-team").addEventListener("change",()=>{const team=$("#v-team").value;if(!TEAMS[team])return;cur.team=team;fillTemplateOptions(team);fill($("#v-stage"),TEAMS[team].stages);$("#v-stage").value=TEAMS[team].stages[0][0];$("#v-fmt-l").hidden=team!=="media";document.querySelectorAll("#d-video .m-only").forEach(x=>{x.hidden=team!=="media";});document.querySelectorAll("#d-video .e-only").forEach(x=>{x.hidden=team!=="events";});});
+$("#v-team").addEventListener("change",()=>{const team=$("#v-team").value;if(!TEAMS[team])return;cur.team=team;fillTemplateOptions(team);fillSelects();fill($("#v-stage"),TEAMS[team].stages);$("#v-stage").value=TEAMS[team].stages[0][0];$("#v-fmt-l").hidden=team!=="media";document.querySelectorAll("#d-video .m-only").forEach(x=>{x.hidden=team!=="media";});document.querySelectorAll("#d-video .e-only").forEach(x=>{x.hidden=team!=="events";});});
 $("#v-template").addEventListener("change",()=>{const t=(TASK_TEMPLATES[$("#v-team").value]||[])[$("#v-template").value];if(!t)return;cur.check=t.slice(1).map(x=>({t:x,done:false}));renderCheck();});
 $("#f-video").addEventListener("submit",async ev=>{ev.preventDefault();const id=cur.video,old=id?S.videos[id]:null;
   const links=[];let bad=false;[...$("#v-links").children].forEach(r=>{const i=r.querySelectorAll("input"),raw=i[1].value.trim();if(!raw)return;const u=safeUrl(raw);if(!u){bad=true;return;}links.push({label:i[0].value.trim(),url:u});});
