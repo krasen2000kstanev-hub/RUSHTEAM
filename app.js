@@ -81,7 +81,7 @@ const cName=id=>client(id)?client(id).name:"Без клиент";
 const cTeams=c=>{const teams=Array.isArray(c&&c.teams)?c.teams:[c&&c.team];return ALLT.filter(t=>teams.includes(t));};
 
 /* ---------- data ---------- */
-let rq=0;function schedule(){if(rq)return;rq=requestAnimationFrame(()=>{rq=0;render();});}
+let rq=0;function schedule(){if(rq)return;rq=requestAnimationFrame(()=>{rq=0;try{render();}catch(e){console.error("Team Hub render failed",e);const v=$("#view");if(v){v.textContent="";v.append(h("div",{class:"panel empty"},"Този раздел не се зареди. Обновете страницата или влезте отново."));}}});}
 function onErr(e){if(e&&e.code==="revoked"){showBanner("Достъпът до данните е спрян за този изглед.");}}
 function showBanner(m){const b=$("#banner");b.textContent=m;b.hidden=false;}
 function subCol(name,after){S.db.collection(name).onSnapshot(s=>{const o={};s.docs.forEach(d=>{o[d.id]=d.data();});S[name]=o;if(after)after();fillSelects();schedule();},onErr);}
@@ -900,6 +900,7 @@ window.addEventListener("hashchange",route);
 fillSelects();route();
 
 (async function boot(){
+ try{
   const cl=window.claude;
   if(!cl||!cl.use){S.ready=true;S.booted=true;showBanner("Платформата не е настроена. Попълнете config.js.");schedule();return;}
   const [db,user,dl,mcp]=await Promise.all([cl.use("db"),cl.use("user"),cl.use("downloads"),cl.use("mcp")]);
@@ -916,6 +917,9 @@ fillSelects();route();
     if(S.canWrite){try{const me=db.doc("members/"+S.uid),snap=await me.get();if(!snap.exists)await me.set({joined:Date.now(),role:""});}catch(e){}}
   }
   loadProfiles();
+ }catch(e){
+  console.error("Team Hub boot failed",e);S.ready=true;S.booted=true;showBanner("Платформата не успя да зареди данните. Обновете страницата или влезте отново.");schedule();
+ }
 })();
 })();
 
