@@ -152,9 +152,8 @@ $("#t-desc").addEventListener("keydown",e=>{if(e.key==="Enter"&&!running())$("#t
 function teamsOf(id){const d=S.depts[id]||{};if(d.founder||d.admin)return ALLT;return Array.isArray(d.teams)?d.teams:[];}
 const founderId=id=>Boolean(S.depts[id]?.founder||S.people[id]?.role==="founder");
 function myTeams(){return S.isAdmin?ALLT:teamsOf(S.uid);}
-function companyManager(){const d=S.depts[S.uid]||{};return Boolean(S.isAdmin||d.allTeams===true);}
 function deptManager(){const d=S.depts[S.uid]||{};return Boolean(S.isAdmin||d.manager);}
-function visibleTeamMemberIds(){const mine=myTeams();return memberIds().filter(id=>companyManager()||id===S.uid||(!founderId(id)&&teamsOf(id).some(t=>mine.includes(t))));}
+function visibleTeamMemberIds(){const mine=myTeams();return memberIds().filter(id=>S.isAdmin||id===S.uid||(!founderId(id)&&teamsOf(id).some(t=>mine.includes(t))));}
 function allowed(t){const m=myTeams(),d=S.depts[S.uid]||{},isManager=Boolean(d.manager||S.members[S.uid]?.role==="manager");if(t==="today")return !!S.uid;if(t==="tasks")return !!S.uid&&m.length>0;if(t==="hr")return m.includes("hr");if(t==="team")return m.length>0||isManager;if(TAB_TEAM[t])return m.includes(TAB_TEAM[t]);if(t==="calendar")return m.includes("media")||m.includes("events");if(t==="timer"||t==="reports")return m.some(x=>x!=="hr"&&x!=="events");return m.some(x=>x!=="hr");}
 /* ---------- views ---------- */
 function render(){
@@ -716,21 +715,19 @@ async function exportCsv(){
 function vTeam(){
   const root=h("div",{class:"two"});
   const team=h("section",{class:"panel"},h("div",{class:"box"},h("h2",null,"Екип"),
-    h("p",{class:"small muted",style:"margin:0"},companyManager()?"Вие управлявате екипите и виждате всички активни хора във фирмата. С отметките променяте отделите им.":"Виждате хората от вашите отдели и личния си профил.")));
+    h("p",{class:"small muted",style:"margin:0"},"Виждате хората от вашите отдели и личния си профил.")));
   const ids=visibleTeamMemberIds();
   const memberPanel=(title,list)=>{const panel=h("div",{class:"box"},h("div",{class:"ph"},h("span",null,title),h("span",{class:"mono"},list.length)));if(!list.length){panel.append(h("div",{class:"empty"},"Още няма членове."));return panel;}
-    list.forEach(id=>{const m=S.members[id]||{},mine=id===S.uid,can=(mine||deptManager()||companyManager())&&S.canWrite&&S.db,manageTeams=can&&!founderId(id),teamOptions=companyManager()?ALLT:myTeams();
+    list.forEach(id=>{const m=S.members[id]||{},mine=id===S.uid,can=(mine||deptManager())&&S.canWrite&&S.db,manageTeams=can&&!founderId(id),teamOptions=myTeams();
       panel.append(h("div",{class:"li"},h("div",{class:"g"},h("b",null,nameOf(id)+(mine?" (вие)":"")),can?null:h("span",{class:"small muted"},m.role||"Без посочена роля")),
         can?h("input",{type:"text",id:"m-role-"+id,value:m.role||"",maxLength:40,placeholder:"Роля, напр. монтажист","aria-label":"Роля",
           onchange:e=>tryW(S.db.doc("members/"+id).set(Object.assign({},m,{role:e.target.value.trim(),joined:m.joined||Date.now()})),"Запазено")}):null,
         manageTeams?h("div",{class:"checks small",style:"flex:1 1 100%"},teamOptions.map(t=>h("label",null,h("input",{type:"checkbox",id:"m-t-"+t+"-"+id,checked:((S.depts[id]||{}).teams||[]).includes(t),
           onchange:e=>{const set=new Set((S.depts[id]||{}).teams||[]);if(e.target.checked)set.add(t);else set.delete(t);tryW(S.db.doc("depts/"+id).update({teams:ALLT.filter(x=>set.has(x))}),"Запазено");}}),TNAME[t])),
-          h("label",{style:"font-weight:700"},h("input",{type:"checkbox",id:"m-adm-"+id,checked:!!(S.depts[id]||{}).manager,onchange:e=>tryW(S.db.doc("depts/"+id).update({manager:e.target.checked}),"Запазено")}),"Мениджър на екипа"),
-          S.isAdmin?h("label",{style:"font-weight:700"},h("input",{type:"checkbox",id:"m-all-"+id,checked:!!(S.depts[id]||{}).allTeams,onchange:e=>tryW(S.db.doc("depts/"+id).update({allTeams:e.target.checked}),"Запазено")}),"Вижда всички екипи"):null)
+          h("label",{style:"font-weight:700"},h("input",{type:"checkbox",id:"m-adm-"+id,checked:!!(S.depts[id]||{}).manager,onchange:e=>tryW(S.db.doc("depts/"+id).update({manager:e.target.checked}),"Запазено")}),"Мениджър на екипа"))
           :h("span",{class:"pill"},founderId(id)?"Основател · вижда всичко":((S.depts[id]||{}).manager?"Мениджър":(teamsOf(id).map(t=>TNAME[t]).join(", ")||"Без достъп")))));});return panel;};
-  if(companyManager()){const mine=ids.filter(id=>id===S.uid||(!founderId(id)&&teamsOf(id).some(t=>myTeams().includes(t))));team.append(memberPanel("Моя екип",mine),memberPanel("Всички екипи",memberIds()));}
-  else team.append(memberPanel("Моя екип",ids));
-  const visibleClientTeams=companyManager()?ALLT:myTeams();
+  team.append(memberPanel("Моя екип",ids));
+  const visibleClientTeams=myTeams();
   const canEditClients=deptManager();
   const cl=h("section",{class:"panel"},h("div",{class:"box"},h("div",{class:"bar"},h("h2",null,canEditClients?"Клиенти по отдели":"Клиенти във вашите отдели"),h("span",{class:"sp"}),
     canEditClients?h("button",{class:"btn primary",type:"button",onclick:()=>openClient(null)},"+ Клиент"):null)));
