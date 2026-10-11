@@ -175,15 +175,16 @@ function entryMeta(e){const vid=S.videos[e.v];return h("div",{class:"meta"},
 async function deleteEntry(e){if(!window.confirm("Изтриване на този запис за време?"))return;await tryW(writeDay(e.date,es=>{delete es[e.id];}));}
 function openTask(id){
   cur.task=id;const t=id?S.tasks[id]:null;const partners=memberIds().filter(p=>p!==S.uid).map(p=>[p,nameOf(p)]);fill($("#task-partner"),partners,"Изберете колега");
-  $("#task-h").textContent=t?"Редакция на споделена задача":"Нова споделена задача";$("#task-del").hidden=!t;
+  $("#task-h").textContent=t?"Редакция на задача":"Нова задача";$("#task-del").hidden=!t;
   $("#task-title").value=t?t.title||"":"";$("#task-description").value=t?t.description||"":"";$("#task-partner").value=t?(t.participants||[]).find(p=>p!==S.uid)||"":"";
+  $("#task-due").value=t?t.due||"":"";
   $("#task-priority").checked=!!(t&&t.priority);$("#task-done").checked=!!(t&&t.done);$("#task-priority-label").hidden=!S.isAdmin;$("#d-task").showModal();
 }
 function vTasks(){
   const root=h("div",{style:"display:flex;flex-direction:column;gap:14px"}),items=Object.entries(S.tasks).sort((a,b)=>(Number(!!b[1].priority)-Number(!!a[1].priority))||Number(!!a[1].done)-Number(!!b[1].done)||(b[1].createdAt||0)-(a[1].createdAt||0));
-  root.append(h("div",{class:"bar"},h("div",null,h("h2",null,"Споделени задачи"),h("p",{class:"small muted",style:"margin:2px 0 0"},"Задачата се вижда едновременно от двамата участници.")),h("span",{class:"sp"}),h("button",{class:"btn primary w-only",type:"button",onclick:()=>openTask(null)},"+ Нова задача")));
+  root.append(h("div",{class:"bar"},h("div",null,h("h2",null,"Задачи"),h("p",{class:"small muted",style:"margin:2px 0 0"},"Лични, назначени и споделени задачи.")),h("span",{class:"sp"}),h("button",{class:"btn primary w-only",type:"button",onclick:()=>openTask(null)},"+ Нова задача")));
   const panel=h("section",{class:"panel"});if(!items.length)panel.append(h("div",{class:"empty"},"Няма споделени задачи."));
-  items.forEach(([id,t])=>{const other=(t.participants||[]).filter(p=>p!==S.uid)[0];panel.append(h("div",{class:"drow"},h("div",{style:"min-width:0"},h("button",{class:"t",type:"button",onclick:()=>openTask(id)},t.title),h("div",{class:"small muted"},"С "+nameOf(other)+(t.description?" · "+t.description:""))),t.priority?h("span",{class:"pill",style:"color:var(--gold)"},"Приоритет"):h("span",{class:"pill"},t.done?"Приключена":"Отворена"),h("button",{class:"btn ghost w-only",type:"button",onclick:()=>openTask(id)},"✎")));});
+  items.forEach(([id,t])=>{const other=(t.participants||[]).filter(p=>p!==S.uid)[0],who=other?"За "+nameOf(other):"Лична задача",due=t.due?" · Срок "+shortDate(t.due):"";panel.append(h("div",{class:"drow"},h("div",{style:"min-width:0"},h("button",{class:"t",type:"button",onclick:()=>openTask(id)},t.title),h("div",{class:"small muted"},who+due+(t.description?" · "+t.description:""))),t.priority?h("span",{class:"pill",style:"color:var(--gold)"},"Приоритет"):h("span",{class:"pill"},t.done?"Приключена":"Отворена"),h("button",{class:"btn ghost w-only",type:"button",onclick:()=>openTask(id)},"✎")));});
   root.append(panel);return root;
 }
 
@@ -793,9 +794,10 @@ $("#v-newstep").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefa
 $("#v-newc").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addComment();}});
 arm($("#v-del"),async()=>{if(await tryW(S.db.doc("videos/"+cur.video).delete()))$("#d-video").close();});
 
-$("#f-task").addEventListener("submit",async e=>{e.preventDefault();const id=cur.task,old=id?S.tasks[id]:null,partner=$("#task-partner").value;
-  if(!partner||partner===S.uid){toast("Изберете друг колега.");return;}
-  const rec={title:$("#task-title").value.trim(),description:$("#task-description").value.trim(),participants:[S.uid,partner],createdBy:old?old.createdBy:S.uid,priority:S.isAdmin&&$("#task-priority").checked,done:$("#task-done").checked,createdAt:old?old.createdAt:Date.now(),updatedAt:Date.now()};
+$("#f-task").addEventListener("submit",async e=>{e.preventDefault();const id=cur.task,old=id?S.tasks[id]:null,partner=$("#task-partner").value,due=$("#task-due").value;
+  const shared=Boolean(partner&&old&&Array.isArray(old.participants)&&old.participants.includes(S.uid));
+  const participants=partner?(shared||!S.isAdmin&&!((S.depts[S.uid]||{}).manager)?[S.uid,partner]:[partner]):[S.uid];
+  const rec={title:$("#task-title").value.trim(),description:$("#task-description").value.trim(),participants,createdBy:old?old.createdBy:S.uid,due,priority:S.isAdmin&&$("#task-priority").checked,done:$("#task-done").checked,createdAt:old?old.createdAt:Date.now(),updatedAt:Date.now()};
   if(!rec.title){toast("Въведете каква е задачата.");return;}
   const ref=id?S.db.doc("tasks/"+id):S.db.collection("tasks").doc();if(await tryW(ref.set(rec)))$("#d-task").close();
 });
