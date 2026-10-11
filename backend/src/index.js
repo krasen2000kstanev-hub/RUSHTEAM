@@ -67,7 +67,7 @@ async function upsertUser({ sub, email, name, picture }) {
 }
 
 async function listDepts(user) {
-  return (await listUsers(env())).map(toUser).filter((row) => canReadDoc(user, { kind: 'depts' }, row.id, row)).map((row) => ({ id: row.id, data: { teams: row.teams, founder: isFounder(row), manager: row.role === 'manager' } }));
+  return (await listUsers(env())).map(toUser).filter((row) => canReadDoc(user, { kind: 'depts' }, row.id, row)).map((row) => ({ id: row.id, data: { teams: row.teams, founder: isFounder(row), manager: row.role === 'manager', allTeams: row.allTeams === true } }));
 }
 
 async function listCollection(user, collection, where) {
@@ -89,6 +89,7 @@ async function writeDepts(user, id, body) {
   if ('teams' in body) fields.teams = normalizeTeams(body.teams);
   if ('manager' in body) fields.role = body.manager ? 'manager' : 'member';
   if ('admin' in body) fields.role = body.admin ? 'manager' : 'member';
+  if (isFounder(user) && 'allTeams' in body) fields.allTeams = body.allTeams === true;
   await updateUser(env(), id, fields); await notify({ action: 'updated', collection: 'depts', id, newData: fields }, user);
 }
 
