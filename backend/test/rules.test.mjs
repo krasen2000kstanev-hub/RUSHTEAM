@@ -7,6 +7,7 @@ const manager = { id: 'u_manager', role: 'manager', teams: ['design'], active: t
 const designer = { id: 'u_d', role: 'member', teams: ['design'], active: true };
 const editor = { id: 'u_m', role: 'member', teams: ['media'], active: true };
 const recruiter = { id: 'u_h', role: 'member', teams: ['hr'], active: true };
+const hrManager = { id: 'u_hm', role: 'manager', teams: ['hr'], active: true };
 const events = { id: 'u_e', role: 'member', teams: ['events'], active: true };
 const nobody = { id: 'u_n', role: 'member', teams: [], active: true };
 const K = collectionKind;
@@ -128,7 +129,9 @@ test('recruitment sheets: only founders and hr managers can write', () => {
 
 test('recruitment client notes stay inside HR', () => {
   assert.equal(canReadDoc(recruiter, K('hrclients'), 'c', {}), true);
-  assert.equal(canWriteDoc(recruiter, K('hrclients'), 'c', null, {}), true);
+  assert.equal(canWriteDoc(recruiter, K('hrclients'), 'c', null, {}), false);
+  assert.equal(canWriteDoc(hrManager, K('hrclients'), 'c', null, {}), true);
+  assert.equal(canWriteDoc(admin, K('hrclients'), 'c', null, {}), true);
   assert.equal(canReadDoc(designer, K('hrclients'), 'c', {}), false);
 });
 
