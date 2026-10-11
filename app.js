@@ -507,7 +507,7 @@ function hrSummary(rows,label){
 }
 function hrOpenPositions(rows){
   const open=rows.filter(r=>r.status==="open").sort((a,b)=>(a.co||"").localeCompare(b.co||"","bg")||(a.title||"").localeCompare(b.title||"","bg"));
-  const panel=h("section",{class:"panel"},h("div",{class:"ph"},h("span",null,"Отворени позиции"),h("span",{class:"small muted"},open.length+" позиции"));
+  const panel=h("section",{class:"panel"},h("div",{class:"ph"},h("span",null,"Отворени позиции"),h("span",{class:"small muted"},open.length+" позиции")));
   if(!open.length)return panel.append(h("div",{class:"empty"},"Няма отворени позиции.")),panel;
   open.forEach(r=>panel.append(h("div",{class:"drow"},h("div",{style:"min-width:0"},h("b",{style:"overflow-wrap:anywhere"},r.title||"Без име"),h("div",{class:"small muted"},r.co||"Без компания")),h("span",{class:"pill"},r.sent+" CV-та")));
   return panel;
