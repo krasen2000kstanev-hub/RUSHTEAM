@@ -244,7 +244,6 @@ function vBoard(){
     h("div",{class:"small",style:"font-weight:700;color:var(--accent-2)"},"Екип „"+T.name+"“ · "+ppl.length+(ppl.length===1?" човек":" души")+" · числото е броят активни задачи"),
     h("div",{style:"display:flex;flex-wrap:wrap;gap:8px"},chip("","Всички"),ppl.map(id=>chip(id,nameOf(id)+(id===S.uid?" (вие)":""))),cnt("-")?chip("-","Без отговорник"):null)));
   const vids=all.filter(e=>(!S.fClient||e[1].client===S.fClient)&&(team!=="media"||!S.fFmt||e[1].fmt===S.fFmt)&&(!S.fWho||(S.fWho==="-"?!e[1].who:e[1].who===S.fWho)));
-  if(!Object.values(S.videos).some(v=>teamOf(v)===team)){root.append(h("div",{class:"panel empty"},S.ready?"Тук ще се вижда всичко на екип „"+T.name+"“ по етапи: от „"+T.stages[0][1]+"“ до „"+T.stages[T.stages.length-1][1]+"“. Добавете първото с бутона горе.":"Зареждане…"));return root;}
   const today=ymd(new Date()),board=h("div",{class:"board"});
   T.stages.forEach((st,i)=>{
     const list=vids.filter(e=>stageId(e[1])===st[0]).sort((a,b)=>(a[1].due||"9999").localeCompare(b[1].due||"9999"));
