@@ -87,6 +87,7 @@ test('a signed-in person with no team sees nothing but their own member row', ()
   assert.equal(canReadDoc(nobody, K('clients'), 'a', {}), false);
   assert.equal(canReadDoc(nobody, K('members'), 'u_n', {}), true);
   assert.equal(canReadDoc(nobody, K('members'), 'u_m', {}), false);
+  assert.equal(canReadDoc(nobody, K('tasks'), 't', { participants: ['u_n', 'u_m'] }), false);
   assert.equal(canWriteDoc(nobody, K('members'), 'u_n', null, {}), true);
   assert.equal(canWriteDoc(nobody, K('members'), 'u_m', null, {}), false);
   assert.equal(canReadSheets(nobody), false);
