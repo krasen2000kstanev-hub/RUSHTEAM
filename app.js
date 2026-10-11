@@ -1,3 +1,4 @@
+Attempting to perform the InitializeDefaultDrives operation on the 'FileSystem' provider failed.
 (function(){
 "use strict";
 const $=s=>document.querySelector(s);
@@ -153,7 +154,7 @@ function teamsOf(id){const d=S.depts[id]||{};if(d.founder||d.admin)return ALLT;r
 const founderId=id=>Boolean(S.depts[id]?.founder||S.people[id]?.role==="founder");
 function myTeams(){return S.isAdmin?ALLT:teamsOf(S.uid);}
 function deptManager(){const d=S.depts[S.uid]||{};return Boolean(S.isAdmin||d.manager);}
-function visibleTeamMemberIds(){const mine=myTeams();return memberIds().filter(id=>S.isAdmin||id===S.uid||(!founderId(id)&&teamsOf(id).some(t=>mine.includes(t))));}
+function visibleTeamMemberIds(){const mine=myTeams(),manager=Boolean(S.isAdmin||(S.depts[S.uid]||{}).manager||S.members[S.uid]?.role==="manager");return memberIds().filter(id=>S.isAdmin||manager||id===S.uid||(!founderId(id)&&teamsOf(id).some(t=>mine.includes(t))));}
 function allowed(t){const m=myTeams(),d=S.depts[S.uid]||{},isManager=Boolean(d.manager||S.members[S.uid]?.role==="manager");if(t==="today")return !!S.uid;if(t==="tasks")return !!S.uid&&m.length>0;if(t==="hr")return m.includes("hr");if(t==="team")return m.length>0||isManager;if(TAB_TEAM[t])return m.includes(TAB_TEAM[t]);if(t==="calendar")return m.includes("media")||m.includes("events");if(t==="timer"||t==="reports")return m.some(x=>x!=="hr"&&x!=="events");return m.some(x=>x!=="hr");}
 /* ---------- views ---------- */
 function render(){
