@@ -36,7 +36,7 @@ export function canReadDoc(user, kind, id, data) {
   if (!usable(user) || !kind) return false;
   if (isFounder(user)) return true;
   switch (kind.kind) {
-    case 'tasks': return isFounder(user) || (user.teams.length > 0 && Array.isArray(data?.participants) && data.participants.includes(user.id));
+    case 'tasks': return isFounder(user) || (user.teams.length > 0 && (data?.createdBy === user.id || (Array.isArray(data?.participants) && data.participants.includes(user.id))));
     case 'hrclients': return isFounder(user) || user.teams.includes('hr');
     case 'clients': return docTeams(data).some((team) => user.teams.includes(team));
     case 'members': return user.teams.length > 0 || id === user.id;
@@ -53,7 +53,7 @@ export function canWriteDoc(user, kind, id, oldData, newData) {
   if (kind.kind === 'depts') return isFounder(user) && id !== user.id;
   if (isFounder(user)) return true;
   switch (kind.kind) {
-    case 'tasks': return user.teams.length > 0 && Array.isArray((newData || oldData)?.participants) && (newData || oldData).participants.includes(user.id);
+    case 'tasks': return user.teams.length > 0 && ((newData || oldData)?.createdBy === user.id || (Array.isArray((newData || oldData)?.participants) && (newData || oldData).participants.includes(user.id)));
     case 'hrclients': return isFounder(user) || user.teams.includes('hr');
     case 'clients': return false;
     case 'members': return id === user.id;
