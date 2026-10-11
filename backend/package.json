@@ -1,5 +1,6 @@
 {
   "name": "team-hub-api",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -19,3 +20,4 @@
     "wrangler": "^4"
   }
 }
+
