@@ -43,6 +43,16 @@ test('shared tasks are visible and editable only to their two participants', () 
   assert.equal(canWriteDoc(recruiter, K('tasks'), 't', task, task), false);
 });
 
+test('personal tasks and manager assignments stay with their creator or assignee', () => {
+  const personal = { participants: ['u_d'], createdBy: 'u_d' };
+  const assigned = { participants: ['u_d'], createdBy: 'u_manager' };
+  assert.equal(canReadDoc(designer, K('tasks'), 't', personal), true);
+  assert.equal(canWriteDoc(designer, K('tasks'), 't', personal, personal), true);
+  assert.equal(canReadDoc(manager, K('tasks'), 't', assigned), true);
+  assert.equal(canWriteDoc(manager, K('tasks'), 't', assigned, assigned), true);
+  assert.equal(canReadDoc(editor, K('tasks'), 't', personal), false);
+});
+
 test('founders see everything; managers stay team-scoped', () => {
   assert.equal(canReadDoc({ ...admin, role: 'founder' }, K('clients'), 'a', {}), true);
   assert.equal(canReadDoc(manager, K('clients'), 'a', { team: 'design' }), true);
