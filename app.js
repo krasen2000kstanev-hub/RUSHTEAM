@@ -151,6 +151,7 @@ $("#t-desc").addEventListener("keydown",e=>{if(e.key==="Enter"&&!running())$("#t
 
 function teamsOf(id){const d=S.depts[id]||{};if(d.founder||d.admin)return ALLT;return Array.isArray(d.teams)?d.teams:[];}
 function myTeams(){return S.isAdmin?ALLT:teamsOf(S.uid);}
+function visibleTeamMemberIds(){const mine=myTeams();return memberIds().filter(id=>S.isAdmin||id===S.uid||(!S.depts[id]?.founder&&S.people[id]?.role!=="founder"&&teamsOf(id).some(t=>mine.includes(t))));}
 function allowed(t){const m=myTeams(),d=S.depts[S.uid]||{},isManager=Boolean(d.manager||S.members[S.uid]?.role==="manager");if(t==="today")return !!S.uid;if(t==="tasks")return !!S.uid&&m.length>0;if(t==="hr")return m.includes("hr");if(t==="team")return m.length>0||isManager;if(TAB_TEAM[t])return m.includes(TAB_TEAM[t]);if(t==="calendar")return m.includes("media")||m.includes("events");if(t==="timer"||t==="reports")return m.some(x=>x!=="hr"&&x!=="events");return m.some(x=>x!=="hr");}
 /* ---------- views ---------- */
 function render(){
@@ -682,7 +683,7 @@ function vTeam(){
   const root=h("div",{class:"two"});
   const team=h("section",{class:"panel"},h("div",{class:"box"},h("h2",null,"Екип"),
     h("p",{class:"small muted",style:"margin:0"},"Всеки, който влезе с Google акаунта си, се появява тук, но не вижда нищо, докато мениджър не му даде екип. С отметките избирате кои екипи вижда всеки: видео, сайтове, събития, дизайн и подбор. Мениджърите виждат всичко, включително часовете на целия екип, и управляват клиентите.")));
-  const ids=memberIds();
+  const ids=visibleTeamMemberIds();
   if(!ids.length)team.append(h("div",{class:"empty"},"Още няма членове."));
   ids.forEach(id=>{const m=S.members[id]||{},mine=id===S.uid,can=(mine||S.isAdmin)&&S.canWrite&&S.db;
     team.append(h("div",{class:"li"},h("div",{class:"g"},h("b",null,nameOf(id)+(mine?" (вие)":"")),can?null:h("span",{class:"small muted"},m.role||"Без посочена роля")),
