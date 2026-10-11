@@ -64,6 +64,14 @@ label.f>*{text-transform:none;letter-spacing:0;font-weight:400;font-size:15px;co
 .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .bar .sp{flex:1}
 .bar select,.bar input{width:auto}
+.hr-overview{gap:12px}
+.hr-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.hr-search{flex:1 1 260px;min-width:220px}
+.hr-stats{display:flex;flex-wrap:wrap;gap:10px 26px;padding-top:4px}
+.hr-stats div{display:flex;flex-direction:column}
+.hr-stats b{font-family:var(--f-mono);font-size:20px;color:var(--accent-2)}
+.hr-stats span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+@media (max-width:560px){.hr-search{flex-basis:100%;min-width:0}.hr-toolbar .btn{flex:1}}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
 .empty{padding:28px 16px;text-align:center;color:var(--muted)}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--c,var(--muted));flex:none;display:inline-block}
@@ -307,3 +315,4 @@ img{max-width:100%}
 .login-card p{margin:0}
 #gbtn{min-height:44px}
 .who{display:flex;align-items:center;gap:6px}
+
