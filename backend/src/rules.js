@@ -39,7 +39,7 @@ export function canReadDoc(user, kind, id, data) {
     case 'tasks': return isFounder(user) || (user.teams.length > 0 && (data?.createdBy === user.id || (Array.isArray(data?.participants) && data.participants.includes(user.id))));
     case 'hrclients': return isFounder(user) || user.teams.includes('hr');
     case 'clients': return docTeams(data).some((team) => user.teams.includes(team));
-    case 'members': return user.teams.length > 0 || user.role === 'manager' || id === user.id;
+    case 'members': return id === user.id || (Array.isArray(data?.teams) && data.teams.some((team) => user.teams.includes(team)));
     case 'depts': return id === user.id || (user.teams.length > 0 && data?.teams?.some((team) => user.teams.includes(team)));
     case 'videos': return user.teams.includes(docTeam(data));
     case 'shoots': return user.teams.includes('media');
