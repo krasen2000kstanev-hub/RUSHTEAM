@@ -507,7 +507,7 @@ function hrSummary(rows,label){
 }
 function hrOpenPositions(rows){
   const open=rows.filter(r=>r.status==="open").sort((a,b)=>(a.co||"").localeCompare(b.co||"","bg")||(a.title||"").localeCompare(b.title||"","bg"));
-  const panel=h("section",{class:"panel"},h("div",{class:"ph"},h("span",null,"Отворени позиции"),h("span",{class:"small muted"},open.length+" позиции")));
+  const panel=h("section",{class:"panel"},h("div",{class:"ph"},h("span",null,"Отворени позиции и CV-та"),h("span",{class:"small muted"},open.length+" позиции")));
   if(!open.length)return panel.append(h("div",{class:"empty"},"Няма отворени позиции.")),panel;
   open.forEach(r=>panel.append(
     h("div",{class:"drow"},
@@ -557,7 +557,7 @@ function vHr(){
   const big=(n,l)=>h("div",null,h("b",null,n),h("span",null,l));
   const cos=[...new Set(rows.map(r=>r.co||"Без компания"))].sort((a,b)=>a.localeCompare(b,"bg"));
   root.append(h("div",{class:"bar"},
-    h("div",{class:"sum"},big(H.rows?cos.length:"–","Компании"),big(H.rows?rows.filter(r=>r.status==="open").length:"–","Отворени позиции"),
+    h("div",{class:"sum"},big(H.rows?cos.length:"–","Компании"),big(H.ads.length,"Обяви"),big(H.rows?rows.filter(r=>r.status==="open").length:"–","Отворени позиции"),
       big(H.rows?new Set(rows.flatMap(r=>r.who)).size:"–","Хора от екипа"),big(H.rows?rows.reduce((a,r)=>a+r.sent,0):"–","Изпратени CV-та"),big(H.rows?rows.reduce((a,r)=>a+r.hired,0):"–","Наети")),
     h("span",{class:"sp"}),
     H.at?h("span",{class:"small muted mono",id:"h-at"},atText()):null,
