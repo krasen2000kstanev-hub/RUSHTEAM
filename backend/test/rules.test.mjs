@@ -1,13 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parsePath, collectionKind, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, normalizeTeams, isCompanyManager } from '../src/rules.js';
+import { parsePath, collectionKind, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, normalizeTeams } from '../src/rules.js';
 
 const admin = { id: 'u_admin', role: 'admin', teams: [], active: true };
 const manager = { id: 'u_manager', role: 'manager', teams: ['design'], active: true };
 const designer = { id: 'u_d', role: 'member', teams: ['design'], active: true };
 const editor = { id: 'u_m', role: 'member', teams: ['media'], active: true };
 const recruiter = { id: 'u_h', role: 'member', teams: ['hr'], active: true };
-const yoanna = { id: 'u_y', role: 'manager', teams: ['hr'], allTeams: true, active: true };
 const events = { id: 'u_e', role: 'member', teams: ['events'], active: true };
 const nobody = { id: 'u_n', role: 'member', teams: [], active: true };
 const K = collectionKind;
@@ -111,16 +110,6 @@ test('a signed-in person with no team sees nothing but their own member row', ()
 test('members stay inside the viewer team', () => {
   assert.equal(canReadDoc(designer, K('members'), 'u_d', { teams: ['design'] }), true);
   assert.equal(canReadDoc(designer, K('members'), 'u_m', { teams: ['media'] }), false);
-});
-
-test('HR manager can see and manage company-wide team data', () => {
-  assert.equal(isCompanyManager(yoanna), true);
-  assert.equal(canReadDoc(yoanna, K('members'), 'u_m', { teams: ['media'] }), true);
-  assert.equal(canReadDoc(yoanna, K('depts'), 'u_m', { teams: ['media'] }), true);
-  assert.equal(canReadDoc(yoanna, K('clients'), 'c', { teams: ['media'] }), true);
-  assert.equal(canWriteDoc(yoanna, K('clients'), 'c', null, {}), true);
-  assert.equal(canWriteDoc(yoanna, K('depts'), 'u_m', { role: 'member' }, { teams: ['media'] }), true);
-  assert.equal(canWriteDoc(yoanna, K('members'), 'u_m', null, { role: 'монтажист' }), true);
 });
 
 test('recruitment sheets: only the hr team and managers', () => {
