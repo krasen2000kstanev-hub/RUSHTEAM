@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div id="login" class="login" hidden>
+<div id="login" class="login">
   <div class="login-card">
     <div class="brand"><i></i>Team Hub</div>
     <p id="login-msg">Влезте с Google акаунта си, за да видите задачите на вашия екип.</p>
@@ -75,7 +75,7 @@
   <h2 id="task-h">Нова споделена задача</h2>
   <div class="fg">
     <label class="f w">Каква е задачата?<input type="text" id="task-title" required maxlength="200" placeholder="Напр. Подготви монтаж за клиента"></label>
-    <label class="f w">За кого / с кого е задачата?<select id="task-partner" multiple size="5" aria-describedby="task-partner-help"></select><span id="task-partner-help" class="small muted">Може да изберете повече от един човек. Оставете празно за лична задача.</span></label>
+    <label class="f w">За кого / с кого е задачата?<div class="checks" id="task-partner" aria-describedby="task-partner-help"></div><span id="task-partner-help" class="small muted">Маркирайте един или повече човека. Маркирайте „Лична задача (вие)“ за задача само към себе си.</span></label>
     <label class="f">Срок<input type="date" id="task-due"></label>
     <label class="f w">Какво трябва да се направи?<textarea id="task-description" maxlength="4000" placeholder="Опишете конкретните стъпки и очаквания резултат"></textarea></label>
     <label class="f" id="task-priority-label"><input type="checkbox" id="task-priority"> Приоритетна задача</label>
@@ -215,7 +215,8 @@
 <div id="toast" hidden></div>
 
 <script src="config.js"></script>
-<script src="data.js?v=ff1aaecb85daee77c4e987574ca5d054a7000abc"></script>
-<script src="app.js?v=f8386f951535bfde74c7b1cf865435b554979e93"></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
+
