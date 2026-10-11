@@ -1,4 +1,3 @@
-Attempting to perform the InitializeDefaultDrives operation on the 'FileSystem' provider failed.
 (function(){
 "use strict";
 const $=s=>document.querySelector(s);
