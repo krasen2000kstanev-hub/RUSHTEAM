@@ -1,3 +1,4 @@
+Attempting to perform the InitializeDefaultDrives operation on the 'FileSystem' provider failed.
 (function(){
 "use strict";
 const $=s=>document.querySelector(s);
@@ -449,7 +450,9 @@ const sheetCache=new Map();
 async function readSheet(id,selector="",clientSheet=false){
   const cacheKey=(clientSheet?"client:":"")+id+"#"+selector,cached=sheetCache.get(cacheKey);if(cached&&cached.expires>Date.now())return cached.rows;
   let rows=null;
-  if(window.teamHubApi){try{const q=selector?("?"+(/^\d+$/.test(String(selector))?"gid=":"sheet=")+encodeURIComponent(selector)):"";const out=await window.teamHubApi((clientSheet?"/api/sheets/client/":"/api/sheets/")+encodeURIComponent(id)+q);if(typeof out.content==="string")rows=parseCsv(b64text(out.content));}catch(e){/* fallback към Drive */}}
+  if(window.teamHubApi){try{const q=selector?("?"+(/^\d+$/.test(String(selector))?"gid=":"sheet=")+encodeURIComponent(selector)):"";const out=await window.teamHubApi((clientSheet?"/api/sheets/client/":"/api/sheets/")+encodeURIComponent(id)+q);if(typeof out.content==="string")rows=parseCsv(b64text(out.content));}catch(e){/* fallback към разрешения master маршрут */}
+    if(!rows&&clientSheet&&selector){try{const out=await window.teamHubApi("/api/sheets/"+encodeURIComponent(id)+"?gid="+encodeURIComponent(selector));if(typeof out.content==="string")rows=parseCsv(b64text(out.content));}catch(e){/* fallback към Drive */}}
+  }
   if(!rows){const call=()=>S.mcp.callTool(GD,"download_file_content",{fileId:id,exportMimeType:"text/csv"});let r;try{r=await call();}catch(e){if(e&&e.retryable){await new Promise(ok=>setTimeout(ok,Math.min(e.retryAfterMs||1500,8000)+Math.random()*500));r=await call();}else throw e;}const pl=r&&r.payload,c=pl&&typeof pl==="object"?pl.content:null;if(typeof c!=="string")throw {code:"upstream_error"};rows=parseCsv(b64text(c));}
   // shortcut: cache 5 minutes, manual „Обнови“ clears it when fresh data is needed.
   sheetCache.set(cacheKey,{rows,expires:Date.now()+300000});return rows;
@@ -922,3 +925,4 @@ fillSelects();route();
  }
 })();
 })();
+
