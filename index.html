@@ -215,8 +215,19 @@
 <div id="toast" hidden></div>
 
 <script src="config.js"></script>
-<script src="data.js"></script>
-<script src="app.js"></script>
+<script src="data.js?v=20261011-fix1"></script>
+<script src="app.js?v=20261011-fix1"></script>
+<script>
+  // Ако браузърът блокира кеширан скрипт, входът остава достъпен вместо празна страница.
+  setTimeout(function () {
+    if (!window.claude) {
+      var login = document.getElementById("login");
+      if (login) login.hidden = false;
+      var note = document.getElementById("login-note");
+      if (note) note.textContent = "Приложението не се зареди. Обновете страницата още веднъж.";
+    }
+  }, 1800);
+</script>
 </body>
 </html>
 
