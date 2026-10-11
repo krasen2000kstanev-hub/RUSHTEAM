@@ -152,7 +152,8 @@ $("#t-desc").addEventListener("keydown",e=>{if(e.key==="Enter"&&!running())$("#t
 function teamsOf(id){const d=S.depts[id]||{};if(d.founder||d.admin)return ALLT;return Array.isArray(d.teams)?d.teams:[];}
 const founderId=id=>Boolean(S.depts[id]?.founder||S.people[id]?.role==="founder");
 function myTeams(){return S.isAdmin?ALLT:teamsOf(S.uid);}
-function visibleTeamMemberIds(){const mine=myTeams();return memberIds().filter(id=>S.isAdmin||id===S.uid||(!founderId(id)&&teamsOf(id).some(t=>mine.includes(t))));}
+function companyManager(){const d=S.depts[S.uid]||{};return Boolean(S.isAdmin||(d.manager&&Array.isArray(d.teams)&&d.teams.includes("hr")));}
+function visibleTeamMemberIds(){const mine=myTeams();return memberIds().filter(id=>companyManager()||id===S.uid||(!founderId(id)&&teamsOf(id).some(t=>mine.includes(t))));}
 function allowed(t){const m=myTeams(),d=S.depts[S.uid]||{},isManager=Boolean(d.manager||S.members[S.uid]?.role==="manager");if(t==="today")return !!S.uid;if(t==="tasks")return !!S.uid&&m.length>0;if(t==="hr")return m.includes("hr");if(t==="team")return m.length>0||isManager;if(TAB_TEAM[t])return m.includes(TAB_TEAM[t]);if(t==="calendar")return m.includes("media")||m.includes("events");if(t==="timer"||t==="reports")return m.some(x=>x!=="hr"&&x!=="events");return m.some(x=>x!=="hr");}
 /* ---------- views ---------- */
 function render(){
@@ -509,7 +510,7 @@ function hrErr(code){
     bad_sheet:"В таблицата липсват колоните „Компания“ и „Позиция“ на първия ред.",
     server_unavailable:"Google Sheets не отговаря в момента. Опитайте пак след малко."};
   return m[code]||"Таблицата не се зареди. Опитайте пак с „Обнови“.";}
-function hrCanWrite(){const d=S.depts[S.uid]||{};return Boolean(S.canWrite&&S.db&&(S.isAdmin||(d.manager&&(d.teams||[]).includes("hr"))));}
+function hrCanWrite(){return Boolean(S.canWrite&&S.db&&companyManager());}
 async function openHrConfig(){if(!hrCanWrite())return;try{const cfg=await window.teamHubApi("/api/sheets/config");for(const key of ["track","req","ads","tasks"])$("#hr-sheet-"+key).value="https://docs.google.com/spreadsheets/d/"+(cfg.sheets||{})[key]+"/edit";$("#d-hr-config").showModal();}catch(e){toast("Настройките на таблиците не се заредиха.");}}
 $("#f-hr-config").addEventListener("submit",async e=>{e.preventDefault();const body={};for(const key of ["track","req","ads","tasks"])body[key]=$("#hr-sheet-"+key).value.trim();try{const cfg=await window.teamHubApi("/api/sheets/config",{method:"PUT",body});Object.assign(SHEET,cfg.sheets||{});S.hr.configLoaded=true;S.hr.rows=null;$("#d-hr-config").close();loadHr();toast("Таблиците са сменени.");}catch(x){toast(x&&x.code==="not_in_manifest"?"Само основател или HR мениджър може да сменя таблиците.":"Линкът е невалиден или таблицата не е достъпна.");}});
 $("#f-hr-client").addEventListener("submit",async e=>{e.preventDefault();if(!cur.hrClient)return;const id=cur.hrClient.id,description=$("#hr-client-description").value.trim();try{await S.db.doc("hrclients/"+id).set({company:cur.hrClient.company,description,updatedAt:Date.now()});$("#d-hr-client").close();toast("Описанието е запазено.");}catch(x){toast(errMsg(x));}});
@@ -714,20 +715,23 @@ async function exportCsv(){
 function vTeam(){
   const root=h("div",{class:"two"});
   const team=h("section",{class:"panel"},h("div",{class:"box"},h("h2",null,"Екип"),
-    h("p",{class:"small muted",style:"margin:0"},"Всеки, който влезе с Google акаунта си, се появява тук, но не вижда нищо, докато мениджър не му даде екип. С отметките избирате кои екипи вижда всеки: видео, сайтове, събития, дизайн и подбор. Мениджърите виждат всичко, включително часовете на целия екип, и управляват клиентите.")));
+    h("p",{class:"small muted",style:"margin:0"},companyManager()?"Вие управлявате екипите и виждате всички активни хора във фирмата. С отметките променяте отделите им.":"Виждате хората от вашите отдели и личния си профил.")));
   const ids=visibleTeamMemberIds();
-  if(!ids.length)team.append(h("div",{class:"empty"},"Още няма членове."));
-  ids.forEach(id=>{const m=S.members[id]||{},mine=id===S.uid,can=(mine||S.isAdmin)&&S.canWrite&&S.db;
-    team.append(h("div",{class:"li"},h("div",{class:"g"},h("b",null,nameOf(id)+(mine?" (вие)":"")),can?null:h("span",{class:"small muted"},m.role||"Без посочена роля")),
-      can?h("input",{type:"text",id:"m-role-"+id,value:m.role||"",maxLength:40,placeholder:"Роля, напр. монтажист","aria-label":"Роля",
-        onchange:e=>tryW(S.db.doc("members/"+id).set(Object.assign({},m,{role:e.target.value.trim(),joined:m.joined||Date.now()})),"Запазено")}):null,
-      (S.isAdmin&&S.canWrite&&S.db&&!mine)?h("div",{class:"checks small",style:"flex:1 1 100%"},ALLT.map(t=>h("label",null,h("input",{type:"checkbox",id:"m-t-"+t+"-"+id,checked:((S.depts[id]||{}).teams||[]).includes(t),
-        onchange:e=>{const set=new Set((S.depts[id]||{}).teams||[]);if(e.target.checked)set.add(t);else set.delete(t);tryW(S.db.doc("depts/"+id).update({teams:ALLT.filter(x=>set.has(x))}),"Запазено");}}),TNAME[t])),
-        h("label",{style:"font-weight:700"},h("input",{type:"checkbox",id:"m-adm-"+id,checked:!!(S.depts[id]||{}).manager,onchange:e=>tryW(S.db.doc("depts/"+id).update({manager:e.target.checked}),"Запазено")}),"Мениджър на екипа"))
-        :h("span",{class:"pill"},(founderId(id)||(mine&&S.isAdmin))?"Основател · вижда всичко":((S.depts[id]||{}).manager?"Мениджър · само своя екип":(teamsOf(id).map(t=>TNAME[t]).join(", ")||"Без достъп")))));});
-  const visibleClientTeams=S.isAdmin?ALLT:myTeams();
-  const cl=h("section",{class:"panel"},h("div",{class:"box"},h("div",{class:"bar"},h("h2",null,S.isAdmin?"Клиенти по отдели":"Клиенти във вашите отдели"),h("span",{class:"sp"}),
-    h("button",{class:"btn primary a-only w-only",type:"button",onclick:()=>openClient(null)},"+ Клиент"))));
+  const memberPanel=(title,list)=>{const panel=h("div",{class:"box"},h("div",{class:"ph"},h("span",null,title),h("span",{class:"mono"},list.length)));if(!list.length){panel.append(h("div",{class:"empty"},"Още няма членове."));return panel;}
+    list.forEach(id=>{const m=S.members[id]||{},mine=id===S.uid,can=(mine||companyManager())&&S.canWrite&&S.db,manageTeams=can&&!founderId(id);
+      panel.append(h("div",{class:"li"},h("div",{class:"g"},h("b",null,nameOf(id)+(mine?" (вие)":"")),can?null:h("span",{class:"small muted"},m.role||"Без посочена роля")),
+        can?h("input",{type:"text",id:"m-role-"+id,value:m.role||"",maxLength:40,placeholder:"Роля, напр. монтажист","aria-label":"Роля",
+          onchange:e=>tryW(S.db.doc("members/"+id).set(Object.assign({},m,{role:e.target.value.trim(),joined:m.joined||Date.now()})),"Запазено")}):null,
+        manageTeams?h("div",{class:"checks small",style:"flex:1 1 100%"},ALLT.map(t=>h("label",null,h("input",{type:"checkbox",id:"m-t-"+t+"-"+id,checked:((S.depts[id]||{}).teams||[]).includes(t),
+          onchange:e=>{const set=new Set((S.depts[id]||{}).teams||[]);if(e.target.checked)set.add(t);else set.delete(t);tryW(S.db.doc("depts/"+id).update({teams:ALLT.filter(x=>set.has(x))}),"Запазено");}}),TNAME[t])),
+          h("label",{style:"font-weight:700"},h("input",{type:"checkbox",id:"m-adm-"+id,checked:!!(S.depts[id]||{}).manager,onchange:e=>tryW(S.db.doc("depts/"+id).update({manager:e.target.checked}),"Запазено")}),"Мениджър на екипа"))
+          :h("span",{class:"pill"},founderId(id)?"Основател · вижда всичко":((S.depts[id]||{}).manager?"Мениджър":(teamsOf(id).map(t=>TNAME[t]).join(", ")||"Без достъп")))));});return panel;};
+  if(companyManager()){const mine=ids.filter(id=>id===S.uid||(!founderId(id)&&teamsOf(id).some(t=>myTeams().includes(t))));team.append(memberPanel("Моя екип",mine),memberPanel("Всички екипи",memberIds()));}
+  else team.append(memberPanel("Моя екип",ids));
+  const visibleClientTeams=companyManager()?ALLT:myTeams();
+  const canEditClients=companyManager();
+  const cl=h("section",{class:"panel"},h("div",{class:"box"},h("div",{class:"bar"},h("h2",null,canEditClients?"Клиенти по отдели":"Клиенти във вашите отдели"),h("span",{class:"sp"}),
+    canEditClients?h("button",{class:"btn primary",type:"button",onclick:()=>openClient(null)},"+ Клиент"):null)));
   const cs=Object.entries(S.clients).filter(e=>!e[1].archived).sort((a,b)=>a[1].name.localeCompare(b[1].name,"bg"));
   if(!cs.length)cl.append(h("div",{class:"empty"},S.isAdmin?"Добавете първия клиент, за да засичате време по него.":"Мениджърът още не е добавил клиенти."));
   visibleClientTeams.forEach(team=>{const list=cs.filter(([,c])=>cTeams(c).includes(team));if(!list.length)return;
@@ -735,7 +739,7 @@ function vTeam(){
     list.forEach(([id,c])=>{const l=safeUrl(c.link);
       group.append(h("div",{class:"li"},h("span",{class:"dot",style:"--c:"+c.color}),
         h("div",{class:"g"},h("b",{style:"overflow-wrap:anywhere"},c.name),h("span",{class:"small muted"},cTeams(c).map(t=>TNAME[t]).join(", ")+" · "+(c.hours?c.hours+" ч на месец":"Без месечен лимит")),l?h("span",{class:"small"},ext({url:l,label:"Папка с материали"})):null),
-        h("button",{class:"btn ghost a-only w-only",type:"button",onclick:()=>openClient(id)},"✎")));});
+        canEditClients?h("button",{class:"btn ghost",type:"button",onclick:()=>openClient(id)},"✎"):null));});
     cl.append(group);});
   root.append(team,cl);return root;
 }
