@@ -527,7 +527,7 @@ function hrSummary(rows,label){
 }
 function hrOpenPositions(rows){
   const open=rows.filter(r=>r.status==="open").sort((a,b)=>(a.co||"").localeCompare(b.co||"","bg")||(a.title||"").localeCompare(b.title||"","bg"));
-  const panel=h("section",{class:"panel"},h("div",{class:"ph"},h("span",null,"Отворени позиции и CV-та"),h("span",{class:"small muted"},open.length+" позиции")));
+  const panel=h("section",{class:"panel"},h("div",{class:"ph"},h("span",null,"Отворени позиции"),h("span",{class:"small muted"},open.length+" позиции · CV-тата се отчитат отделно")));
   if(!open.length)return panel.append(h("div",{class:"empty"},"Няма отворени позиции.")),panel;
   open.forEach(r=>panel.append(
     h("div",{class:"drow"},
@@ -538,23 +538,26 @@ function hrOpenPositions(rows){
   return panel;
 }
 const hrClientId=company=>"c_"+String(company||"").trim().toLowerCase().replace(/[^a-z0-9а-яё]+/gi,"-").replace(/^-|-$/g,"").slice(0,100);
+const hrClientMeta=c=>{const saved=S.hrClientNotes[hrClientId(c.company)]||{},rawPay=String(saved.payStatus||c.stage||"").toLowerCase(),rawActive=String(saved.activeStatus||c.status||"").toLowerCase();return {payStatus:rawPay.includes("не")&&rawPay.includes("плащ")?"not_paying":rawPay.includes("изчак")?"pending":rawPay.includes("плащ")?"paying":"pending",activeStatus:/неактив|inactive|затвор/i.test(rawActive)?"inactive":"active"};};
+async function saveHrClientMeta(c,patch){if(!hrCanWrite())return;const id=hrClientId(c.company),next=Object.assign({},S.hrClientNotes[id]||{},patch,{company:c.company,updatedAt:Date.now()});S.hrClientNotes[id]=next;schedule();try{await S.db.doc("hrclients/"+id).set(next);toast("Статусът е запазен.");}catch(e){toast(errMsg(e));}}
 function openHrClient(id,company){
   if(!hrCanWrite())return;
   $("#hr-client-h").textContent="Описание: "+company;$("#hr-client-description").value=(S.hrClientNotes[id]||{}).description||"";cur.hrClient={id,company};$("#d-hr-client").showModal();
 }
 function vHrClients(root){
   const all=S.hr.clients||[],stage=S.hrClientStage,status=S.hrClientStatus;
-  const stages=[...new Set(all.map(c=>c.stage).filter(Boolean))];
-  const filtered=all.filter(c=>(!stage||c.stage===stage)&&(status==="all"||(/актив/i.test(c.status)?status==="active":status==="inactive")));
+  const filtered=all.filter(c=>(!stage||hrClientMeta(c).payStatus===stage)&&(status==="all"||hrClientMeta(c).activeStatus===status));
   const st=h("select",{class:"btn",value:stage,onchange:e=>{S.hrClientStage=e.target.value;schedule();}});
-  fill(st,stages.map(x=>[x,x]),"Всички етапи");st.value=stage;
+  fill(st,[["paying","Плаща"],["not_paying","Не плаща"],["pending","В изчакване"]],"Всички плащания");st.value=stage;
   const ss=h("select",{class:"btn",onchange:e=>{S.hrClientStatus=e.target.value;schedule();}},h("option",{value:"active"},"Активни"),h("option",{value:"inactive"},"Неактивни"),h("option",{value:"all"},"Всички"));ss.value=status;
   root.append(h("div",{class:"bar"},st,ss,h("span",{class:"sp"}),h("span",{class:"small muted"},filtered.length+" компании")));
   if(S.hr.clientsErr){root.append(h("div",{class:"banner"},"Не успях да заредя клиентската таблица."));return root;}
   if(!filtered.length){root.append(h("div",{class:"panel empty"},"Няма компании с този филтър."));return root;}
   const grid=h("div",{class:"two"});
-  filtered.forEach(c=>{const id=hrClientId(c.company),note=(S.hrClientNotes[id]||{}).description||"",link=safeUrl(c.link),positions=c.positions||[];
-    grid.append(h("section",{class:"panel box"},h("div",{class:"ph"},h("div",null,h("h3",{style:"margin:0"},c.company),h("div",{class:"small muted"},[c.stage,c.status].filter(Boolean).join(" · "))),link?h("a",{class:"btn",href:link,target:"_blank",rel:"noopener noreferrer"},"Отвори базата ↗"):null),
+  filtered.forEach(c=>{const id=hrClientId(c.company),note=(S.hrClientNotes[id]||{}).description||"",link=safeUrl(c.link),positions=c.positions||[],meta=hrClientMeta(c),editable=hrCanWrite();
+    const pay=h("select",{class:"btn",value:meta.payStatus,disabled:!editable,"aria-label":"Плащане",onchange:e=>saveHrClientMeta(c,{payStatus:e.target.value})},h("option",{value:"paying"},"Плаща"),h("option",{value:"not_paying"},"Не плаща"),h("option",{value:"pending"},"В изчакване"));
+    const active=h("select",{class:"btn",value:meta.activeStatus,disabled:!editable,"aria-label":"Активност",onchange:e=>saveHrClientMeta(c,{activeStatus:e.target.value})},h("option",{value:"active"},"Активен"),h("option",{value:"inactive"},"Неактивен"));
+    grid.append(h("section",{class:"panel box"},h("div",{class:"ph"},h("div",null,h("h3",{style:"margin:0"},c.company),h("div",{class:"small muted"},pay," ",active)),link?h("a",{class:"btn",href:link,target:"_blank",rel:"noopener noreferrer"},"Отвори базата ↗"):null),
       h("p",{class:"small",style:"white-space:pre-wrap;overflow-wrap:anywhere"},note||"Няма описание. "+(hrCanWrite()?"Добавете описание.":"")),
       hrCanWrite()?h("button",{class:"btn ghost",type:"button",onclick:()=>openHrClient(id,c.company)},note?"Редактирай описание":"Добави описание"):null,
       h("h4",null,"Активни позиции · "+positions.length),
