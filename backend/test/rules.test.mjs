@@ -34,13 +34,14 @@ test('tasks are visible only to their team', () => {
   assert.equal(canReadDoc(manager, K('videos'), 'a', web), false);
 });
 
-test('shared tasks are visible and editable only to their two participants', () => {
-  const task = { participants: ['u_d', 'u_m'] };
+test('shared tasks support participants from different teams', () => {
+  const task = { participants: ['u_d', 'u_m', 'u_h'] };
   assert.equal(canReadDoc(designer, K('tasks'), 't', task), true);
   assert.equal(canReadDoc(editor, K('tasks'), 't', task), true);
-  assert.equal(canReadDoc(recruiter, K('tasks'), 't', task), false);
+  assert.equal(canReadDoc(recruiter, K('tasks'), 't', task), true);
   assert.equal(canWriteDoc(designer, K('tasks'), 't', task, task), true);
-  assert.equal(canWriteDoc(recruiter, K('tasks'), 't', task, task), false);
+  assert.equal(canWriteDoc(recruiter, K('tasks'), 't', task, task), true);
+  assert.equal(canReadDoc(nobody, K('tasks'), 't', task), false);
 });
 
 test('personal tasks and manager assignments stay with their creator or assignee', () => {
