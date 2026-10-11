@@ -1,3 +1,4 @@
+Attempting to perform the InitializeDefaultDrives operation on the 'FileSystem' provider failed.
 // Правила за достъп. Чисти функции, за да се тестват без база.
 export const ALL_TEAMS = ['media', 'web', 'events', 'design', 'hr'];
 const SEGMENT = /^[A-Za-z0-9_\-.~:@+]{1,120}$/;
@@ -29,6 +30,7 @@ export const docTeams = (data) => {
 export const docTeam = (data) => docTeams(data)[0] || 'media';
 
 export const isFounder = (user) => user?.role === 'founder' || user?.role === 'admin';
+export const isManager = (user) => user?.role === 'manager';
 const usable = (user) => Boolean(user && user.active);
 const manages = (user, data) => user?.role === 'manager' && docTeams(data).some((team) => user.teams.includes(team));
 const tracksTime = (user) => user.teams.some((team) => team !== 'hr' && team !== 'events');
@@ -40,8 +42,10 @@ export function canReadDoc(user, kind, id, data) {
     case 'tasks': return isFounder(user) || (user.teams.length > 0 && (data?.createdBy === user.id || (Array.isArray(data?.participants) && data.participants.includes(user.id))));
     case 'hrclients': return isFounder(user) || user.teams.includes('hr');
     case 'clients': return docTeams(data).some((team) => user.teams.includes(team));
-    case 'members': return id === user.id || (Array.isArray(data?.teams) && data.teams.some((team) => user.teams.includes(team)));
-    case 'depts': return id === user.id || (user.teams.length > 0 && data?.teams?.some((team) => user.teams.includes(team)));
+    // Мениджърите трябва да могат да намират колега от друг отдел за обща задача;
+    // това е само право за преглед, не разширява write правилата по-долу.
+    case 'members': return isManager(user) || id === user.id || (Array.isArray(data?.teams) && data.teams.some((team) => user.teams.includes(team)));
+    case 'depts': return isManager(user) || id === user.id || (user.teams.length > 0 && data?.teams?.some((team) => user.teams.includes(team)));
     case 'videos': return user.teams.includes(docTeam(data));
     case 'shoots': return user.teams.includes('media');
     case 'time': return kind.owner === user.id && tracksTime(user);
