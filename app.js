@@ -174,9 +174,9 @@ function entryMeta(e){const vid=S.videos[e.v];return h("div",{class:"meta"},
   h("span",{class:"dot",style:"--c:"+cColor(e.c)}),h("span",null,cName(e.c)),vid?h("span",null,"· "+vid.title):null,h("span",{class:"pill"},actName(e.a)));}
 async function deleteEntry(e){if(!window.confirm("Изтриване на този запис за време?"))return;await tryW(writeDay(e.date,es=>{delete es[e.id];}));}
 function openTask(id){
-  cur.task=id;const t=id?S.tasks[id]:null;const partners=memberIds().filter(p=>p!==S.uid).map(p=>[p,nameOf(p)]);fill($("#task-partner"),partners,"Изберете колега");
+  cur.task=id;const t=id?S.tasks[id]:null;const partners=memberIds().filter(p=>p!==S.uid).map(p=>[p,nameOf(p)]);fill($("#task-partner"),partners);
   $("#task-h").textContent=t?"Редакция на задача":"Нова задача";$("#task-del").hidden=!t;
-  $("#task-title").value=t?t.title||"":"";$("#task-description").value=t?t.description||"":"";$("#task-partner").value=t?(t.participants||[]).find(p=>p!==S.uid)||"":"";
+  $("#task-title").value=t?t.title||"":"";$("#task-description").value=t?t.description||"":"";[...$("#task-partner").options].forEach(o=>{o.selected=Boolean(t&&Array.isArray(t.participants)&&t.participants.includes(o.value));});
   $("#task-due").value=t?t.due||"":"";
   $("#task-priority").checked=!!(t&&t.priority);$("#task-done").checked=!!(t&&t.done);$("#task-priority-label").hidden=!S.isAdmin;$("#d-task").showModal();
 }
@@ -794,9 +794,9 @@ $("#v-newstep").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefa
 $("#v-newc").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addComment();}});
 arm($("#v-del"),async()=>{if(await tryW(S.db.doc("videos/"+cur.video).delete()))$("#d-video").close();});
 
-$("#f-task").addEventListener("submit",async e=>{e.preventDefault();const id=cur.task,old=id?S.tasks[id]:null,partner=$("#task-partner").value,due=$("#task-due").value;
-  const shared=Boolean(partner&&old&&Array.isArray(old.participants)&&old.participants.includes(S.uid));
-  const participants=partner?(shared||!S.isAdmin&&!((S.depts[S.uid]||{}).manager)?[S.uid,partner]:[partner]):(old&&Array.isArray(old.participants)&&!old.participants.includes(S.uid)?old.participants:[S.uid]);
+$("#f-task").addEventListener("submit",async e=>{e.preventDefault();const id=cur.task,old=id?S.tasks[id]:null,selected=[...$("#task-partner").selectedOptions].map(o=>o.value),due=$("#task-due").value;
+  const assigned=selected.length?selected:(old&&Array.isArray(old.participants)?old.participants.filter(p=>p!==S.uid):[]);
+  const participants=assigned.length?(S.isAdmin||((S.depts[S.uid]||{}).manager)?assigned:[S.uid,...assigned.filter(p=>p!==S.uid)]):[S.uid];
   const rec={title:$("#task-title").value.trim(),description:$("#task-description").value.trim(),participants,createdBy:old?old.createdBy:S.uid,due,priority:S.isAdmin&&$("#task-priority").checked,done:$("#task-done").checked,createdAt:old?old.createdAt:Date.now(),updatedAt:Date.now()};
   if(!rec.title){toast("Въведете каква е задачата.");return;}
   const ref=id?S.db.doc("tasks/"+id):S.db.collection("tasks").doc();if(await tryW(ref.set(rec)))$("#d-task").close();
