@@ -37,7 +37,7 @@ const DEPTS=[["media","Медия"],["hr","Подбор"],["all","И двете"
 const actName=id=>(ACTS.find(a=>a[0]===id)||[0,"Друго"])[1];
 
 const S={db:null,user:null,uid:null,isAdmin:false,canWrite:true,ready:false,
-  clients:{},videos:{},shoots:{},tasks:{},members:{},depts:{},people:{},mcp:null,booted:false,hr:{rows:null,jd:{},ads:[],adsErr:false,tasks:[],tasksErr:false,clients:[],clientsErr:false,err:"",at:0,loading:false,hasWho:false},hrView:"who",prof:{},myDays:{},rep:{},hrClientNotes:{},
+  clients:{},videos:{},shoots:{},tasks:{},members:{},depts:{},people:{},mcp:null,booted:false,hr:{rows:null,jd:{},ads:[],adsErr:false,tasks:[],tasksErr:false,clients:[],clientsErr:false,err:"",at:0,loading:false,hasWho:false},hrPaused:true,hrView:"who",prof:{},myDays:{},rep:{},hrClientNotes:{},
   tab:"timer",preset:"month",from:"",to:"",fClient:"",fFmt:"",mine:false,fWho:"",dl:null,cal:null,runId:null,hrClientStage:"",hrClientStatus:"active"};
 
 /* ---------- time helpers ---------- */
@@ -158,7 +158,7 @@ function allowed(t){const m=myTeams(),d=S.depts[S.uid]||{},isManager=Boolean(d.m
 function render(){
   const onlyHr=!myTeams().some(x=>x!=="hr"&&x!=="events");const rdy=S.booted&&(S.isAdmin||S.deptsLoaded);if(rdy&&!allowed(S.tab))S.tab=["today","tasks","timer","board","web","events","design","due","calendar","reports","team","hr"].find(allowed)||"today";document.body.dataset.tab=S.tab;
   $("#timer").hidden=onlyHr||S.tab==="hr"||S.tab==="events";
-  if(S.tab==="hr"&&S.booted&&!S.hr.rows&&!S.hr.loading&&!S.hr.err)loadHr();
+  if(S.tab==="hr"&&!S.hrPaused&&S.booted&&!S.hr.rows&&!S.hr.loading&&!S.hr.err)loadHr();
   document.body.classList.toggle("ro",!S.canWrite||!S.db);document.body.classList.toggle("adm",S.isAdmin);
   document.querySelectorAll("#tabs a").forEach(a=>{a.hidden=!allowed(a.getAttribute("href").slice(1));if(a.getAttribute("href")==="#"+S.tab)a.setAttribute("aria-current","page");else a.removeAttribute("aria-current");});
   {const ac=document.querySelector('#tabs a[aria-current]'),tb=$("#tabs");if(ac&&tb.scrollWidth>tb.clientWidth)tb.scrollLeft=Math.max(0,ac.offsetLeft-tb.offsetLeft-(tb.clientWidth-ac.offsetWidth)/2);}
@@ -601,6 +601,7 @@ function vHrTasks(root){
       h("div",{class:"tw"},h("table",null,h("thead",null,h("tr",null,h("th",null,"Задача"),h("th",null,"Човек от екипа"),h("th",null,"Срок"),h("th",null,"Статус"),h("th",null,"Бележки"))),tb))));});
 }
 function vHr(){
+  if(S.hrPaused)return h("section",{class:"panel empty"},h("h2",null,"Подбор"),h("p",{class:"small muted"},"Този раздел е изчистен и чака новите правила за извличане от Google таблиците."));
   const root=h("div",{style:"display:flex;flex-direction:column;gap:14px"}),H=S.hr,rows=H.rows||[];
   const big=(n,l)=>h("div",null,h("b",null,n),h("span",null,l));
   const cos=[...new Set(rows.map(r=>r.co||"Без компания"))].sort((a,b)=>a.localeCompare(b,"bg"));
