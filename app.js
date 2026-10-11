@@ -28,6 +28,7 @@ const FORMATS=[["short","Reels / Shorts / TikTok"],["long","YouTube (дълго 
 const fmtName=id=>(FORMATS.find(a=>a[0]===id)||[0,"Без формат"])[1];
 const GD="Google Drive",SHEET={track:"1mzKA-mzzmQqNzb5glSvcDXdWXb9rTzr4ZwL4r7RMnzY",req:"1mzKA-mzzmQqNzb5glSvcDXdWXb9rTzr4ZwL4r7RMnzY",ads:"1mzKA-mzzmQqNzb5glSvcDXdWXb9rTzr4ZwL4r7RMnzY",tasks:"1mzKA-mzzmQqNzb5glSvcDXdWXb9rTzr4ZwL4r7RMnzY"};
 const HR_CLIENTS_GID="1488479552";
+const HR_MASTER_SHEET="1mzKA-mzzmQqNzb5glSvcDXdWXb9rTzr4ZwL4r7RMnzY";
 const WHO=["човек","екип","служител","отговорник","рекрутър","консултант"];
 const SHEETS_CFG=(window.TEAM_HUB_CONFIG||{}).sheets||{};Object.assign(SHEET,SHEETS_CFG);
 const sheetUrl=id=>"https://docs.google.com/spreadsheets/d/"+id+"/edit";
@@ -485,7 +486,7 @@ async function loadHr(silent){
     S.hr.tasks=a.slice(1).map(r=>({co:g(r,"co"),task:g(r,"task"),who:g(r,"who"),due:g(r,"due"),status:g(r,"status"),notes:g(r,"notes")})).filter(r=>r.task);
     S.hr.tasksErr=false;}catch(e){S.hr.tasks=[];S.hr.tasksErr=true;}
   try{
-    const a=await readSheet(SHEET.track,HR_CLIENTS_GID),hd=(a[0]||[]).map(x=>x.trim().toLowerCase()),ix=k=>hd.findIndex(x=>x.includes(k)),g=(r,k)=>ix(k)<0?"":(r[ix(k)]||"").trim();
+    const a=await readSheet(HR_MASTER_SHEET,HR_CLIENTS_GID,true),hd=(a[0]||[]).map(x=>x.trim().toLowerCase()),ix=k=>hd.findIndex(x=>x.includes(k)),g=(r,k)=>ix(k)<0?"":(r[ix(k)]||"").trim();
     const baseId=v=>{const m=String(v||"").match(/\/spreadsheets\/d\/([A-Za-z0-9_-]{20,120})/);return m?m[1]:"";};
     const index=a.slice(1).map(r=>({company:g(r,"компан"),link:g(r,"линк"),base:baseId(g(r,"линк")),stage:g(r,"етап"),status:g(r,"статус")})).filter(r=>r.company);
     S.hr.clients=await Promise.all(index.map(async c=>{
@@ -921,4 +922,3 @@ fillSelects();route();
  }
 })();
 })();
-
