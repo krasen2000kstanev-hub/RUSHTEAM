@@ -105,6 +105,11 @@ test('a signed-in person with no team sees nothing but their own member row', ()
   assert.equal(canReadSheets(nobody), false);
 });
 
+test('members stay inside the viewer team', () => {
+  assert.equal(canReadDoc(designer, K('members'), 'u_d', { teams: ['design'] }), true);
+  assert.equal(canReadDoc(designer, K('members'), 'u_m', { teams: ['media'] }), false);
+});
+
 test('recruitment sheets: only the hr team and managers', () => {
   assert.equal(canReadSheets(recruiter), true);
   assert.equal(canReadSheets(admin), true);
