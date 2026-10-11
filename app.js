@@ -37,7 +37,7 @@ const DEPTS=[["media","Медия"],["hr","Подбор"],["all","И двете"
 const actName=id=>(ACTS.find(a=>a[0]===id)||[0,"Друго"])[1];
 
 const S={db:null,user:null,uid:null,isAdmin:false,canWrite:true,ready:false,
-  clients:{},videos:{},shoots:{},tasks:{},members:{},depts:{},people:{},mcp:null,booted:false,hr:{rows:null,jd:{},ads:[],adsErr:false,tasks:[],tasksErr:false,clients:[],clientsErr:false,err:"",at:0,loading:false,hasWho:false},hrPaused:false,hrView:"who",prof:{},myDays:{},rep:{},hrClientNotes:{},
+  clients:{},videos:{},shoots:{},tasks:{},members:{},depts:{},people:{},mcp:null,booted:false,hr:{rows:null,jd:{},ads:[],adsErr:false,tasks:[],tasksErr:false,clients:[],clientsErr:false,err:"",at:0,loading:false,hasWho:false},hrPaused:false,hrView:"who",prof:{},myDays:{},rep:{},hrClientNotes:{},hrSearch:"",
   tab:"timer",preset:"month",from:"",to:"",fClient:"",fFmt:"",mine:false,fWho:"",dl:null,cal:null,runId:null,hrClientStage:"",hrClientStatus:"all"};
 
 /* ---------- time helpers ---------- */
@@ -609,11 +609,18 @@ function hrCompanyModels(){
   return Object.values(map).map(m=>{const meta=hrClientMeta({company:m.name,stage:m.stage,status:m.status});return {...m,meta,positions:Object.values(m.positions).sort((a,b)=>a.title.localeCompare(b.title,"bg"))};}).sort((a,b)=>a.name.localeCompare(b.name,"bg"));
 }
 function vHrCompanies(){
-  const models=hrCompanyModels(),pay=S.hrClientStage,active=S.hrClientStatus,write=hrCanWrite();
-  const root=h("div",{style:"display:flex;flex-direction:column;gap:14px"}),payFilter=h("select",{class:"btn",value:pay,onchange:e=>{S.hrClientStage=e.target.value;schedule();}}),activeFilter=h("select",{class:"btn",value:active,onchange:e=>{S.hrClientStatus=e.target.value;schedule();}});
+  const models=hrCompanyModels(),pay=S.hrClientStage,active=S.hrClientStatus,write=hrCanWrite(),query=String(S.hrSearch||"").trim().toLocaleLowerCase("bg-BG");
+  const root=h("div",{style:"display:flex;flex-direction:column;gap:14px"}),payFilter=h("select",{class:"btn",value:pay,ariaLabel:"Филтър по плащане",onchange:e=>{S.hrClientStage=e.target.value;schedule();}}),activeFilter=h("select",{class:"btn",value:active,ariaLabel:"Филтър по активност",onchange:e=>{S.hrClientStatus=e.target.value;schedule();}});
   fill(payFilter,[["paying","Плаща"],["not_paying","Не плаща"],["pending","В изчакване"]],"Всички плащания");payFilter.value=pay;fill(activeFilter,[["active","Активни"],["inactive","Неактивни"],["all","Всички"]],"Всички компании");activeFilter.value=active;
-  const filtered=models.filter(m=>(!pay||m.meta.payStatus===pay)&&(active==="all"||m.meta.activeStatus===active));
-  root.append(h("div",{class:"bar"},payFilter,activeFilter,h("span",{class:"sp"}),h("span",{class:"small muted"},filtered.length+" компании"),h("a",{class:"btn",href:sheetUrl(SHEET.track),target:"_blank",rel:"noopener noreferrer"},"Отвори базата ↗")));
+  const matches=m=>!query||m.name.toLocaleLowerCase("bg-BG").includes(query)||m.positions.some(p=>p.title.toLocaleLowerCase("bg-BG").includes(query));
+  const filtered=models.filter(m=>(!pay||m.meta.payStatus===pay)&&(active==="all"||m.meta.activeStatus===active)&&matches(m));
+  const activePositions=filtered.reduce((n,m)=>n+m.positions.filter(p=>p.active).length,0),cv=filtered.reduce((n,m)=>n+m.positions.reduce((sum,p)=>sum+(p.cv||0),0),0);
+  const search=h("input",{type:"search",class:"hr-search",value:S.hrSearch||"",placeholder:"Търси компания или позиция…",ariaLabel:"Търсене в подбор",onkeyup:e=>{S.hrSearch=e.target.value;if(e.key==="Enter")schedule();}});
+  const overview=h("section",{class:"panel box hr-overview"});
+  overview.append(h("div",{class:"bar"},h("div",null,h("h2",null,"Подбор"),h("p",{class:"small muted",style:"margin:2px 0 0"},"Първо се показват активните компании. Отвори базата само когато ти трябва подробният ред.")),h("span",{class:"sp"}),h("a",{class:"btn",href:sheetUrl(SHEET.track),target:"_blank",rel:"noopener noreferrer"},"Отвори базата ↗")));
+  overview.append(h("div",{class:"hr-toolbar"},search,h("button",{class:"btn",type:"button",disabled:!S.hrSearch,onclick:()=>{S.hrSearch="";schedule();}},"Изчисти"),payFilter,activeFilter));
+  overview.append(h("div",{class:"hr-stats"},h("div",null,h("b",null,filtered.length),h("span",null,"Компании")),h("div",null,h("b",null,activePositions),h("span",null,"Активни позиции")),h("div",null,h("b",null,cv),h("span",null,"Изпратени CV-та"))));
+  root.append(overview);
   if(S.hr.err){root.append(h("div",{class:"banner"},hrErr(S.hr.err)));return root;}
   if(!S.hr.rows){root.append(h("div",{class:"panel empty"},"Зареждане на данните…"));return root;}
   if(!filtered.length){root.append(h("div",{class:"panel empty"},"Няма компании с този филтър."));return root;}
