@@ -505,6 +505,13 @@ function hrSummary(rows,label){
   const pct=(a,b)=>b?Math.round(a/b*100)+"%":"–";
   return h("section",{class:"panel"},h("div",{class:"ph"},h("span",null,label||"Изводи от таблицата"),h("span",{class:"small muted"},"Подробностите са в Google таблицата")),h("div",{class:"sum"},h("div",null,h("b",null,open),h("span",null,"Отворени позиции")),h("div",null,h("b",null,sent),h("span",null,"Изпратени CV-та")),h("div",null,h("b",null,interview),h("span",null,"Интервюта")),h("div",null,h("b",null,offer),h("span",null,"Оферти")),h("div",null,h("b",null,hired),h("span",null,"Наети"))),h("p",{class:"small muted",style:"margin:14px 0 0"},"Извод: "+(sent?"CV → интервю "+pct(interview,sent)+", интервю → оферта "+pct(offer,interview)+", оферта → наемане "+pct(hired,offer)+".":"Няма въведени кандидатури за анализ.")));
 }
+function hrOpenPositions(rows){
+  const open=rows.filter(r=>r.status==="open").sort((a,b)=>(a.co||"").localeCompare(b.co||"","bg")||(a.title||"").localeCompare(b.title||"","bg"));
+  const panel=h("section",{class:"panel"},h("div",{class:"ph"},h("span",null,"Отворени позиции"),h("span",{class:"small muted"},open.length+" позиции"));
+  if(!open.length)return panel.append(h("div",{class:"empty"},"Няма отворени позиции.")),panel;
+  open.forEach(r=>panel.append(h("div",{class:"drow"},h("div",{style:"min-width:0"},h("b",{style:"overflow-wrap:anywhere"},r.title||"Без име"),h("div",{class:"small muted"},r.co||"Без компания")),h("span",{class:"pill"},r.sent+" CV-та")));
+  return panel;
+}
 function vAds(root){
   const ads=S.hr.ads,today=ymd(new Date()),soon=ymd(addDays(new Date(),5));
   const st=a=>{const d=sheetDate(a.to);return !d?"":d<today?"old":d<=soon?"soon":"ok";};
@@ -561,7 +568,7 @@ function vHr(){
   root.append(h("div",{class:"bar"},tg("who","По хора от екипа"),tg("co","По компании"),tg("ads","Обяви"),tg("tasks","Допълнителни задачи")));
   if(S.hrView==="ads"){vAds(root);return root;}
   if(S.hrView==="tasks"){vTasks(root);return root;}
-  root.append(hrSummary(rows,"Изводи от проследяването"));return root;
+  root.append(hrSummary(rows,"Изводи от проследяването"),hrOpenPositions(rows));return root;
   const byWho=S.hrView==="who",NOW="Без човек от екипа",NOC="Без компания";
   if(byWho&&!H.hasWho)root.append(h("div",{class:"banner"},"В таблицата още няма колона „Човек от екипа“. Добавете я на първия ред и впишете кой работи по всяка позиция. Ако по една позиция работят двама, направете отделен ред за всеки или ги разделете със запетая."));
   const cd={};rows.forEach(r=>{if(r.cdesc&&!cd[r.co])cd[r.co]=r.cdesc;});
