@@ -124,10 +124,10 @@ async function handleDoc(request, user, url) {
   if (kind.kind === 'tasks') {
     const participants = Array.isArray(next.participants) ? [...new Set(next.participants.map((id) => String(id)))] : [];
     const canAssign = isFounder(user) || user.role === 'manager';
-    if (!participants.length || participants.length > 2 || (!canAssign && !participants.includes(user.id))) throw new HttpError(403, 'invalid_argument', 'Invalid task participants');
-    if (!isFounder(user) && user.role === 'manager') {
+    if (!participants.length || participants.length > 20 || (!canAssign && !participants.includes(user.id))) throw new HttpError(403, 'invalid_argument', 'Invalid task participants');
+    if (canAssign) {
       const targets = await Promise.all(participants.filter((id) => id !== user.id).map((id) => getUser(env(), id)));
-      if (targets.some((target) => !target || !target.active || !target.teams.some((team) => user.teams.includes(team)))) throw new HttpError(403, 'invalid_argument', 'Managers can assign tasks only to their team');
+      if (targets.some((target) => !target || !target.active)) throw new HttpError(403, 'invalid_argument', 'Tasks can only be assigned to active users');
     }
     if (!existing && next.createdBy !== user.id) throw new HttpError(403, 'invalid_argument', 'Only the creator can create this task');
     if (next.priority && !isFounder(user)) throw new HttpError(403, 'invalid_argument', 'Only founders can create priority tasks');
