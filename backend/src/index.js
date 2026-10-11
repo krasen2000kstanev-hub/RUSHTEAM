@@ -82,8 +82,9 @@ async function notify(event, actor) {
 }
 
 async function writeDepts(user, id, body) {
-  if (!canWriteDoc(user, { kind: 'depts' }, id, null, body)) throw new HttpError(403, 'invalid_argument', 'Not allowed');
-  if (!await getUser(env(), id)) throw new HttpError(404, 'invalid_argument', 'Unknown user');
+  const target = await getUser(env(), id);
+  if (!target) throw new HttpError(404, 'invalid_argument', 'Unknown user');
+  if (!canWriteDoc(user, { kind: 'depts' }, id, target, body)) throw new HttpError(403, 'invalid_argument', 'Not allowed');
   const fields = { updatedAt: new Date().toISOString() };
   if ('teams' in body) fields.teams = normalizeTeams(body.teams);
   if ('manager' in body) fields.role = body.manager ? 'manager' : 'member';
@@ -182,3 +183,4 @@ export async function handler(event) {
 }
 
 export { ALL_TEAMS };
+
