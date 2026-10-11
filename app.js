@@ -605,7 +605,7 @@ function hrCompanyModels(){
   const company=n=>{const key=String(n||"Без компания").trim();if(!map[key])map[key]={name:key,positions:{},link:"",stage:"",status:"",description:""};return map[key];};
   (S.hr.clients||[]).forEach(c=>{const m=company(c.company);m.link=m.link||c.link||"";m.stage=m.stage||c.stage||"";m.status=m.status||c.status||"";m.positions=(c.positions||[]).reduce((out,p)=>{const k=p.title||"Без позиция";out[k]=out[k]||{title:k,description:p.description||"",active:!/неактив|затвор|приключ/i.test(p.status||"")};return out;},m.positions);});
   (S.hr.rows||[]).forEach(r=>{const m=company(r.co),k=r.title||"Без позиция",p=m.positions[k]||(m.positions[k]={title:k,description:r.pdesc||"",active:false});p.description=p.description||r.pdesc||"";p.active=p.active||r.status==="open";p.cv=(p.cv||0)+r.sent;p.team=new Set([...(p.team||[]),...r.who]);p.interviews=(p.interviews||0)+r.interview;p.feedback=(p.feedback||0)+r.feedback;p.hired=(p.hired||0)+r.hired;p.need=(p.need||0)+r.need;p.notes=p.notes||r.notes||"";});
-  return Object.values(map).map(m=>{const meta=hrClientMeta({company:m.name,stage:m.stage,status:m.status});return {...m,meta,positions:Object.values(m.positions).sort((a,b)=>a.title.localeCompare(b.title,"bg"));}).sort((a,b)=>a.name.localeCompare(b.name,"bg"));
+  return Object.values(map).map(m=>{const meta=hrClientMeta({company:m.name,stage:m.stage,status:m.status});return {...m,meta,positions:Object.values(m.positions).sort((a,b)=>a.title.localeCompare(b.title,"bg"))};}).sort((a,b)=>a.name.localeCompare(b.name,"bg"));
 }
 function vHrCompanies(){
   const models=hrCompanyModels(),pay=S.hrClientStage,active=S.hrClientStatus,write=hrCanWrite();
