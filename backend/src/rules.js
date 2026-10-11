@@ -12,7 +12,7 @@ export function parsePath(path) {
 export function collectionKind(collection) {
   const segments = String(collection || '').split('/');
   if (!segments.every((segment) => SEGMENT.test(segment))) return null;
-  if (segments.length === 1 && ['clients', 'videos', 'shoots', 'members', 'depts', 'tasks'].includes(segments[0])) return { kind: segments[0] };
+  if (segments.length === 1 && ['clients', 'videos', 'shoots', 'members', 'depts', 'tasks', 'hrclients'].includes(segments[0])) return { kind: segments[0] };
   if (segments.length === 3 && segments[0] === 'time' && segments[2] === 'days') return { kind: 'time', owner: segments[1] };
   return null;
 }
@@ -33,6 +33,7 @@ export function canReadDoc(user, kind, id, data) {
   if (isFounder(user)) return true;
   switch (kind.kind) {
     case 'tasks': return isFounder(user) || (user.teams.length > 0 && Array.isArray(data?.participants) && data.participants.includes(user.id));
+    case 'hrclients': return isFounder(user) || user.teams.includes('hr');
     case 'clients': return user.teams.includes(docTeam(data));
     case 'members': return user.teams.length > 0 || id === user.id;
     case 'depts': return id === user.id || (user.teams.length > 0 && data?.teams?.some((team) => user.teams.includes(team)));
@@ -49,6 +50,7 @@ export function canWriteDoc(user, kind, id, oldData, newData) {
   if (isFounder(user)) return true;
   switch (kind.kind) {
     case 'tasks': return user.teams.length > 0 && Array.isArray((newData || oldData)?.participants) && (newData || oldData).participants.includes(user.id);
+    case 'hrclients': return isFounder(user) || user.teams.includes('hr');
     case 'clients': return false;
     case 'members': return id === user.id;
     case 'videos':

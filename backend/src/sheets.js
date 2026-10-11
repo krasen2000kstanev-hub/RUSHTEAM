@@ -43,12 +43,22 @@ export function textToBase64(text) {
 
 const sheetCache = new Map();
 
-// Връща първия лист на таблицата като CSV. Кешира за 30 секунди.
-export async function readSheetCsv(sheetId, env) {
-  const cached = sheetCache.get(sheetId);
+// Връща избран лист (или първия лист) като CSV. Кешира за 30 секунди.
+export async function readSheetCsv(sheetId, env, selector = '') {
+  const cacheKey = `${sheetId}#${selector}`;
+  const cached = sheetCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return cached.csv;
   const token = await accessToken(env);
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}/values/A1:Z3000?majorDimension=ROWS`;
+  let range = 'A1:Z3000';
+  if (selector) {
+    const metadata = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}?fields=sheets.properties`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!metadata.ok) { const error = new Error(`Sheet unavailable (${metadata.status})`); error.status = metadata.status; throw error; }
+    const sheets = (await metadata.json()).sheets || [];
+    const wanted = String(selector).trim().toLowerCase();
+    const found = sheets.find((sheet) => String(sheet.properties?.sheetId) === wanted || String(sheet.properties?.title || '').trim().toLowerCase() === wanted || String(sheet.properties?.title || '').trim().toLowerCase().includes(wanted));
+    if (found?.properties?.title) range = `${found.properties.title}!A1:Z3000`;
+  }
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}/values/${encodeURIComponent(range)}?majorDimension=ROWS`;
   const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!response.ok) {
     const error = new Error(`Sheet unavailable (${response.status})`);
@@ -56,7 +66,7 @@ export async function readSheetCsv(sheetId, env) {
     throw error;
   }
   const csv = rowsToCsv((await response.json()).values || []);
-  sheetCache.set(sheetId, { csv, expiresAt: Date.now() + 30000 });
+  sheetCache.set(cacheKey, { csv, expiresAt: Date.now() + 30000 });
   return csv;
 }
 

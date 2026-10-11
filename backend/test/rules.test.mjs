@@ -107,6 +107,12 @@ test('recruitment sheets: only founders and hr managers can write', () => {
   assert.equal(canWriteSheets({ ...editor, role: 'manager' }), false);
 });
 
+test('recruitment client notes stay inside HR', () => {
+  assert.equal(canReadDoc(recruiter, K('hrclients'), 'c', {}), true);
+  assert.equal(canWriteDoc(recruiter, K('hrclients'), 'c', null, {}), true);
+  assert.equal(canReadDoc(designer, K('hrclients'), 'c', {}), false);
+});
+
 test('shoots belong to the video team', () => {
   assert.equal(canReadDoc(editor, K('shoots'), 's', {}), true);
   assert.equal(canReadDoc(events, K('shoots'), 's', {}), false);

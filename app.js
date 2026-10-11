@@ -27,6 +27,7 @@ const COLORS=["#2f7ed8","#d9534f","#e08a1e","#3a9d5d","#8e5bd1","#c7498f","#1a9a
 const FORMATS=[["short","Reels / Shorts / TikTok"],["long","YouTube (дълго видео)"],["ad","Реклама"],["corp","Корпоративно"],["event","Събитие"],["photo","Фотосесия"],["other","Друго"]];
 const fmtName=id=>(FORMATS.find(a=>a[0]===id)||[0,"Без формат"])[1];
 const GD="Google Drive",SHEET={track:"1mzKA-mzzmQqNzb5glSvcDXdWXb9rTzr4ZwL4r7RMnzY",req:"1mzKA-mzzmQqNzb5glSvcDXdWXb9rTzr4ZwL4r7RMnzY",ads:"1mzKA-mzzmQqNzb5glSvcDXdWXb9rTzr4ZwL4r7RMnzY",tasks:"1mzKA-mzzmQqNzb5glSvcDXdWXb9rTzr4ZwL4r7RMnzY"};
+const HR_CLIENTS_GID="1488479552";
 const WHO=["човек","екип","служител","отговорник","рекрутър","консултант"];
 const SHEETS_CFG=(window.TEAM_HUB_CONFIG||{}).sheets||{};Object.assign(SHEET,SHEETS_CFG);
 const sheetUrl=id=>"https://docs.google.com/spreadsheets/d/"+id+"/edit";
@@ -36,8 +37,8 @@ const DEPTS=[["media","Медия"],["hr","Подбор"],["all","И двете"
 const actName=id=>(ACTS.find(a=>a[0]===id)||[0,"Друго"])[1];
 
 const S={db:null,user:null,uid:null,isAdmin:false,canWrite:true,ready:false,
-  clients:{},videos:{},shoots:{},tasks:{},members:{},depts:{},people:{},mcp:null,booted:false,hr:{rows:null,jd:{},ads:[],adsErr:false,tasks:[],tasksErr:false,err:"",at:0,loading:false,hasWho:false},hrView:"who",prof:{},myDays:{},rep:{},
-  tab:"timer",preset:"month",from:"",to:"",fClient:"",fFmt:"",mine:false,fWho:"",dl:null,cal:null,runId:null};
+  clients:{},videos:{},shoots:{},tasks:{},members:{},depts:{},people:{},mcp:null,booted:false,hr:{rows:null,jd:{},ads:[],adsErr:false,tasks:[],tasksErr:false,clients:[],clientsErr:false,err:"",at:0,loading:false,hasWho:false},hrView:"who",prof:{},myDays:{},rep:{},hrClientNotes:{},
+  tab:"timer",preset:"month",from:"",to:"",fClient:"",fFmt:"",mine:false,fWho:"",dl:null,cal:null,runId:null,hrClientStage:"",hrClientStatus:"active"};
 
 /* ---------- time helpers ---------- */
 const p2=n=>String(n).padStart(2,"0");
@@ -438,12 +439,12 @@ function parseCsv(t){const rows=[];let row=[],cell="",q=false;t=t.replace(/^﻿/
   if(cell!==""||row.length){row.push(cell);rows.push(row);}
   return rows;}
 const sheetCache=new Map();
-async function readSheet(id){
-  const cached=sheetCache.get(id);if(cached&&cached.expires>Date.now())return cached.rows;
+async function readSheet(id,selector="",clientSheet=false){
+  const cacheKey=(clientSheet?"client:":"")+id+"#"+selector,cached=sheetCache.get(cacheKey);if(cached&&cached.expires>Date.now())return cached.rows;
   let rows=null;
-  if(window.teamHubApi){try{const out=await window.teamHubApi("/api/sheets/"+encodeURIComponent(id));if(typeof out.content==="string")rows=parseCsv(b64text(out.content));}catch(e){/* fallback към Drive */}}
+  if(window.teamHubApi){try{const q=selector?("?"+(/^\d+$/.test(String(selector))?"gid=":"sheet=")+encodeURIComponent(selector)):"";const out=await window.teamHubApi((clientSheet?"/api/sheets/client/":"/api/sheets/")+encodeURIComponent(id)+q);if(typeof out.content==="string")rows=parseCsv(b64text(out.content));}catch(e){/* fallback към Drive */}}
   if(!rows){const call=()=>S.mcp.callTool(GD,"download_file_content",{fileId:id,exportMimeType:"text/csv"});let r;try{r=await call();}catch(e){if(e&&e.retryable){await new Promise(ok=>setTimeout(ok,Math.min(e.retryAfterMs||1500,8000)+Math.random()*500));r=await call();}else throw e;}const pl=r&&r.payload,c=pl&&typeof pl==="object"?pl.content:null;if(typeof c!=="string")throw {code:"upstream_error"};rows=parseCsv(b64text(c));}
-  sheetCache.set(id,{rows,expires:Date.now()+30000});return rows;
+  sheetCache.set(cacheKey,{rows,expires:Date.now()+30000});return rows;
 }
 const num=v=>{const n=parseInt(String(v||"").replace(/[^\d-]/g,""),10);return isFinite(n)&&n>0?n:0;};
 const pstOf=v=>{v=String(v||"").toLowerCase();return v.includes("затвор")?"closed":v.includes("пауз")?"paused":"open";};
@@ -476,7 +477,20 @@ async function loadHr(silent){
       c={co:ix("компания"),task:ix("задача"),who:Math.max(-1,...WHO.map(ix)),due:ix("срок"),status:ix("статус"),notes:ix("бележки")},g=(r,k)=>c[k]<0?"":(r[c[k]]||"").trim();
     S.hr.tasks=a.slice(1).map(r=>({co:g(r,"co"),task:g(r,"task"),who:g(r,"who"),due:g(r,"due"),status:g(r,"status"),notes:g(r,"notes")})).filter(r=>r.task);
     S.hr.tasksErr=false;}catch(e){S.hr.tasks=[];S.hr.tasksErr=true;}
-  S.hr.loading=false;const sig=JSON.stringify([S.hr.rows,S.hr.jd,S.hr.ads,S.hr.tasks,S.hr.adsErr,S.hr.tasksErr,S.hr.hasWho]);
+  try{
+    const a=await readSheet(SHEET.track,HR_CLIENTS_GID),hd=(a[0]||[]).map(x=>x.trim().toLowerCase()),ix=k=>hd.findIndex(x=>x.includes(k)),g=(r,k)=>ix(k)<0?"":(r[ix(k)]||"").trim();
+    const baseId=v=>{const m=String(v||"").match(/\/spreadsheets\/d\/([A-Za-z0-9_-]{20,120})/);return m?m[1]:"";};
+    const index=a.slice(1).map(r=>({company:g(r,"компан"),link:g(r,"линк"),base:baseId(g(r,"линк")),stage:g(r,"етап"),status:g(r,"статус")})).filter(r=>r.company);
+    S.hr.clients=await Promise.all(index.map(async c=>{
+      if(!c.base||!/актив/i.test(c.status))return {...c,positions:[]};
+      try{
+        const b=await readSheet(c.base,"обяви",true),bh=(b[0]||[]).map(x=>x.trim().toLowerCase()),bi=k=>bh.findIndex(x=>x.includes(k)),bg=(r,k)=>bi(k)<0?"":(r[bi(k)]||"").trim();
+        return {...c,positions:b.slice(1).map(r=>({title:bg(r,"позици"),description:bg(r,"описание"),status:bg(r,"статус")})).filter(p=>p.title&&!/неактив|затвор|приключ/i.test(p.status))};
+      }catch(e){return {...c,positions:[],loadError:true};}
+    }));
+    S.hr.clientsErr=false;
+  }catch(e){S.hr.clients=[];S.hr.clientsErr=true;}
+  S.hr.loading=false;const sig=JSON.stringify([S.hr.rows,S.hr.jd,S.hr.ads,S.hr.tasks,S.hr.clients,S.hr.adsErr,S.hr.tasksErr,S.hr.clientsErr,S.hr.hasWho]);
   if(!silent||sig!==S.hr.sig){S.hr.sig=sig;schedule();}else{const el=$("#h-at");if(el)el.textContent=atText();}
 }
 const atText=()=>"Прочетено в "+hm(S.hr.at)+" · обновява се всяка минута";
@@ -493,6 +507,7 @@ function hrErr(code){
 function hrCanWrite(){const d=S.depts[S.uid]||{};return Boolean(S.canWrite&&S.db&&(S.isAdmin||(d.manager&&(d.teams||[]).includes("hr"))));}
 async function openHrConfig(){if(!hrCanWrite())return;try{const cfg=await window.teamHubApi("/api/sheets/config");for(const key of ["track","req","ads","tasks"])$("#hr-sheet-"+key).value="https://docs.google.com/spreadsheets/d/"+(cfg.sheets||{})[key]+"/edit";$("#d-hr-config").showModal();}catch(e){toast("Настройките на таблиците не се заредиха.");}}
 $("#f-hr-config").addEventListener("submit",async e=>{e.preventDefault();const body={};for(const key of ["track","req","ads","tasks"])body[key]=$("#hr-sheet-"+key).value.trim();try{const cfg=await window.teamHubApi("/api/sheets/config",{method:"PUT",body});Object.assign(SHEET,cfg.sheets||{});S.hr.configLoaded=true;S.hr.rows=null;$("#d-hr-config").close();loadHr();toast("Таблиците са сменени.");}catch(x){toast(x&&x.code==="not_in_manifest"?"Само основател или HR мениджър може да сменя таблиците.":"Линкът е невалиден или таблицата не е достъпна.");}});
+$("#f-hr-client").addEventListener("submit",async e=>{e.preventDefault();if(!cur.hrClient)return;const id=cur.hrClient.id,description=$("#hr-client-description").value.trim();try{await S.db.doc("hrclients/"+id).set({company:cur.hrClient.company,description,updatedAt:Date.now()});$("#d-hr-client").close();toast("Описанието е запазено.");}catch(x){toast(errMsg(x));}});
 const hrRowInput=id=>$("#hr-row-"+id).value.trim();
 function syncHrRowForm(){const table=$("#hr-row-table").value;$("#hr-row-title-label").hidden=table==="tasks";$("#hr-row-task-label").hidden=table!=="tasks";$("#hr-row-link-label").hidden=table!=="ads";$("#hr-row-platform-label").hidden=table!=="ads";$("#hr-row-due-label").hidden=table!=="tasks";}
 function openHrRow(){if(!hrCanWrite())return;$("#f-hr-row").reset();syncHrRowForm();$("#d-hr-row").showModal();}
@@ -516,6 +531,31 @@ function hrOpenPositions(rows){
     )
   ));
   return panel;
+}
+const hrClientId=company=>"c_"+String(company||"").trim().toLowerCase().replace(/[^a-z0-9а-яё]+/gi,"-").replace(/^-|-$/g,"").slice(0,100);
+function openHrClient(id,company){
+  if(!hrCanWrite())return;
+  $("#hr-client-h").textContent="Описание: "+company;$("#hr-client-description").value=(S.hrClientNotes[id]||{}).description||"";cur.hrClient={id,company};$("#d-hr-client").showModal();
+}
+function vHrClients(root){
+  const all=S.hr.clients||[],stage=S.hrClientStage,status=S.hrClientStatus;
+  const stages=[...new Set(all.map(c=>c.stage).filter(Boolean))];
+  const filtered=all.filter(c=>(!stage||c.stage===stage)&&(status==="all"||(/актив/i.test(c.status)?status==="active":status==="inactive")));
+  const st=h("select",{class:"btn",value:stage,onchange:e=>{S.hrClientStage=e.target.value;schedule();}});
+  fill(st,stages.map(x=>[x,x]),"Всички етапи");st.value=stage;
+  const ss=h("select",{class:"btn",onchange:e=>{S.hrClientStatus=e.target.value;schedule();}},h("option",{value:"active"},"Активни"),h("option",{value:"inactive"},"Неактивни"),h("option",{value:"all"},"Всички"));ss.value=status;
+  root.append(h("div",{class:"bar"},st,ss,h("span",{class:"sp"}),h("span",{class:"small muted"},filtered.length+" компании")));
+  if(S.hr.clientsErr){root.append(h("div",{class:"banner"},"Не успях да заредя клиентската таблица."));return root;}
+  if(!filtered.length){root.append(h("div",{class:"panel empty"},"Няма компании с този филтър."));return root;}
+  const grid=h("div",{class:"two"});
+  filtered.forEach(c=>{const id=hrClientId(c.company),note=(S.hrClientNotes[id]||{}).description||"",link=safeUrl(c.link),positions=c.positions||[];
+    grid.append(h("section",{class:"panel box"},h("div",{class:"ph"},h("div",null,h("h3",{style:"margin:0"},c.company),h("div",{class:"small muted"},[c.stage,c.status].filter(Boolean).join(" · "))),link?h("a",{class:"btn",href:link,target:"_blank",rel:"noopener noreferrer"},"Отвори базата ↗"):null),
+      h("p",{class:"small",style:"white-space:pre-wrap;overflow-wrap:anywhere"},note||"Няма описание. "+(hrCanWrite()?"Добавете описание.":"")),
+      hrCanWrite()?h("button",{class:"btn ghost",type:"button",onclick:()=>openHrClient(id,c.company)},note?"Редактирай описание":"Добави описание"):null,
+      h("h4",null,"Активни позиции · "+positions.length),
+      positions.length?h("div",{style:"display:flex;flex-direction:column;gap:8px"},positions.map(p=>h("div",{class:"drow"},h("div",{style:"min-width:0"},h("b",null,p.title),p.description?h("div",{class:"small muted",style:"white-space:pre-wrap;overflow-wrap:anywhere"},p.description):null)))):h("div",{class:"small muted"},c.loadError?"Базата не се зареди. Отворете линка за подробности.":"Няма активни позиции.")));
+  });
+  root.append(grid);return root;
 }
 function vAds(root){
   const ads=S.hr.ads,today=ymd(new Date()),soon=ymd(addDays(new Date(),5));
@@ -568,11 +608,12 @@ function vHr(){
   root.append(h("p",{class:"small muted",style:"margin:0"},"Данните се въвеждат само в Google таблицата „Подбор – проследяване“. Тук се показват за преглед и за отчет."));
   if(H.err){root.append(h("div",{class:"banner"},hrErr(H.err)));if(!H.rows)return root;}
   if(!H.rows){root.append(h("div",{class:"panel empty"},"Зареждане на таблицата…"));return root;}
-  if(!rows.length){root.append(h("div",{class:"panel empty"},"Таблицата е празна. Добавете ред за всяка позиция: компания, позиция, статус и бройките."));return root;}
   const tg=(k,l)=>h("button",{class:"btn"+(S.hrView===k?" primary":""),type:"button","aria-pressed":String(S.hrView===k),onclick:()=>{S.hrView=k;schedule();}},l);
-  root.append(h("div",{class:"bar"},tg("who","По хора от екипа"),tg("co","По компании"),tg("ads","Обяви"),tg("tasks","Допълнителни задачи")));
+  root.append(h("div",{class:"bar"},tg("who","По хора от екипа"),tg("co","По компании"),tg("clients","Клиенти"),tg("ads","Обяви"),tg("tasks","Допълнителни задачи")));
   if(S.hrView==="ads"){vAds(root);return root;}
   if(S.hrView==="tasks"){vTasks(root);return root;}
+  if(S.hrView==="clients"){vHrClients(root);return root;}
+  if(!rows.length){root.append(h("div",{class:"panel empty"},"Таблицата е празна. Добавете ред за всяка позиция: компания, позиция, статус и бройките."));return root;}
   root.append(hrSummary(rows,"Изводи от проследяването"),hrOpenPositions(rows));return root;
   const byWho=S.hrView==="who",NOW="Без човек от екипа",NOC="Без компания";
   if(byWho&&!H.hasWho)root.append(h("div",{class:"banner"},"В таблицата още няма колона „Човек от екипа“. Добавете я на първия ред и впишете кой работи по всяка позиция. Ако по една позиция работят двама, направете отделен ред за всеки или ги разделете със запетая."));
@@ -799,7 +840,7 @@ fillSelects();route();
   if(!db){S.ready=true;showBanner("Данните не са достъпни. Влезте отново.");schedule();return;}
   if(!S.canWrite)showBanner("Имате достъп само за преглед.");
   let first=3;const done=()=>{if(first>0&&--first===0){S.ready=true;}};
-  subCol("clients",done);subCol("videos",()=>{done();loadProfiles();if($("#d-video").open&&cur.video)renderComments();});subCol("shoots",done);subCol("tasks",()=>{loadProfiles();schedule();});
+  subCol("clients",done);subCol("videos",()=>{done();loadProfiles();if($("#d-video").open&&cur.video)renderComments();});subCol("shoots",done);subCol("tasks",()=>{loadProfiles();schedule();});subCol("hrclients",()=>{S.hrClientNotes=S.hrclients||{};schedule();});
   subCol("members",()=>{loadProfiles();subReports();});subCol("depts",()=>{S.deptsLoaded=true;});
   if(S.uid){
     db.collection("time/"+S.uid+"/days").where("date",">=",ymd(addDays(new Date(),-14))).onSnapshot(s=>{const o={};s.docs.forEach(d=>{o[d.id]=d.data();});S.myDays=o;schedule();},onErr);
