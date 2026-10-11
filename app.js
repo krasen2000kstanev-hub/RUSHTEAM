@@ -578,7 +578,7 @@ function vAds(root){
     root.append(h("section",{class:"panel"},h("div",{class:"ph"},h("span",{style:"overflow-wrap:anywhere"},k),h("span",{class:"mono"},groups[k].length)),
       h("div",{class:"tw"},h("table",null,h("thead",null,h("tr",null,h("th",null,"Платформа"),h("th",null,"Обява"),h("th",null,"Качена на"),h("th",null,"Валидна до"),h("th",null,"Човек от екипа"),h("th",null,"Бележки"))),tb))));});
 }
-function vTasks(root){
+function vHrTasks(root){
   const ts=S.hr.tasks,today=ymd(new Date()),done=t=>/готов|приключ|завърш|done/i.test(t.status),late=t=>{const d=sheetDate(t.due);return !done(t)&&d&&d<today;};
   root.append(h("div",{class:"bar"},h("span",{class:"small muted"},ts.filter(t=>!done(t)).length+" отворени · "+ts.filter(late).length+" просрочени · "+ts.filter(done).length+" готови"),
     h("span",{class:"sp"}),h("a",{class:"btn",href:sheetUrl(SHEET.tasks),target:"_blank",rel:"noopener noreferrer",style:"text-decoration:none"},"Отвори таблицата със задачите ↗")));
@@ -613,7 +613,7 @@ function vHr(){
   const tg=(k,l)=>h("button",{class:"btn"+(S.hrView===k?" primary":""),type:"button","aria-pressed":String(S.hrView===k),onclick:()=>{S.hrView=k;schedule();}},l);
   root.append(h("div",{class:"bar"},tg("who","По хора от екипа"),tg("co","По компании"),tg("clients","Клиенти"),tg("ads","Обяви"),tg("tasks","Допълнителни задачи")));
   if(S.hrView==="ads"){vAds(root);return root;}
-  if(S.hrView==="tasks"){vTasks(root);return root;}
+  if(S.hrView==="tasks"){vHrTasks(root);return root;}
   if(S.hrView==="clients"){vHrClients(root);return root;}
   if(!rows.length){root.append(h("div",{class:"panel empty"},"Таблицата е празна. Добавете ред за всяка позиция: компания, позиция, статус и бройките."));return root;}
   root.append(hrSummary(rows,"Изводи от проследяването"),hrOpenPositions(rows));return root;
