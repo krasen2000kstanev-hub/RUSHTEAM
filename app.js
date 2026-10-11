@@ -1,5 +1,7 @@
 (function(){
 "use strict";
+window.addEventListener("error",e=>{const v=document.querySelector("#view");if(v)v.innerHTML='<div class="panel empty">Грешка при зареждане: '+String(e.message||e.error||"неизвестна грешка").replace(/[<&>]/g,"")+"</div>';});
+window.addEventListener("unhandledrejection",e=>{const v=document.querySelector("#view");if(v)v.innerHTML='<div class="panel empty">Грешка при зареждане: '+String(e.reason&&e.reason.message||e.reason||"неизвестна грешка").replace(/[<&>]/g,"")+"</div>';});
 const $=s=>document.querySelector(s);
 function h(tag,attrs,...kids){
   const el=document.createElement(tag);
