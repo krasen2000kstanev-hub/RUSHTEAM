@@ -7,7 +7,7 @@ const manager = { id: 'u_manager', role: 'manager', teams: ['design'], active: t
 const designer = { id: 'u_d', role: 'member', teams: ['design'], active: true };
 const editor = { id: 'u_m', role: 'member', teams: ['media'], active: true };
 const recruiter = { id: 'u_h', role: 'member', teams: ['hr'], active: true };
-const yoanna = { id: 'u_y', role: 'manager', teams: ['hr'], active: true };
+const yoanna = { id: 'u_y', role: 'manager', teams: ['hr'], allTeams: true, active: true };
 const events = { id: 'u_e', role: 'member', teams: ['events'], active: true };
 const nobody = { id: 'u_n', role: 'member', teams: [], active: true };
 const K = collectionKind;
@@ -86,6 +86,8 @@ test('clients: only managers write; recruiters do not read', () => {
   assert.equal(canReadDoc(manager, K('clients'), 'c', { team: 'design' }), true);
   assert.equal(canReadDoc(manager, K('clients'), 'c', { team: 'web' }), false);
   assert.equal(canReadDoc(manager, K('clients'), 'c', { teams: ['media', 'design'] }), true);
+  assert.equal(canWriteDoc(manager, K('clients'), 'c', { team: 'design' }, { team: 'design' }), true);
+  assert.equal(canWriteDoc(manager, K('clients'), 'c', { team: 'web' }, { team: 'web' }), false);
 });
 
 test('access to teams: only a manager changes it, and never their own', () => {
