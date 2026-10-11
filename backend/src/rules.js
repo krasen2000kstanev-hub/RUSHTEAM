@@ -48,7 +48,7 @@ export function canWriteDoc(user, kind, id, oldData, newData) {
   if (kind.kind === 'depts') return isFounder(user) && id !== user.id;
   if (isFounder(user)) return true;
   switch (kind.kind) {
-    case 'tasks': return Array.isArray(newData?.participants) && newData.participants.includes(user.id);
+    case 'tasks': return Array.isArray((newData || oldData)?.participants) && (newData || oldData).participants.includes(user.id);
     case 'clients': return false;
     case 'members': return id === user.id;
     case 'videos':
