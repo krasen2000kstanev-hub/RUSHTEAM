@@ -121,6 +121,14 @@ async function handleDoc(request, user, url) {
   const body = await readJson(request); if (!plainObject(body)) throw new HttpError(400, 'invalid_argument', 'Body must be an object');
   if (method === 'PATCH' && !existing) throw new HttpError(404, 'invalid_argument', 'Document does not exist');
   const next = method === 'PATCH' ? deepMerge(existing.data, body) : body;
+  if (kind.kind === 'tasks') {
+    const participants = Array.isArray(next.participants) ? [...new Set(next.participants.map((id) => String(id)))] : [];
+    if (participants.length !== 2 || (!isFounder(user) && !participants.includes(user.id))) throw new HttpError(403, 'invalid_argument', 'Task must have exactly two participants');
+    if (!existing && next.createdBy !== user.id) throw new HttpError(403, 'invalid_argument', 'Only the creator can create this task');
+    if (next.priority && !isFounder(user)) throw new HttpError(403, 'invalid_argument', 'Only founders can create priority tasks');
+    if (!String(next.title || '').trim() || String(next.title).length > 200 || String(next.description || '').length > 4000) throw new HttpError(400, 'invalid_argument', 'Invalid task details');
+    next.participants = participants; next.title = String(next.title).trim(); next.description = String(next.description || '').trim();
+  }
   if (!canWriteDoc(user, kind, parsed.id, existing?.data || null, next)) throw new HttpError(403, 'invalid_argument', 'Not allowed');
   if (JSON.stringify(next).length > MAX_BODY_BYTES) throw new HttpError(413, 'invalid_argument', 'Document too large');
   await putDoc(env(), parsed.collection, parsed.id, next, user.id, (existing?.version || 0) + 1);
@@ -137,7 +145,7 @@ async function route(request) {
   if (path === '/api/me' && method === 'GET') return { user: publicUser(user) };
   if (path === '/api/sheets/config' && method === 'GET') { if (!canReadSheets(user)) throw new HttpError(403, 'not_in_manifest', 'Not allowed'); return { sheets: await hrSheets() }; }
   if (path === '/api/sheets/config' && method === 'PUT') { if (!canWriteSheets(user)) throw new HttpError(403, 'not_in_manifest', 'Not allowed'); const body = await readJson(request); if (!plainObject(body)) throw new HttpError(400, 'invalid_argument', 'Invalid sheet configuration'); const next = {}; for (const key of ['track', 'req', 'ads', 'tasks']) { const value = sheetId(body[key]); if (!value) throw new HttpError(400, 'invalid_argument', 'Invalid spreadsheet link'); next[key] = value; } await putDoc(env(), 'settings', 'hrSheets', next, user.id); return { sheets: next }; }
-  if (path === '/api/users' && method === 'GET') { const rows = (await listUsers(env())).map(toUser).filter((row) => row.active); const visible = isFounder(user) || user.teams.length > 0; return { users: rows.filter((row) => visible || row.id === user.id).map((row) => ({ id: row.id, name: row.name, picture: row.picture, ...(isFounder(user) ? { email: row.email } : {}) })) }; }
+  if (path === '/api/users' && method === 'GET') { const rows = (await listUsers(env())).map(toUser).filter((row) => row.active); return { users: rows.map((row) => ({ id: row.id, name: row.name, picture: row.picture, ...(isFounder(user) ? { email: row.email } : {}) })) }; }
   if (path === '/api/sync' && method === 'POST') { const body = await readJson(request); const queries = Array.isArray(body.queries) ? body.queries : []; if (queries.length > MAX_SYNC_QUERIES) throw new HttpError(400, 'resource_exhausted', 'Too many queries'); const results = []; for (const query of queries) { try { results.push({ docs: await listCollection(user, String(query.collection || ''), Array.isArray(query.where) ? query.where : []) }); } catch (error) { results.push({ error: error.code || 'invalid_argument' }); } } return { results, user: publicUser(user) }; }
   if (path === '/api/doc') return handleDoc(request, user, url);
   const sheet = path.match(/^\/api\/sheets\/([A-Za-z0-9_-]{5,120})$/);

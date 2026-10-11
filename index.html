@@ -25,6 +25,7 @@
     <div class="brand"><i></i>Team Hub</div>
     <nav class="tabs" id="tabs">
       <a href="#today">Начало</a>
+      <a href="#tasks">Споделени задачи</a>
       <a href="#timer">Таймер</a>
       <a href="#board">Видео създаване</a>
       <a href="#web">Сайтове</a>
@@ -67,6 +68,19 @@
   </div>
   <div class="dfoot"><button type="button" class="btn danger" id="e-del">Изтрий</button><span class="sp"></span>
     <button type="button" class="btn" data-close>Отказ</button><button class="btn primary">Запази</button></div>
+</form></dialog>
+
+<!-- споделена задача -->
+<dialog id="d-task"><form id="f-task">
+  <h2 id="task-h">Нова споделена задача</h2>
+  <div class="fg">
+    <label class="f w">Каква е задачата?<input type="text" id="task-title" required maxlength="200" placeholder="Напр. Подготви монтаж за клиента"></label>
+    <label class="f w">С кого е задачата?<select id="task-partner" required></select></label>
+    <label class="f w">Какво трябва да се направи?<textarea id="task-description" maxlength="4000" placeholder="Опишете конкретните стъпки и очаквания резултат"></textarea></label>
+    <label class="f" id="task-priority-label"><input type="checkbox" id="task-priority"> Приоритетна задача</label>
+    <label class="f"><input type="checkbox" id="task-done"> Приключена</label>
+  </div>
+  <div class="dfoot"><button type="button" class="btn danger" id="task-del">Изтрий</button><span class="sp"></span><button type="button" class="btn" data-close>Отказ</button><button class="btn primary">Запази</button></div>
 </form></dialog>
 
 <dialog id="d-hr-config"><form id="f-hr-config">

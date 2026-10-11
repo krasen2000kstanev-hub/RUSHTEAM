@@ -187,6 +187,7 @@
       [].concat(ids || []).forEach((id) => { const u = users[id]; out[id] = { id: id, name: (u && u.name) || "", avatarUrl: (u && u.picture) || "", isMe: id === me.id }; });
       return out;
     },
+    list: async () => Object.values(users),
   };
 
   const downloads = {

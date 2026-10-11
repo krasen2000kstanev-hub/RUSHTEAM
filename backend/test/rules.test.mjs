@@ -34,6 +34,15 @@ test('tasks are visible only to their team', () => {
   assert.equal(canReadDoc(manager, K('videos'), 'a', web), false);
 });
 
+test('shared tasks are visible and editable only to their two participants', () => {
+  const task = { participants: ['u_d', 'u_m'] };
+  assert.equal(canReadDoc(designer, K('tasks'), 't', task), true);
+  assert.equal(canReadDoc(editor, K('tasks'), 't', task), true);
+  assert.equal(canReadDoc(recruiter, K('tasks'), 't', task), false);
+  assert.equal(canWriteDoc(designer, K('tasks'), 't', task, task), true);
+  assert.equal(canWriteDoc(recruiter, K('tasks'), 't', task, task), false);
+});
+
 test('founders see everything; managers stay team-scoped', () => {
   assert.equal(canReadDoc({ ...admin, role: 'founder' }, K('clients'), 'a', {}), true);
   assert.equal(canReadDoc(manager, K('clients'), 'a', { team: 'design' }), true);

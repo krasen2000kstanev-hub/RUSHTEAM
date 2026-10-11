@@ -36,7 +36,7 @@ const DEPTS=[["media","Медия"],["hr","Подбор"],["all","И двете"
 const actName=id=>(ACTS.find(a=>a[0]===id)||[0,"Друго"])[1];
 
 const S={db:null,user:null,uid:null,isAdmin:false,canWrite:true,ready:false,
-  clients:{},videos:{},shoots:{},members:{},depts:{},mcp:null,booted:false,hr:{rows:null,jd:{},ads:[],adsErr:false,tasks:[],tasksErr:false,err:"",at:0,loading:false,hasWho:false},hrView:"who",prof:{},myDays:{},rep:{},
+  clients:{},videos:{},shoots:{},tasks:{},members:{},depts:{},people:{},mcp:null,booted:false,hr:{rows:null,jd:{},ads:[],adsErr:false,tasks:[],tasksErr:false,err:"",at:0,loading:false,hasWho:false},hrView:"who",prof:{},myDays:{},rep:{},
   tab:"timer",preset:"month",from:"",to:"",fClient:"",fFmt:"",mine:false,fWho:"",dl:null,cal:null,runId:null};
 
 /* ---------- time helpers ---------- */
@@ -82,7 +82,7 @@ let rq=0;function schedule(){if(rq)return;rq=requestAnimationFrame(()=>{rq=0;ren
 function onErr(e){if(e&&e.code==="revoked"){showBanner("Достъпът до данните е спрян за този изглед.");}}
 function showBanner(m){const b=$("#banner");b.textContent=m;b.hidden=false;}
 function subCol(name,after){S.db.collection(name).onSnapshot(s=>{const o={};s.docs.forEach(d=>{o[d.id]=d.data();});S[name]=o;if(after)after();fillSelects();schedule();},onErr);}
-async function loadProfiles(){if(!S.user)return;const ids=new Set(Object.keys(S.members));if(S.uid)ids.add(S.uid);
+async function loadProfiles(){if(!S.user)return;try{S.people=Object.fromEntries((await S.user.list()).map(u=>[u.id,u]));}catch(e){}const ids=new Set([...Object.keys(S.members),...Object.keys(S.people)]);if(S.uid)ids.add(S.uid);
   Object.values(S.videos).forEach(v=>{if(v.who)ids.add(v.who);(v.comments||[]).forEach(c=>c.by&&ids.add(c.by));});
   try{S.prof=await S.user.profiles([...ids]);}catch(e){} schedule();}
 
@@ -119,7 +119,7 @@ function fillSelects(){
 }
 function videoTeams(){return Object.entries(TEAMS).filter(([id])=>myTeams().includes(id)).map(([id,t])=>[id,t.name]);}
 function fillTemplateOptions(team,selected=""){const s=$("#v-template");s.textContent="";s.append(h("option",{value:""},"Без шаблон"));(TASK_TEMPLATES[team]||[]).forEach((t,i)=>s.append(h("option",{value:String(i)},t[0])));s.value=selected;}
-function memberIds(){const ids=new Set(Object.keys(S.members));if(S.uid)ids.add(S.uid);return [...ids].sort((a,b)=>nameOf(a).localeCompare(nameOf(b),"bg"));}
+function memberIds(){const ids=new Set([...Object.keys(S.members),...Object.keys(S.people)]);if(S.uid)ids.add(S.uid);return [...ids].sort((a,b)=>nameOf(a).localeCompare(nameOf(b),"bg"));}
 function pairSelects(c,v){$(c).addEventListener("change",()=>fill($(v),videoOpts($(c).value),"Без задача"));
   $(v).addEventListener("change",()=>{const vid=S.videos[$(v).value];if(vid&&vid.client&&$(c).value!==vid.client){$(c).value=vid.client;}});}
 
@@ -148,10 +148,10 @@ $("#t-desc").addEventListener("keydown",e=>{if(e.key==="Enter"&&!running())$("#t
 
 function teamsOf(id){const d=S.depts[id]||{};if(d.founder||d.admin)return ALLT;return Array.isArray(d.teams)?d.teams:[];}
 function myTeams(){return S.isAdmin?ALLT:teamsOf(S.uid);}
-function allowed(t){const m=myTeams();if(t==="today")return true;if(t==="hr")return m.includes("hr");if(TAB_TEAM[t])return m.includes(TAB_TEAM[t]);if(t==="calendar")return m.includes("media")||m.includes("events");if(t==="timer"||t==="reports")return m.some(x=>x!=="hr"&&x!=="events");return m.some(x=>x!=="hr");}
+function allowed(t){const m=myTeams();if(t==="today"||t==="tasks")return !!S.uid;if(t==="hr")return m.includes("hr");if(TAB_TEAM[t])return m.includes(TAB_TEAM[t]);if(t==="calendar")return m.includes("media")||m.includes("events");if(t==="timer"||t==="reports")return m.some(x=>x!=="hr"&&x!=="events");return m.some(x=>x!=="hr");}
 /* ---------- views ---------- */
 function render(){
-  const onlyHr=!myTeams().some(x=>x!=="hr"&&x!=="events");const rdy=S.booted&&(S.isAdmin||S.deptsLoaded);if(rdy&&!allowed(S.tab))S.tab=["today","timer","board","web","events","design","due","calendar","reports","team","hr"].find(allowed)||"today";document.body.dataset.tab=S.tab;
+  const onlyHr=!myTeams().some(x=>x!=="hr"&&x!=="events");const rdy=S.booted&&(S.isAdmin||S.deptsLoaded);if(rdy&&!allowed(S.tab))S.tab=["today","tasks","timer","board","web","events","design","due","calendar","reports","team","hr"].find(allowed)||"today";document.body.dataset.tab=S.tab;
   $("#timer").hidden=onlyHr||S.tab==="hr"||S.tab==="events";
   if(S.tab==="hr"&&S.booted&&!S.hr.rows&&!S.hr.loading&&!S.hr.err)loadHr();
   document.body.classList.toggle("ro",!S.canWrite||!S.db);document.body.classList.toggle("adm",S.isAdmin);
@@ -164,13 +164,26 @@ function render(){
   v.textContent="";
   if(!rdy){v.append(h("div",{class:"panel empty"},"Зареждане…"));return;}
   if(!allowed(S.tab)){v.append(h("div",{class:"panel empty"},"Още нямате достъп до нито един екип. Помолете мениджър да ви добави от „Екип и клиенти“."));return;}
-  v.append(({today:vToday,timer:vTimer,board:vBoard,web:vBoard,events:vBoard,design:vBoard,due:vDue,hr:vHr,calendar:vCal,reports:vReports,team:vTeam}[S.tab]||vToday)());
+  v.append(({today:vToday,tasks:vTasks,timer:vTimer,board:vBoard,web:vBoard,events:vBoard,design:vBoard,due:vDue,hr:vHr,calendar:vCal,reports:vReports,team:vTeam}[S.tab]||vToday)());
   const bd=v.querySelector(".board");if(bd&&scx)bd.scrollLeft=scx;
   v.querySelectorAll(".tw table").forEach(t=>{const hs=[...t.querySelectorAll("thead th")].map(x=>x.textContent);t.querySelectorAll("tbody tr").forEach(r=>[...r.children].forEach((td,i)=>td.setAttribute("data-label",hs[i]||"")));});
 }
 function entryMeta(e){const vid=S.videos[e.v];return h("div",{class:"meta"},
   h("span",{class:"dot",style:"--c:"+cColor(e.c)}),h("span",null,cName(e.c)),vid?h("span",null,"· "+vid.title):null,h("span",{class:"pill"},actName(e.a)));}
 async function deleteEntry(e){if(!window.confirm("Изтриване на този запис за време?"))return;await tryW(writeDay(e.date,es=>{delete es[e.id];}));}
+function openTask(id){
+  cur.task=id;const t=id?S.tasks[id]:null;const partners=memberIds().filter(p=>p!==S.uid).map(p=>[p,nameOf(p)]);fill($("#task-partner"),partners,"Изберете колега");
+  $("#task-h").textContent=t?"Редакция на споделена задача":"Нова споделена задача";$("#task-del").hidden=!t;
+  $("#task-title").value=t?t.title||"":"";$("#task-description").value=t?t.description||"":"";$("#task-partner").value=t?(t.participants||[]).find(p=>p!==S.uid)||"":"";
+  $("#task-priority").checked=!!(t&&t.priority);$("#task-done").checked=!!(t&&t.done);$("#task-priority-label").hidden=!S.isAdmin;$("#d-task").showModal();
+}
+function vTasks(){
+  const root=h("div",{style:"display:flex;flex-direction:column;gap:14px"}),items=Object.entries(S.tasks).sort((a,b)=>(Number(!!b[1].priority)-Number(!!a[1].priority))||Number(!!a[1].done)-Number(!!b[1].done)||(b[1].createdAt||0)-(a[1].createdAt||0));
+  root.append(h("div",{class:"bar"},h("div",null,h("h2",null,"Споделени задачи"),h("p",{class:"small muted",style:"margin:2px 0 0"},"Задачата се вижда едновременно от двамата участници.")),h("span",{class:"sp"}),h("button",{class:"btn primary w-only",type:"button",onclick:()=>openTask(null)},"+ Нова задача")));
+  const panel=h("section",{class:"panel"});if(!items.length)panel.append(h("div",{class:"empty"},"Няма споделени задачи."));
+  items.forEach(([id,t])=>{const other=(t.participants||[]).filter(p=>p!==S.uid)[0];panel.append(h("div",{class:"drow"},h("div",{style:"min-width:0"},h("button",{class:"t",type:"button",onclick:()=>openTask(id)},t.title),h("div",{class:"small muted"},"С "+nameOf(other)+(t.description?" · "+t.description:""))),t.priority?h("span",{class:"pill",style:"color:var(--gold)"},"Приоритет"):h("span",{class:"pill"},t.done?"Приключена":"Отворена"),h("button",{class:"btn ghost w-only",type:"button",onclick:()=>openTask(id)},"✎")));});
+  root.append(panel);return root;
+}
 
 function vToday(){
   const root=h("div",{style:"display:flex;flex-direction:column;gap:14px"}),today=ymd(new Date()),soon=ymd(addDays(new Date(),7));
@@ -715,6 +728,14 @@ $("#v-newstep").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefa
 $("#v-newc").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addComment();}});
 arm($("#v-del"),async()=>{if(await tryW(S.db.doc("videos/"+cur.video).delete()))$("#d-video").close();});
 
+$("#f-task").addEventListener("submit",async e=>{e.preventDefault();const id=cur.task,old=id?S.tasks[id]:null,partner=$("#task-partner").value;
+  if(!partner||partner===S.uid){toast("Изберете друг колега.");return;}
+  const rec={title:$("#task-title").value.trim(),description:$("#task-description").value.trim(),participants:[S.uid,partner],createdBy:old?old.createdBy:S.uid,priority:S.isAdmin&&$("#task-priority").checked,done:$("#task-done").checked,createdAt:old?old.createdAt:Date.now(),updatedAt:Date.now()};
+  if(!rec.title){toast("Въведете каква е задачата.");return;}
+  const ref=id?S.db.doc("tasks/"+id):S.db.collection("tasks").doc();if(await tryW(ref.set(rec)))$("#d-task").close();
+});
+arm($("#task-del"),async()=>{if(await tryW(S.db.doc("tasks/"+cur.task).delete()))$("#d-task").close();});
+
 function openShoot(id,date){cur.shoot=id;const s=id?S.shoots[id]:null;fillSelects();
   $("#s-h").textContent=s?"Редакция на снимачен ден":"Нов снимачен ден";$("#s-del").hidden=!s;
   $("#s-title").value=s?s.title:"";$("#s-client").value=s?s.client||"":"";fill($("#s-video"),videoOpts($("#s-client").value),"Без задача");$("#s-video").value=s?s.video||"":"";
@@ -746,7 +767,7 @@ $("#f-client").addEventListener("submit",async ev=>{ev.preventDefault();const id
 arm($("#c-del"),async()=>{const c=S.clients[cur.client];if(await tryW(S.db.doc("clients/"+cur.client).set(Object.assign({},c,{archived:true}))))$("#d-client").close();});
 
 /* ---------- boot ---------- */
-function route(){const t=(location.hash||"").slice(1);S.tab=["today","timer","board","web","events","design","due","calendar","reports","team","hr"].includes(t)?t:"today";schedule();}
+function route(){const t=(location.hash||"").slice(1);S.tab=["today","tasks","timer","board","web","events","design","due","calendar","reports","team","hr"].includes(t)?t:"today";schedule();}
 window.addEventListener("hashchange",route);
 fillSelects();route();
 
@@ -759,7 +780,7 @@ fillSelects();route();
   if(!db){S.ready=true;showBanner("Данните не са достъпни. Влезте отново.");schedule();return;}
   if(!S.canWrite)showBanner("Имате достъп само за преглед.");
   let first=3;const done=()=>{if(first>0&&--first===0){S.ready=true;}};
-  subCol("clients",done);subCol("videos",()=>{done();loadProfiles();if($("#d-video").open&&cur.video)renderComments();});subCol("shoots",done);
+  subCol("clients",done);subCol("videos",()=>{done();loadProfiles();if($("#d-video").open&&cur.video)renderComments();});subCol("shoots",done);subCol("tasks",()=>{loadProfiles();schedule();});
   subCol("members",()=>{loadProfiles();subReports();});subCol("depts",()=>{S.deptsLoaded=true;});
   if(S.uid){
     db.collection("time/"+S.uid+"/days").where("date",">=",ymd(addDays(new Date(),-14))).onSnapshot(s=>{const o={};s.docs.forEach(d=>{o[d.id]=d.data();});S.myDays=o;schedule();},onErr);
