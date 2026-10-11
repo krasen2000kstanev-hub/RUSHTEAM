@@ -175,7 +175,7 @@ function entryMeta(e){const vid=S.videos[e.v];return h("div",{class:"meta"},
   h("span",{class:"dot",style:"--c:"+cColor(e.c)}),h("span",null,cName(e.c)),vid?h("span",null,"· "+vid.title):null,h("span",{class:"pill"},actName(e.a)));}
 async function deleteEntry(e){if(!window.confirm("Изтриване на този запис за време?"))return;await tryW(writeDay(e.date,es=>{delete es[e.id];}));}
 function openTask(id){
-  cur.task=id;const t=id?S.tasks[id]:null;const partners=memberIds().filter(p=>p!==S.uid).map(p=>[p,nameOf(p)]);fill($("#task-partner"),partners);
+  cur.task=id;const t=id?S.tasks[id]:null;const partners=[[S.uid,"Лична задача (вие)"],...memberIds().filter(p=>p!==S.uid).map(p=>[p,nameOf(p)])];fill($("#task-partner"),partners);
   $("#task-h").textContent=t?"Редакция на задача":"Нова задача";$("#task-del").hidden=!t;
   $("#task-title").value=t?t.title||"":"";$("#task-description").value=t?t.description||"":"";[...$("#task-partner").options].forEach(o=>{o.selected=Boolean(t&&Array.isArray(t.participants)&&t.participants.includes(o.value));});
   $("#task-due").value=t?t.due||"":"";
