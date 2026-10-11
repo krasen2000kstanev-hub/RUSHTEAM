@@ -1,3 +1,4 @@
+Attempting to perform the InitializeDefaultDrives operation on the 'FileSystem' provider failed.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, collectionKind as K } from '../src/rules.js';
@@ -30,6 +31,9 @@ test('QA profile matrix: founder, manager and member permissions stay scoped', (
   assert.equal(canReadDoc(noTeam, K('clients'), 'c', mediaClient), false);
   assert.equal(canReadDoc(mediaManager, K('tasks'), 't', mediaTask), true);
   assert.equal(canReadDoc(hrMember, K('tasks'), 't', mediaTask), false);
+  assert.equal(canReadDoc(mediaManager, K('members'), 'u_hr', { teams: ['hr'] }), true);
+  assert.equal(canReadDoc(mediaManager, K('depts'), 'u_hr', { teams: ['hr'] }), true);
+  assert.equal(canReadDoc(mediaMember, K('members'), 'u_hr', { teams: ['hr'] }), false);
 });
 
 test('QA profile matrix: recruitment write controls are manager-only', () => {
