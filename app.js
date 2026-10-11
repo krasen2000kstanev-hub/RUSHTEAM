@@ -500,6 +500,11 @@ $("#hr-row-table").addEventListener("change",syncHrRowForm);
 $("#f-hr-row").addEventListener("submit",async e=>{e.preventDefault();const table=$("#hr-row-table").value,row={company:hrRowInput("company"),title:hrRowInput("title"),task:hrRowInput("task"),who:hrRowInput("who"),status:hrRowInput("status"),description:hrRowInput("description"),link:hrRowInput("link"),platform:hrRowInput("platform"),due:hrRowInput("due")};if(!row.company||((table!=="tasks")&&!row.title)||(table==="tasks"&&!row.task)){toast("Попълнете компания и име на позицията/задачата.");return;}try{await window.teamHubApi("/api/sheets/"+encodeURIComponent(SHEET[table])+"/rows",{method:"POST",body:row});$("#d-hr-row").close();S.hr.rows=null;S.hr.loading=false;loadHr();toast("Добавено в таблицата.");}catch(x){toast(x&&x.code==="not_in_manifest"?"Само мениджърът на подбор и основателите могат да добавят.":"Записът не се добави. Проверете дали таблицата е споделена с права за редактиране.");}});
 function sheetDate(v){v=String(v||"").trim();let m=v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return m[1]+"-"+p2(m[2])+"-"+p2(m[3]);
   m=v.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})/);if(m&&+m[2]<=12)return m[3]+"-"+p2(m[2])+"-"+p2(m[1]);return "";}
+function hrSummary(rows,label){
+  const sent=rows.reduce((a,r)=>a+r.sent,0),interview=rows.reduce((a,r)=>a+r.interview,0),offer=rows.reduce((a,r)=>a+r.offer,0),hired=rows.reduce((a,r)=>a+r.hired,0),open=rows.filter(r=>r.status==="open").length;
+  const pct=(a,b)=>b?Math.round(a/b*100)+"%":"–";
+  return h("section",{class:"panel"},h("div",{class:"ph"},h("span",null,label||"Изводи от таблицата"),h("span",{class:"small muted"},"Подробностите са в Google таблицата")),h("div",{class:"sum"},h("div",null,h("b",null,open),h("span",null,"Отворени позиции")),h("div",null,h("b",null,sent),h("span",null,"Изпратени CV-та")),h("div",null,h("b",null,interview),h("span",null,"Интервюта")),h("div",null,h("b",null,offer),h("span",null,"Оферти")),h("div",null,h("b",null,hired),h("span",null,"Наети"))),h("p",{class:"small muted",style:"margin:14px 0 0"},"Извод: "+(sent?"CV → интервю "+pct(interview,sent)+", интервю → оферта "+pct(offer,interview)+", оферта → наемане "+pct(hired,offer)+".":"Няма въведени кандидатури за анализ.")));
+}
 function vAds(root){
   const ads=S.hr.ads,today=ymd(new Date()),soon=ymd(addDays(new Date(),5));
   const st=a=>{const d=sheetDate(a.to);return !d?"":d<today?"old":d<=soon?"soon":"ok";};
@@ -507,6 +512,7 @@ function vAds(root){
     h("span",{class:"sp"}),h("a",{class:"btn",href:sheetUrl(SHEET.ads),target:"_blank",rel:"noopener noreferrer",style:"text-decoration:none"},"Отвори таблицата с обявите ↗")));
   if(S.hr.adsErr){root.append(h("div",{class:"banner"},"Таблицата „Подбор – обяви“ не се зареди. Проверете дали е споделена с вас и натиснете „Обнови“."));return;}
   if(!ads.length){root.append(h("div",{class:"panel empty"},"Още няма въведени обяви. В таблицата „Подбор – обяви“ добавете по един ред за всяко място, където е качена обява: компания, позиция, платформа, линк и докога е валидна."));return;}
+  root.append(h("section",{class:"panel"},h("div",{class:"sum"},h("div",null,h("b",null,ads.length),h("span",null,"Общо обяви")),h("div",null,h("b",null,ads.filter(a=>st(a)==="ok").length),h("span",null,"Активни")),h("div",null,h("b",{class:ads.filter(a=>st(a)==="soon").length?"late":""},ads.filter(a=>st(a)==="soon").length),h("span",null,"Изтичат скоро")),h("div",null,h("b",{class:ads.filter(a=>st(a)==="old").length?"late":""},ads.filter(a=>st(a)==="old").length),h("span",null,"Изтекли")))));return root;
   const groups={};ads.forEach(a=>{const k=(a.co||"Без компания")+" – "+(a.title||"Без позиция");(groups[k]=groups[k]||[]).push(a);});
   Object.keys(groups).sort((a,b)=>a.localeCompare(b,"bg")).forEach(k=>{const tb=h("tbody");
     groups[k].forEach(a=>{const x=st(a);tb.append(h("tr",{class:x==="old"?"off":""},
@@ -524,6 +530,7 @@ function vTasks(root){
     h("span",{class:"sp"}),h("a",{class:"btn",href:sheetUrl(SHEET.tasks),target:"_blank",rel:"noopener noreferrer",style:"text-decoration:none"},"Отвори таблицата със задачите ↗")));
   if(S.hr.tasksErr){root.append(h("div",{class:"banner"},"Таблицата „Подбор – допълнителни задачи“ не се зареди. Проверете дали е споделена с вас и натиснете „Обнови“."));return;}
   if(!ts.length){root.append(h("div",{class:"panel empty"},"Още няма допълнителни задачи. В таблицата „Подбор – допълнителни задачи“ добавете ред за всяка задача извън позициите: компания, задача, човек от екипа, срок и статус."));return;}
+  root.append(hrSummary(ts.map(t=>({sent:0,interview:0,offer:0,hired:done(t)?1:0,status:done(t)?"done":"open"})),"Изводи за допълнителните задачи"));return root;
   const groups={};ts.forEach(t=>{const k=t.co||"Без компания";(groups[k]=groups[k]||[]).push(t);});
   Object.keys(groups).sort((a,b)=>a.localeCompare(b,"bg")).forEach(k=>{const tb=h("tbody"),list=groups[k].slice().sort((a,b)=>done(a)-done(b));
     list.forEach(t=>tb.append(h("tr",{class:done(t)?"off":""},
@@ -545,7 +552,6 @@ function vHr(){
     h("button",{class:"btn",type:"button",id:"h-refresh",disabled:H.loading,onclick:()=>{sheetCache.clear();S.hr.err="";loadHr();}},H.loading?"Зареждане…":"Обнови"),
     hrCanWrite()?h("button",{class:"btn primary",type:"button",onclick:openHrRow},"+ Добави в таблица"):null,
     hrCanWrite()?h("button",{class:"btn",type:"button",onclick:openHrConfig},"⚙ Таблици"):null,
-    rows.length?h("button",{class:"btn",type:"button",onclick:()=>openReport(null)},"Общ отчет"):null,
     h("a",{class:"btn primary",href:sheetUrl(SHEET.track),target:"_blank",rel:"noopener noreferrer",style:"text-decoration:none"},"Отвори таблицата ↗")));
   root.append(h("p",{class:"small muted",style:"margin:0"},"Данните се въвеждат само в Google таблицата „Подбор – проследяване“. Тук се показват за преглед и за отчет."));
   if(H.err){root.append(h("div",{class:"banner"},hrErr(H.err)));if(!H.rows)return root;}
@@ -555,6 +561,7 @@ function vHr(){
   root.append(h("div",{class:"bar"},tg("who","По хора от екипа"),tg("co","По компании"),tg("ads","Обяви"),tg("tasks","Допълнителни задачи")));
   if(S.hrView==="ads"){vAds(root);return root;}
   if(S.hrView==="tasks"){vTasks(root);return root;}
+  root.append(hrSummary(rows,"Изводи от проследяването"));return root;
   const byWho=S.hrView==="who",NOW="Без човек от екипа",NOC="Без компания";
   if(byWho&&!H.hasWho)root.append(h("div",{class:"banner"},"В таблицата още няма колона „Човек от екипа“. Добавете я на първия ред и впишете кой работи по всяка позиция. Ако по една позиция работят двама, направете отделен ред за всеки или ги разделете със запетая."));
   const cd={};rows.forEach(r=>{if(r.cdesc&&!cd[r.co])cd[r.co]=r.cdesc;});
