@@ -1,3 +1,4 @@
+Attempting to perform the InitializeDefaultDrives operation on the 'FileSystem' provider failed.
 (function(){
 "use strict";
 const $=s=>document.querySelector(s);
@@ -38,7 +39,7 @@ const actName=id=>(ACTS.find(a=>a[0]===id)||[0,"Друго"])[1];
 
 const S={db:null,user:null,uid:null,isAdmin:false,canWrite:true,ready:false,
   clients:{},videos:{},shoots:{},tasks:{},members:{},depts:{},people:{},mcp:null,booted:false,hr:{rows:null,jd:{},ads:[],adsErr:false,tasks:[],tasksErr:false,clients:[],clientsErr:false,err:"",at:0,loading:false,hasWho:false},hrPaused:false,hrView:"who",prof:{},myDays:{},rep:{},hrClientNotes:{},
-  tab:"timer",preset:"month",from:"",to:"",fClient:"",fFmt:"",mine:false,fWho:"",dl:null,cal:null,runId:null,hrClientStage:"",hrClientStatus:"active"};
+  tab:"timer",preset:"month",from:"",to:"",fClient:"",fFmt:"",mine:false,fWho:"",dl:null,cal:null,runId:null,hrClientStage:"",hrClientStatus:"all"};
 
 /* ---------- time helpers ---------- */
 const p2=n=>String(n).padStart(2,"0");
@@ -180,7 +181,7 @@ function openTask(id){
   cur.task=id;const t=id?S.tasks[id]:null;const partners=[[S.uid,"Лична задача (вие)"],...memberIds().filter(p=>p!==S.uid).map(p=>[p,nameOf(p)])],box=$("#task-partner");box.textContent="";
   partners.forEach(([id,label])=>box.append(h("label",null,h("input",{type:"checkbox",value:id,checked:Boolean(t&&Array.isArray(t.participants)&&t.participants.includes(id))}),label)));
   $("#task-h").textContent=t?"Редакция на задача":"Нова задача";$("#task-del").hidden=!t;
-  $("#task-title").value=t?t.title||"":"";$("#task-description").value=t?t.description||"":"";[...$("#task-partner").options].forEach(o=>{o.selected=Boolean(t&&Array.isArray(t.participants)&&t.participants.includes(o.value));});
+  $("#task-title").value=t?t.title||"":"";$("#task-description").value=t?t.description||"":"";
   $("#task-due").value=t?t.due||"":"";
   $("#task-priority").checked=!!(t&&t.priority);$("#task-done").checked=!!(t&&t.done);$("#task-priority-label").hidden=!S.isAdmin;$("#d-task").showModal();
 }
@@ -555,8 +556,8 @@ function vHrClients(root){
   if(!filtered.length){root.append(h("div",{class:"panel empty"},"Няма компании с този филтър."));return root;}
   const grid=h("div",{class:"two"});
   filtered.forEach(c=>{const id=hrClientId(c.company),note=(S.hrClientNotes[id]||{}).description||"",link=safeUrl(c.link),positions=c.positions||[],meta=hrClientMeta(c),editable=hrCanWrite();
-    const pay=h("select",{class:"btn",value:meta.payStatus,disabled:!editable,"aria-label":"Плащане",onchange:e=>saveHrClientMeta(c,{payStatus:e.target.value})},h("option",{value:"paying"},"Плаща"),h("option",{value:"not_paying"},"Не плаща"),h("option",{value:"pending"},"В изчакване"));
-    const active=h("select",{class:"btn",value:meta.activeStatus,disabled:!editable,"aria-label":"Активност",onchange:e=>saveHrClientMeta(c,{activeStatus:e.target.value})},h("option",{value:"active"},"Активен"),h("option",{value:"inactive"},"Неактивен"));
+    const pay=h("select",{class:"btn",value:meta.payStatus,disabled:!editable,ariaLabel:"Плащане",onchange:e=>saveHrClientMeta(c,{payStatus:e.target.value})},h("option",{value:"paying"},"Плаща"),h("option",{value:"not_paying"},"Не плаща"),h("option",{value:"pending"},"В изчакване"));
+    const active=h("select",{class:"btn",value:meta.activeStatus,disabled:!editable,ariaLabel:"Активност",onchange:e=>saveHrClientMeta(c,{activeStatus:e.target.value})},h("option",{value:"active"},"Активен"),h("option",{value:"inactive"},"Неактивен"));
     grid.append(h("section",{class:"panel box"},h("div",{class:"ph"},h("div",null,h("h3",{style:"margin:0"},c.company),h("div",{class:"small muted"},pay," ",active)),link?h("a",{class:"btn",href:link,target:"_blank",rel:"noopener noreferrer"},"Отвори базата ↗"):null),
       h("p",{class:"small",style:"white-space:pre-wrap;overflow-wrap:anywhere"},note||"Няма описание. "+(hrCanWrite()?"Добавете описание.":"")),
       hrCanWrite()?h("button",{class:"btn ghost",type:"button",onclick:()=>openHrClient(id,c.company)},note?"Редактирай описание":"Добави описание"):null,
@@ -616,14 +617,15 @@ function vHrCompanies(){
   if(S.hr.err){root.append(h("div",{class:"banner"},hrErr(S.hr.err)));return root;}
   if(!S.hr.rows){root.append(h("div",{class:"panel empty"},"Зареждане на данните…"));return root;}
   if(!filtered.length){root.append(h("div",{class:"panel empty"},"Няма компании с този филтър."));return root;}
-  const grid=h("div",{class:"two"});
-  filtered.forEach(m=>{const meta=m.meta,id=hrClientId(m.name),note=(S.hrClientNotes[id]||{}).description||m.description||"",link=safeUrl(m.link),paySelect=h("select",{class:"btn",value:meta.payStatus,disabled:!write,"aria-label":"Плащане",onchange:e=>saveHrClientMeta({company:m.name},{payStatus:e.target.value})},h("option",{value:"paying"},"Плаща"),h("option",{value:"not_paying"},"Не плаща"),h("option",{value:"pending"},"В изчакване")),activeSelect=h("select",{class:"btn",value:meta.activeStatus,disabled:!write,"aria-label":"Активност",onchange:e=>saveHrClientMeta({company:m.name},{activeStatus:e.target.value})},h("option",{value:"active"},"Активна"),h("option",{value:"inactive"},"Неактивна"));
+  const companyCard=m=>{const meta=m.meta,id=hrClientId(m.name),note=(S.hrClientNotes[id]||{}).description||m.description||"",link=safeUrl(m.link),paySelect=h("select",{class:"btn",value:meta.payStatus,disabled:!write,"aria-label":"Плащане",onchange:e=>saveHrClientMeta({company:m.name},{payStatus:e.target.value})},h("option",{value:"paying"},"Плаща"),h("option",{value:"not_paying"},"Не плаща"),h("option",{value:"pending"},"В изчакване")),activeSelect=h("select",{class:"btn",value:meta.activeStatus,disabled:!write,"aria-label":"Активност",onchange:e=>saveHrClientMeta({company:m.name},{activeStatus:e.target.value})},h("option",{value:"active"},"Активна"),h("option",{value:"inactive"},"Неактивна"));
     const positions=m.positions.filter(p=>p.active||meta.activeStatus==="inactive");
     const cards=positions.map(p=>h("div",{class:"drow",style:"display:block"},h("b",null,p.title),h("div",{class:"small muted",style:"margin-top:4px"},"CV-та: "+(p.cv||0)+" · Екип: "+(p.team?p.team.size:0)+" · Интервюта: "+(p.interviews||0)+" · Обратна връзка: "+(p.feedback||0)+(p.hired?" · Наети: "+p.hired:"")),p.description?h("div",{class:"small",style:"white-space:pre-wrap;overflow-wrap:anywhere;margin-top:4px"},p.description):null,p.notes?h("div",{class:"small muted",style:"white-space:pre-wrap;overflow-wrap:anywhere;margin-top:4px"},"Бележки: "+p.notes):null));
     const positionView=positions.length?h("div",{style:"display:flex;flex-direction:column;gap:8px"},cards):h("div",{class:"small muted"},"Няма активни позиции.");
-    grid.append(h("section",{class:"panel box"},h("div",{class:"ph"},h("div",null,h("h3",{style:"margin:0"},m.name),h("div",{class:"small muted"},paySelect," ",activeSelect)),link?h("a",{class:"btn",href:link,target:"_blank",rel:"noopener noreferrer"},"Отвори базата ↗"):null),h("p",{class:"small",style:"white-space:pre-wrap;overflow-wrap:anywhere"},note||"Няма описание за компанията."),write?h("button",{class:"btn ghost",type:"button",onclick:()=>openHrClient(id,m.name)},note?"Редактирай описание":"Добави описание"):null,h("h4",null,"Позиции · "+positions.length),positionView));
-  });
-  root.append(grid);return root;
+    return h("section",{class:"panel box"},h("div",{class:"ph"},h("div",null,h("h3",{style:"margin:0"},m.name),h("div",{class:"small muted"},paySelect," ",activeSelect)),link?h("a",{class:"btn",href:link,target:"_blank",rel:"noopener noreferrer",title:"Отвори базата на компанията"},"База на компанията ↗"):h("span",{class:"small muted"},"Няма добавена база")),h("p",{class:"small",style:"white-space:pre-wrap;overflow-wrap:anywhere"},note||"Няма описание за компанията."),write?h("button",{class:"btn ghost",type:"button",onclick:()=>openHrClient(id,m.name)},note?"Редактирай описание":"Добави описание"):null,h("h4",null,"Позиции · "+positions.length),positionView);
+  };
+  const activeCompanies=filtered.filter(m=>m.meta.activeStatus==="active"),inactiveCompanies=filtered.filter(m=>m.meta.activeStatus!=="active");
+  const group=(label,items,muted)=>items.length?h("section",{class:"panel",style:muted?"opacity:.9":""},h("div",{class:"ph"},h("span",null,label),h("span",{class:"small muted"},items.length+" компании")),h("div",{class:"two"},items.map(companyCard))):null;
+  root.append(group("Активни компании",activeCompanies,false),group("Неактивни компании",inactiveCompanies,true));return root;
 }
 function vHr(){
   if(S.hrPaused)return h("section",{class:"panel empty"},h("h2",null,"Подбор"),h("p",{class:"small muted"},"Този раздел е изчистен и чака новите правила за извличане от Google таблиците."));
@@ -891,3 +893,4 @@ fillSelects();route();
   loadProfiles();
 })();
 })();
+
