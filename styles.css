@@ -12,14 +12,14 @@ Attempting to perform the InitializeDefaultDrives operation on the 'FileSystem' 
 }
 
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5}
 .wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:14px 48px;display:flex;flex-direction:column;gap:16px}
 h1,h2,h3{margin:0;text-wrap:balance}
-h2{font-size:17px;font-weight:700}
-h3{font-size:14px;font-weight:600}
+h2{font-size:20px;font-weight:700}
+h3{font-size:16px;font-weight:600}
 .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .muted{color:var(--muted)}
-.small{font-size:13px}
+.small{font-size:14px}
 a{color:var(--accent)}
 button,input,select,textarea{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -29,13 +29,13 @@ button,input,select,textarea{font:inherit;color:inherit}
 .brand{font-family:var(--f-display);font-weight:700;font-size:17px;letter-spacing:.02em;display:flex;align-items:center;gap:8px}
 .brand i{width:14px;height:14px;border:3px solid var(--accent);border-radius:3px;display:block}
 .tabs{display:flex;flex-wrap:wrap;gap:4px}
-.tabs a{padding:7px 12px;border-radius:var(--r);text-decoration:none;color:var(--muted);font-weight:600}
+.tabs a{padding:8px 13px;border-radius:var(--r);text-decoration:none;color:var(--muted);font-weight:600;font-size:14px}
 .tabs a:hover{color:var(--ink);background:var(--sunken)}
 .tabs a[aria-current="page"]{color:var(--accent-ink);background:var(--accent)}
 .who{margin-left:auto;font-size:13px;color:var(--muted)}
 
 /* controls */
-.btn{border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:7px 12px;cursor:pointer;font-weight:600;white-space:nowrap}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:8px 13px;cursor:pointer;font-weight:600;white-space:nowrap;font-size:15px}
 .btn:hover{border-color:var(--accent)}
 .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .btn.danger{color:var(--rec)}
@@ -45,7 +45,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 input[type=text],input[type=url],input[type=date],input[type=time],input[type=number],input[type=search],select,textarea{
   border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:7px 9px;min-width:0;width:100%}
 textarea{resize:vertical;min-height:64px}
-label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.03em;text-transform:uppercase;min-width:0}
+label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.03em;text-transform:uppercase;min-width:0}
 label.f>*{text-transform:none;letter-spacing:0;font-weight:400;font-size:15px;color:var(--ink)}
 
 /* timer bar */
@@ -87,8 +87,8 @@ label.f>*{text-transform:none;letter-spacing:0;font-weight:400;font-size:15px;co
 .day>header{display:flex;justify-content:space-between;padding:9px 12px;background:var(--sunken);border-radius:var(--r) var(--r) 0 0;font-weight:600}
 .row{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:6px 12px;align-items:center;padding:9px 12px;border-top:1px solid var(--line)}
 .row .what{min-width:0;display:flex;flex-direction:column;gap:2px}
-.row .meta{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;font-size:13px;color:var(--muted)}
-.row .span{font-size:13px;color:var(--muted)}
+.row .meta{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;font-size:14px;color:var(--muted)}
+.row .span{font-size:14px;color:var(--muted)}
 .row .dur{font-weight:600}
 @media (max-width:640px){.row{grid-template-columns:minmax(0,1fr) auto}.row .span{grid-column:1}.row .acts{grid-column:2;grid-row:2}}
 
@@ -99,7 +99,7 @@ label.f>*{text-transform:none;letter-spacing:0;font-weight:400;font-size:15px;co
 .card{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--c,var(--line));border-radius:6px;padding:9px;display:flex;flex-direction:column;gap:6px;min-width:0}
 .card .t{font-weight:600;overflow-wrap:anywhere;cursor:pointer;background:none;border:0;padding:0;text-align:left}
 .card .t:hover{color:var(--accent)}
-.card .m{display:flex;flex-wrap:wrap;gap:4px 8px;font-size:13px;color:var(--muted);align-items:center}
+.card .m{display:flex;flex-wrap:wrap;gap:4px 8px;font-size:14px;color:var(--muted);align-items:center}
 .card .late{color:var(--rec);font-weight:600}
 .card .links{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:13px}
 .card .acts{display:flex;gap:2px;justify-content:space-between;margin-top:2px}
@@ -132,7 +132,7 @@ label.f>*{text-transform:none;letter-spacing:0;font-weight:400;font-size:15px;co
 .tw{overflow-x:auto}
 table{border-collapse:collapse;width:100%}
 th,td{text-align:left;padding:7px 10px;border-top:1px solid var(--line);vertical-align:top}
-th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);border-top:0}
+th{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);border-top:0}
 td.num,th.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
 
 /* team */
@@ -140,7 +140,7 @@ td.num,th.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:ta
 .li{flex-wrap:wrap;display:flex;gap:10px;align-items:center;padding:9px 12px;border-top:1px solid var(--line)}
 .li:first-of-type{border-top:0}
 .li .g{flex:1;min-width:0;display:flex;flex-direction:column}
-.li input{max-width:170px}
+.li input{max-width:190px}
 
 /* dialogs */
 dialog{border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);padding:0;width:min(560px,calc(100vw - 24px));max-height:calc(100dvh - 24px)}
