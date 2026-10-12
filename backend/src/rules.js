@@ -1,4 +1,3 @@
-Attempting to perform the InitializeDefaultDrives operation on the 'FileSystem' provider failed.
 // Правила за достъп. Чисти функции, за да се тестват без база.
 export const ALL_TEAMS = ['media', 'web', 'events', 'design', 'hr'];
 const SEGMENT = /^[A-Za-z0-9_\-.~:@+]{1,120}$/;
