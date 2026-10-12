@@ -74,7 +74,7 @@ function errMsg(e){const c=e&&e.code;
   return "Промяната не се запази. Опитайте пак.";}
 async function tryW(p,ok){try{await p;if(ok)toast(ok);return true;}catch(e){toast(errMsg(e));return false;}}
 
-const nameOf=id=>{if(!id)return "Без отговорник";const p=S.prof[id];return (p&&p.name)||(id===S.uid?"Вие":"Колега");};
+const nameOf=id=>{if(!id)return "Без отговорник";const p=S.prof[id]||S.people[id];return (p&&p.name)||(id===S.uid?"Вие":"Колега");};
 const client=id=>S.clients[id];
 const cColor=id=>(client(id)&&client(id).color)||"";
 const cName=id=>client(id)?client(id).name:"Без клиент";
