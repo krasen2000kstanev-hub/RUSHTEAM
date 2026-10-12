@@ -39,7 +39,7 @@ const actName=id=>(ACTS.find(a=>a[0]===id)||[0,"Друго"])[1];
 
 const S={db:null,user:null,uid:null,isAdmin:false,canWrite:true,ready:false,
   clients:{},videos:{},shoots:{},tasks:{},members:{},depts:{},people:{},mcp:null,booted:false,hr:{rows:null,jd:{},ads:[],adsErr:false,tasks:[],tasksErr:false,clients:[],clientsErr:false,err:"",at:0,loading:false,hasWho:false},hrPaused:false,hrView:"who",prof:{},myDays:{},rep:{},hrClientNotes:{},hrSearch:"",
-  tab:"timer",preset:"month",from:"",to:"",fClient:"",fFmt:"",mine:false,fWho:"",dl:null,cal:null,runId:null,hrClientStage:"",hrClientStatus:"all",teamSearch:"",teamFilter:"all"};
+  tab:"timer",preset:"month",from:"",to:"",fClient:"",fFmt:"",mine:false,fWho:"",taskFilter:"all",dl:null,cal:null,runId:null,hrClientStage:"",hrClientStatus:"all",teamSearch:"",teamFilter:"all"};
 
 /* ---------- time helpers ---------- */
 const p2=n=>String(n).padStart(2,"0");
@@ -187,8 +187,9 @@ function openTask(id){
   $("#task-priority").checked=!!(t&&t.priority);$("#task-done").checked=!!(t&&t.done);$("#task-priority-label").hidden=!S.isAdmin;$("#d-task").showModal();
 }
 function vTasks(){
-  const root=h("div",{style:"display:flex;flex-direction:column;gap:14px"}),items=Object.entries(S.tasks).sort((a,b)=>(Number(!!b[1].priority)-Number(!!a[1].priority))||Number(!!a[1].done)-Number(!!b[1].done)||(b[1].createdAt||0)-(a[1].createdAt||0));
-  root.append(h("div",{class:"bar"},h("div",null,h("h2",null,"Задачи"),h("p",{class:"small muted",style:"margin:2px 0 0"},"Лични, назначени и споделени задачи.")),h("span",{class:"sp"}),h("button",{class:"btn primary w-only",type:"button",onclick:()=>openTask(null)},"+ Нова задача")));
+  const root=h("div",{style:"display:flex;flex-direction:column;gap:14px"}),today=ymd(new Date()),allItems=Object.entries(S.tasks),items=allItems.filter(([,t])=>S.taskFilter==="mine"?(t.participants||[]).includes(S.uid):S.taskFilter==="overdue"?Boolean(t.due&&t.due<today&&!t.done):true).sort((a,b)=>(Number(!!b[1].priority)-Number(!!a[1].priority))||Number(!!a[1].done)-Number(!!b[1].done)||(b[1].createdAt||0)-(a[1].createdAt||0));
+  const filter=h("select",{class:"btn",value:S.taskFilter,"aria-label":"Филтър на задачите",onchange:e=>{S.taskFilter=e.target.value;schedule();}},h("option",{value:"all"},"Всички задачи"),h("option",{value:"mine"},"Моите задачи"),h("option",{value:"overdue"},"Просрочени"));
+  root.append(h("div",{class:"bar"},h("div",null,h("h2",null,"Задачи"),h("p",{class:"small muted",style:"margin:2px 0 0"},"Лични, назначени и споделени задачи.")),h("span",{class:"sp"}),filter,h("button",{class:"btn primary w-only",type:"button",onclick:()=>openTask(null)},"+ Нова задача")));
   const panel=h("section",{class:"panel"});if(!items.length)panel.append(h("div",{class:"empty"},"Няма споделени задачи."));
   items.forEach(([id,t])=>{const other=(t.participants||[]).filter(p=>p!==S.uid)[0],who=other?"За "+nameOf(other):"Лична задача",due=t.due?" · Срок "+shortDate(t.due):"";panel.append(h("div",{class:"drow"},h("div",{style:"min-width:0"},h("button",{class:"t",type:"button",onclick:()=>openTask(id)},t.title),h("div",{class:"small muted"},who+due+(t.description?" · "+t.description:""))),t.priority?h("span",{class:"pill",style:"color:var(--gold)"},"Приоритет"):h("span",{class:"pill"},t.done?"Приключена":"Отворена"),h("button",{class:"btn ghost w-only",type:"button",onclick:()=>openTask(id)},"✎")));});
   root.append(panel);return root;
