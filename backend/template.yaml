@@ -25,6 +25,13 @@ Parameters:
   FrontendUrl:
     Type: String
     Default: https://krasen2000kstanev-hub.github.io/RUSHTEAM/
+  ReportRecipients:
+    Type: String
+    Default: krasen2000.k.stanev@gmail.com,cnikolov95@gmail.com
+  HourlyRatesJson:
+    Type: String
+    NoEcho: true
+    Default: '{}'
 
 Globals:
   Function:
@@ -42,6 +49,8 @@ Globals:
         GOOGLE_SERVICE_ACCOUNT_JSON: !Ref GoogleServiceAccountJson
         SES_FROM_EMAIL: !Ref SesFromEmail
         FRONTEND_URL: !Ref FrontendUrl
+        REPORT_RECIPIENTS: !Ref ReportRecipients
+        HOURLY_RATES_JSON: !Ref HourlyRatesJson
 
 Resources:
   TeamHubApi:
@@ -89,6 +98,47 @@ Resources:
             - Effect: Allow
               Action: ses:SendEmail
               Resource: '*'
+
+  MonthlyReportFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/monthly.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref TeamHubTable
+        - Statement:
+            - Effect: Allow
+              Action: ses:SendEmail
+              Resource: '*'
+
+  MonthlyReportScheduleRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: scheduler.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: InvokeMonthlyReport
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt MonthlyReportFunction.Arn
+
+  MonthlyReportSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      ScheduleExpression: cron(0 9 1 * ? *)
+      ScheduleExpressionTimezone: Europe/Sofia
+      FlexibleTimeWindow: { Mode: 'OFF' }
+      Target:
+        Arn: !GetAtt MonthlyReportFunction.Arn
+        RoleArn: !GetAtt MonthlyReportScheduleRole.Arn
 
   TeamHubTable:
     Type: AWS::DynamoDB::Table
