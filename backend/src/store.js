@@ -18,7 +18,19 @@ export async function listDocs(env, collection) {
 
 export async function putDoc(env, collection, id, data, updatedBy, version = 1) {
   const now = new Date().toISOString();
-  await db.send(new PutCommand({ TableName: table(env), Item: { ...key(collection, id), entity: 'doc', collection, id, data: JSON.stringify(data), version, updatedBy, updatedAt: now, gsi1pk: `COLLECTION#${collection}`, gsi1sk: `${now}#${id}` } }));
+  const previousVersion = Math.max(0, Number(version) - 1);
+  try {
+    await db.send(new PutCommand({
+      TableName: table(env),
+      Item: { ...key(collection, id), entity: 'doc', collection, id, data: JSON.stringify(data), version, updatedBy, updatedAt: now, gsi1pk: `COLLECTION#${collection}`, gsi1sk: `${now}#${id}` },
+      ConditionExpression: 'attribute_not_exists(#pk) OR #version = :previousVersion',
+      ExpressionAttributeNames: { '#pk': 'pk', '#version': 'version' },
+      ExpressionAttributeValues: { ':previousVersion': previousVersion },
+    }));
+  } catch (error) {
+    if (error?.name === 'ConditionalCheckFailedException') error.code = 'conflict';
+    throw error;
+  }
   return { updatedAt: now, version };
 }
 

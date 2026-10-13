@@ -148,7 +148,12 @@ async function handleDoc(request, user, url) {
   }
   if (!canWriteDoc(user, kind, parsed.id, existing?.data || null, next)) throw new HttpError(403, 'invalid_argument', 'Not allowed');
   if (JSON.stringify(next).length > MAX_BODY_BYTES) throw new HttpError(413, 'invalid_argument', 'Document too large');
-  await putDoc(env(), parsed.collection, parsed.id, next, user.id, (existing?.version || 0) + 1);
+  try {
+    await putDoc(env(), parsed.collection, parsed.id, next, user.id, (existing?.version || 0) + 1);
+  } catch (error) {
+    if (error?.code === 'conflict') throw new HttpError(409, 'conflict', 'Записът е променен от друг потребител. Презаредете и опитайте отново.');
+    throw error;
+  }
   await notify({ action: method === 'PUT' ? 'created' : 'updated', collection: parsed.collection, id: parsed.id, oldData: existing?.data, newData: next, owner: kind.owner }, user);
   return { ok: true };
 }

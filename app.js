@@ -68,6 +68,7 @@ const ext=(l)=>h("a",{href:l.url,target:"_blank",rel:"noopener noreferrer"},link
 let toastT;
 function toast(m){const t=$("#toast");t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3500);}
 function errMsg(e){const c=e&&e.code;
+  if(c==="conflict")return "Друг потребител промени записа. Презаредете и опитайте отново.";
   if(c==="quota_exceeded")return "Базата е пълна. Изтрийте стари записи и опитайте пак.";
   if(c==="invalid_argument")return "Нямате права за тази промяна.";
   if(c==="resource_exhausted")return "Твърде много заявки. Изчакайте малко и опитайте пак.";
