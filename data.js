@@ -23,19 +23,32 @@
 
   async function api(path, options) {
     const opt = options || {};
-    let response;
-    try {
-      response = await fetch(API + path, {
-        method: opt.method || "GET",
-        headers: Object.assign({ "Content-Type": "application/json" }, token ? { Authorization: "Bearer " + token } : {}),
-        body: opt.body === undefined ? undefined : JSON.stringify(opt.body),
-      });
-    } catch (e) { throw { code: "unavailable", message: "Няма връзка със сървъра" }; }
-    let body = null;
-    try { body = await response.json(); } catch (e) { /* празен отговор */ }
-    if (response.status === 401 && !opt.noAuthRedirect) { signOut(); throw { code: "not_granted", message: "Сесията е изтекла" }; }
-    if (!response.ok) throw { code: (body && body.code) || "unavailable", message: (body && body.error) || String(response.status) };
-    return body;
+    const method = opt.method || "GET";
+    // PUT/PATCH/DELETE са безопасни за повторение: същият документ се записва
+    // отново. POST не се повтаря, за да не се дублират нови записи в таблица.
+    const retryable = method !== "POST";
+    const maxAttempts = retryable ? 4 : 1;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      let response;
+      try {
+        response = await fetch(API + path, {
+          method,
+          headers: Object.assign({ "Content-Type": "application/json" }, token ? { Authorization: "Bearer " + token } : {}),
+          body: opt.body === undefined ? undefined : JSON.stringify(opt.body),
+        });
+      } catch (e) {
+        if (attempt + 1 < maxAttempts) { await new Promise(r => setTimeout(r, 250 * (2 ** attempt))); continue; }
+        throw { code: "unavailable", message: "Няма връзка със сървъра" };
+      }
+      let body = null;
+      try { body = await response.json(); } catch (e) { /* празен отговор */ }
+      if (response.status === 401 && !opt.noAuthRedirect) { signOut(); throw { code: "not_granted", message: "Сесията е изтекла" }; }
+      if (response.ok) return body;
+      const error = { code: (body && body.code) || "unavailable", message: (body && body.error) || String(response.status) };
+      const transient = [408, 425, 429, 500, 502, 503, 504].includes(response.status);
+      if (!retryable || !transient || attempt + 1 >= maxAttempts) throw error;
+      await new Promise(r => setTimeout(r, 250 * (2 ** attempt)));
+    }
   }
   window.teamHubApi = api;
 
