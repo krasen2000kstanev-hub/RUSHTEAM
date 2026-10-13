@@ -147,7 +147,7 @@ async function handleDoc(request, user, url) {
     if (!assignee || !assignee.active || !assignee.teams.includes(team)) throw new HttpError(403, 'invalid_argument', 'Video tasks can only be assigned to this team');
   }
   if (!canWriteDoc(user, kind, parsed.id, existing?.data || null, next)) throw new HttpError(403, 'invalid_argument', 'Not allowed');
-  if (JSON.stringify(next).length > MAX_BODY_BYTES) throw new HttpError(413, 'invalid_argument', 'Document too large');
+  if (JSON.stringify(next).length > MAX_BODY_BYTES) throw new HttpError(413, 'document_too_large', 'Document too large');
   try {
     await putDoc(env(), parsed.collection, parsed.id, next, user.id, (existing?.version || 0) + 1);
   } catch (error) {

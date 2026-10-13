@@ -69,11 +69,12 @@ let toastT;
 function toast(m){const t=$("#toast");t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3500);}
 function errMsg(e){const c=e&&e.code;
   if(c==="conflict")return "Друг потребител промени записа. Презаредете и опитайте отново.";
+  if(c==="document_too_large")return "Записът е прекалено голям. Намалете текста или разделете информацията на отделни записи.";
   if(c==="quota_exceeded")return "Базата е пълна. Изтрийте стари записи и опитайте пак.";
   if(c==="invalid_argument")return "Нямате права за тази промяна.";
   if(c==="resource_exhausted")return "Твърде много заявки. Изчакайте малко и опитайте пак.";
   return "Промяната не се запази. Опитайте пак.";}
-async function tryW(p,ok){try{await p;if(ok)toast(ok);return true;}catch(e){toast(errMsg(e));return false;}}
+async function tryW(p,ok){try{await p;if(ok)toast(ok);return true;}catch(e){toast(errMsg(e));if(e&&e.code==="conflict"&&window.confirm("Друг потребител промени този запис. Презареждане на актуалните данни?"))location.reload();return false;}}
 
 const nameOf=id=>{if(!id)return "Без отговорник";const p=S.prof[id]||S.people[id];return (p&&p.name)||(id===S.uid?"Вие":"Колега");};
 const client=id=>S.clients[id];
@@ -86,9 +87,9 @@ let rq=0;function schedule(){if(rq)return;rq=requestAnimationFrame(()=>{rq=0;try
 function onErr(e){if(e&&e.code==="revoked"){showBanner("Достъпът до данните е спрян за този изглед.");}}
 function showBanner(m){const b=$("#banner");b.textContent=m;b.hidden=false;}
 function subCol(name,after){S.db.collection(name).onSnapshot(s=>{const o={};s.docs.forEach(d=>{o[d.id]=d.data();});S[name]=o;if(after)after();fillSelects();schedule();},onErr);}
-async function loadProfiles(){if(!S.user)return;try{S.people=Object.fromEntries((await S.user.list()).map(u=>[u.id,u]));}catch(e){}const ids=new Set([...Object.keys(S.members),...Object.keys(S.people)]);if(S.uid)ids.add(S.uid);
+async function loadProfiles(){if(!S.user)return;try{S.people=Object.fromEntries((await S.user.list()).map(u=>[u.id,u]));}catch(e){toast("Имената временно не се заредиха. Опитайте обновяване.");}const ids=new Set([...Object.keys(S.members),...Object.keys(S.people)]);if(S.uid)ids.add(S.uid);
   Object.values(S.videos).forEach(v=>{if(v.who)ids.add(v.who);(v.comments||[]).forEach(c=>c.by&&ids.add(c.by));});
-  try{S.prof=await S.user.profiles([...ids]);}catch(e){} schedule();}
+  try{S.prof=await S.user.profiles([...ids]);}catch(e){toast("Профилите временно не се заредиха. Опитайте обновяване.");} schedule();}
 
 let repUnsubs=[],repKey="";
 function subReports(force){
@@ -106,7 +107,9 @@ function writeDay(date,fn){
   const ref=S.db.doc("time/"+S.uid+"/days/"+date);
   const run=async()=>{const snap=await ref.get();const cur=snap.exists?JSON.parse(JSON.stringify(snap.data())):{date:date,entries:{}};
     cur.date=date;cur.entries=cur.entries||{};fn(cur.entries);await ref.set(cur);};
-  const p=(chains[date]||Promise.resolve()).then(run);chains[date]=p.catch(()=>{});return p;
+  // Друго устройство е записало същия ден между четенето и записа: чете наново и прилага промяната отгоре.
+  const retry=async(n=0)=>{try{await run();}catch(e){if(e&&e.code==="conflict"&&n<2)return retry(n+1);throw e;}};
+  const p=(chains[date]||Promise.resolve()).then(()=>retry());chains[date]=p.catch(()=>{});return p;
 }
 function myEntries(){const out=[];for(const date in S.myDays){const es=(S.myDays[date]||{}).entries||{};for(const id in es)out.push(Object.assign({id:id,date:date},es[id]));}return out;}
 function running(){return myEntries().filter(e=>e.e==null).sort((a,b)=>b.s-a.s)[0]||null;}
@@ -132,7 +135,7 @@ function pairSelects(c,v){$(c).addEventListener("change",()=>fill($(v),videoOpts
 function timerFields(){return {d:$("#t-desc").value.trim(),c:$("#t-client").value,v:$("#t-video").value,a:$("#t-act").value||"other"};}
 async function startTimer(f){
   if(!S.db||!S.uid){toast("Влезте в профила си, за да засичате време.");return;}
-  const r=running();if(r)await stopTimer(r);
+  const r=running();if(r&&!(await stopTimer(r)))return;
   const now=Date.now(),id=nid();
   await tryW(writeDay(ymd(new Date(now)),es=>{es[id]={d:f.d||"",c:f.c||"",v:f.v||"",a:f.a||"other",s:now,e:null};}));
 }
@@ -143,7 +146,8 @@ function syncTimerBar(){
   if(!r&&S.runId){$("#t-desc").value="";}
   S.runId=r?r.id:null;tick();
 }
-function tick(){const r=running();$("#t-clock").textContent=r?dur(Date.now()-r.s):"0:00:00";}
+function tick(){const r=running(),ms=r?Date.now()-r.s:0,long=ms>10*3.6e6,c=$("#t-clock");c.textContent=r?dur(ms):"0:00:00";
+  c.classList.toggle("late",long);c.title=long?"Таймерът върви над 10 часа. Забравен ли е?":"";}
 setInterval(tick,1000);
 $("#t-toggle").addEventListener("click",async()=>{const b=$("#t-toggle");b.disabled=true;const r=running();
   if(r)await stopTimer(r);else await startTimer(timerFields());b.disabled=false;});
@@ -202,7 +206,7 @@ function vToday(){
   const late=mine.filter(([,v])=>v.due&&v.due<today),next=mine.filter(([,v])=>v.due&&v.due>=today&&v.due<=soon);
   root.append(h("div",{class:"bar"},h("div",{class:"sum"},h("div",null,h("b",null,mine.length),h("span",null,"Активни задачи")),h("div",null,h("b",{class:late.length?"late":""},late.length),h("span",null,"Просрочени")),h("div",null,h("b",null,next.length),h("span",null,"До 7 дни"))),h("span",{class:"sp"}),h("a",{class:"btn",href:"#due"},"Преглед на всички")));
   const panel=h("section",{class:"panel"},h("div",{class:"ph"},h("span",null,"Моите задачи за днес"),h("span",{class:"mono"},mine.length)));
-  if(!mine.length)panel.append(h("div",{class:"empty"},"Няма активни задачи. Добра работа!"));
+  if(!mine.length)panel.append(h("div",{class:"empty"},"Нямате активни задачи, на които сте отговорник. Добра работа!"));
   mine.slice(0,12).forEach(([id,v])=>panel.append(h("div",{class:"drow"},h("div",{style:"min-width:0"},h("button",{class:"t",type:"button",onclick:()=>openVideo(id)},v.title),h("div",{class:"small muted"},cName(v.client)+" · "+nameOf(v.who))),h("span",{class:"pill"},TNAME[teamOf(v)]),v.due?h("span",{class:"mono small"+(v.due<today?" late":"")},shortDate(v.due)):h("span",{class:"small muted"},"без срок"))));
   root.append(panel);return root;
 }
@@ -842,19 +846,19 @@ function renderSvc(){const box=$("#v-svc");box.textContent="";
     h("button",{type:"button",class:"btn ghost","aria-label":"Премести надолу",disabled:i===cur.svc.length-1,onclick:()=>mv(i,1)},"↓"),
     h("button",{type:"button",class:"btn ghost","aria-label":"Премахни услугата",onclick:()=>{cur.svc.splice(i,1);saveSvc();renderSvc();}},"×"))));}
 function saveSvc(){if(!cur.video)return;const id=cur.video,val=JSON.parse(JSON.stringify(cur.svc));checkChain=checkChain.then(()=>tryW(S.db.doc("videos/"+id).update({svc:val})));}
-function addSvc(){const i=$("#v-newsvc"),d=$("#v-newsvcd"),t=i.value.trim();if(!t||cur.svc.length>=40)return;cur.svc.push({t:t,d:d.value.trim(),done:false});i.value="";d.value="";saveSvc();renderSvc();i.focus();}
+function addSvc(){const i=$("#v-newsvc"),d=$("#v-newsvcd"),t=i.value.trim();if(!t)return;cur.svc.push({t:t,d:d.value.trim(),done:false});i.value="";d.value="";saveSvc();renderSvc();i.focus();}
 $("#v-addsvc").addEventListener("click",addSvc);
 ["#v-newsvc","#v-newsvcd"].forEach(q=>$(q).addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addSvc();}}));
 let checkChain=Promise.resolve();
 function saveCheck(){if(!cur.video)return;const id=cur.video,val=JSON.parse(JSON.stringify(cur.check));checkChain=checkChain.then(()=>tryW(S.db.doc("videos/"+id).update({check:val})));}
-function addStep(){const i=$("#v-newstep"),t=i.value.trim();if(!t||cur.check.length>=30)return;cur.check.push({t:t,done:false});i.value="";saveCheck();renderCheck();}
+function addStep(){const i=$("#v-newstep"),t=i.value.trim();if(!t)return;cur.check.push({t:t,done:false});i.value="";saveCheck();renderCheck();}
 function renderComments(){const box=$("#v-comments");box.textContent="";const list=((S.videos[cur.video]||{}).comments)||[];
   if(!list.length)box.append(h("span",{class:"small muted"},"Още няма коментари."));
   list.forEach((c,i)=>{const canEdit=c.by===S.uid||S.isAdmin;const actions=canEdit?h("div",{class:"acts"},h("button",{type:"button",class:"btn ghost",onclick:()=>editComment(i)},"Редактирай"),h("button",{type:"button",class:"btn ghost danger",onclick:()=>deleteComment(i)},"Изтрий")):null;box.append(h("div",{class:"cm"},h("div",{class:"small muted"},nameOf(c.by)+" · "+new Date(c.at).toLocaleString("bg-BG",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})),h("div",{style:"overflow-wrap:anywhere"},c.t),actions));});}
 async function editComment(index){const id=cur.video,list=((S.videos[id]||{}).comments||[]).slice(),next=window.prompt("Редактирайте коментара:",list[index]?.t||"");if(next==null||!next.trim())return;list[index]={...list[index],t:next.trim(),editedAt:Date.now()};if(await tryW(S.db.doc("videos/"+id).update({comments:list})))renderComments();}
 async function deleteComment(index){const id=cur.video,list=((S.videos[id]||{}).comments||[]).slice();if(!list[index]||!window.confirm("Изтриване на този коментар?"))return;list.splice(index,1);if(await tryW(S.db.doc("videos/"+id).update({comments:list})))renderComments();}
 async function addComment(){const i=$("#v-newc"),t=i.value.trim(),id=cur.video;if(!t||!id||!S.uid)return;
-  const list=((S.videos[id]||{}).comments||[]).slice(-99).concat([{by:S.uid,at:Date.now(),t:t}]);i.value="";
+  const list=((S.videos[id]||{}).comments||[]).concat([{by:S.uid,at:Date.now(),t:t}]);i.value="";
   await tryW(S.db.doc("videos/"+id).update({comments:list}));}
 $("#v-addstep").addEventListener("click",addStep);$("#v-addc").addEventListener("click",addComment);
 $("#v-newstep").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addStep();}});
