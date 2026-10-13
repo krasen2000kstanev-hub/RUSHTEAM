@@ -115,7 +115,7 @@ function fill(sel,items,empty){const v=sel.value;sel.textContent="";if(empty!=nu
   items.forEach(i=>sel.append(h("option",{value:i[0]},i[1])));sel.value=[...sel.options].some(o=>o.value===v)?v:"";}
 const clientOpts=()=>Object.entries(S.clients).filter(e=>!e[1].archived).sort((a,b)=>a[1].name.localeCompare(b[1].name,"bg")).map(e=>[e[0],e[1].name]);
 const videoOpts=cid=>Object.entries(S.videos).filter(e=>(!cid||e[1].client===cid)&&teamOf(e[1])!=="events"&&myTeams().includes(teamOf(e[1]))).sort((a,b)=>a[1].title.localeCompare(b[1].title,"bg")).map(e=>[e[0],e[1].title]);
-const assigneeOpts=team=>memberIds().filter(id=>teamsOf(id).includes(team)).map(id=>[id,nameOf(id)]);
+  const assigneeOpts=team=>(S.isAdmin?memberIds():memberIds().filter(id=>teamsOf(id).includes(team))).map(id=>[id,nameOf(id)]);
 function fillSelects(){
   ["#t-client","#e-client","#v-client","#s-client"].forEach(s=>fill($(s),clientOpts(),"Без клиент"));
   [["#t-video","#t-client"],["#e-video","#e-client"],["#s-video","#s-client"]].forEach(p=>fill($(p[0]),videoOpts($(p[1]).value),"Без задача"));
@@ -849,7 +849,9 @@ function saveCheck(){if(!cur.video)return;const id=cur.video,val=JSON.parse(JSON
 function addStep(){const i=$("#v-newstep"),t=i.value.trim();if(!t||cur.check.length>=30)return;cur.check.push({t:t,done:false});i.value="";saveCheck();renderCheck();}
 function renderComments(){const box=$("#v-comments");box.textContent="";const list=((S.videos[cur.video]||{}).comments)||[];
   if(!list.length)box.append(h("span",{class:"small muted"},"Още няма коментари."));
-  list.forEach(c=>box.append(h("div",{class:"cm"},h("div",{class:"small muted"},nameOf(c.by)+" · "+new Date(c.at).toLocaleString("bg-BG",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})),h("div",{style:"overflow-wrap:anywhere"},c.t))));}
+  list.forEach((c,i)=>{const canEdit=c.by===S.uid||S.isAdmin;const actions=canEdit?h("div",{class:"acts"},h("button",{type:"button",class:"btn ghost",onclick:()=>editComment(i)},"Редактирай"),h("button",{type:"button",class:"btn ghost danger",onclick:()=>deleteComment(i)},"Изтрий")):null;box.append(h("div",{class:"cm"},h("div",{class:"small muted"},nameOf(c.by)+" · "+new Date(c.at).toLocaleString("bg-BG",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})),h("div",{style:"overflow-wrap:anywhere"},c.t),actions));});}
+async function editComment(index){const id=cur.video,list=((S.videos[id]||{}).comments||[]).slice(),next=window.prompt("Редактирайте коментара:",list[index]?.t||"");if(next==null||!next.trim())return;list[index]={...list[index],t:next.trim(),editedAt:Date.now()};if(await tryW(S.db.doc("videos/"+id).update({comments:list})))renderComments();}
+async function deleteComment(index){const id=cur.video,list=((S.videos[id]||{}).comments||[]).slice();if(!list[index]||!window.confirm("Изтриване на този коментар?"))return;list.splice(index,1);if(await tryW(S.db.doc("videos/"+id).update({comments:list})))renderComments();}
 async function addComment(){const i=$("#v-newc"),t=i.value.trim(),id=cur.video;if(!t||!id||!S.uid)return;
   const list=((S.videos[id]||{}).comments||[]).slice(-99).concat([{by:S.uid,at:Date.now(),t:t}]);i.value="";
   await tryW(S.db.doc("videos/"+id).update({comments:list}));}
