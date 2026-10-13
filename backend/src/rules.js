@@ -99,3 +99,21 @@ export function deepMerge(target, patch) {
   return out;
 }
 
+// За историята: какво се е променило, поле → [преди, след] като JSON текст.
+// Вложените обекти (напр. записите за време в деня) се сравняват едно ниво надолу.
+export function auditChanges(before, after, max = 400) {
+  const plain = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
+  const cut = (v) => { const s = v === undefined ? '' : JSON.stringify(v); return s.length > max ? `${s.slice(0, max)}…` : s; };
+  const out = {};
+  const walk = (a, b, prefix, deep) => {
+    for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) {
+      const x = a[k], y = b[k];
+      if (JSON.stringify(x) === JSON.stringify(y)) continue;
+      if (deep && plain(x) && plain(y)) walk(x, y, `${prefix}${k}.`, false);
+      else out[prefix + k] = [cut(x), cut(y)];
+    }
+  };
+  walk(plain(before) ? before : {}, plain(after) ? after : {}, '', true);
+  return out;
+}
+

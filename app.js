@@ -63,6 +63,8 @@ const nid=()=>"e"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 function safeUrl(u){u=(u||"").trim();if(!u)return null;if(!/^[a-z][a-z0-9+.-]*:/i.test(u))u="https://"+u;
   try{const x=new URL(u);return (x.protocol==="https:"||x.protocol==="http:")?x.href:null;}catch(e){return null;}}
 function linkLabel(l){if(l.label)return l.label;try{const hn=new URL(l.url).hostname;return /(^|\.)google\.com$/.test(hn)?"Google Drive":hn.replace(/^www\./,"");}catch(e){return "Линк";}}
+// Клетка за CSV: кавички и защита от формули в Excel (=, +, -, @).
+const csvCell=v=>{let t=String(v==null?"":v);if(/^[=+\-@\t]/.test(t))t="'"+t;return '"'+t.replace(/"/g,'""')+'"';};
 const ext=(l)=>h("a",{href:l.url,target:"_blank",rel:"noopener noreferrer"},linkLabel(l)," ↗");
 
 let toastT;
@@ -192,17 +194,17 @@ function openTask(id){
   $("#task-priority").checked=!!(t&&t.priority);$("#task-done").checked=!!(t&&t.done);$("#task-priority-label").hidden=!S.isAdmin;$("#d-task").showModal();
 }
 function vTasks(){
-  const root=h("div",{style:"display:flex;flex-direction:column;gap:14px"}),today=ymd(new Date()),allItems=Object.entries(S.tasks),items=allItems.filter(([,t])=>S.taskFilter==="mine"?(t.participants||[]).includes(S.uid):S.taskFilter==="overdue"?Boolean(t.due&&t.due<today&&!t.done):true).sort((a,b)=>(Number(!!b[1].priority)-Number(!!a[1].priority))||Number(!!a[1].done)-Number(!!b[1].done)||(b[1].createdAt||0)-(a[1].createdAt||0));
+  const root=h("div",{style:"display:flex;flex-direction:column;gap:14px"}),today=ymd(new Date()),allItems=Object.entries(S.tasks),items=allItems.filter(([,t])=>S.taskFilter==="mine"?(t.participants||[]).includes(S.uid):S.taskFilter==="overdue"?Boolean(t.due&&t.due<today&&!t.done):true).sort((a,b)=>Number(!!a[1].done)-Number(!!b[1].done)||(Number(!!b[1].priority)-Number(!!a[1].priority))||(b[1].createdAt||0)-(a[1].createdAt||0));
   const filter=h("select",{class:"btn",value:S.taskFilter,"aria-label":"Филтър на задачите",onchange:e=>{S.taskFilter=e.target.value;schedule();}},h("option",{value:"all"},"Всички задачи"),h("option",{value:"mine"},"Моите задачи"),h("option",{value:"overdue"},"Просрочени"));
   root.append(h("div",{class:"bar"},h("div",null,h("h2",null,"Задачи"),h("p",{class:"small muted",style:"margin:2px 0 0"},"Лични, назначени и споделени задачи.")),h("span",{class:"sp"}),filter,h("button",{class:"btn primary w-only",type:"button",onclick:()=>openTask(null)},"+ Нова задача")));
   const panel=h("section",{class:"panel"});if(!items.length)panel.append(h("div",{class:"empty"},"Няма споделени задачи."));
-  items.forEach(([id,t])=>{const other=(t.participants||[]).filter(p=>p!==S.uid)[0],who=other?"За "+nameOf(other):"Лична задача",due=t.due?" · Срок "+shortDate(t.due):"";panel.append(h("div",{class:"drow"},h("div",{style:"min-width:0"},h("button",{class:"t",type:"button",onclick:()=>openTask(id)},t.title),h("div",{class:"small muted"},who+due+(t.description?" · "+t.description:""))),t.priority?h("span",{class:"pill",style:"color:var(--gold)"},"Приоритет"):h("span",{class:"pill"},t.done?"Приключена":"Отворена"),h("button",{class:"btn ghost w-only",type:"button",onclick:()=>openTask(id)},"✎")));});
+  items.forEach(([id,t])=>{const others=(t.participants||[]).filter(p=>p!==S.uid),who=others.length?"За "+others.map(nameOf).join(", "):"Лична задача",due=t.due?" · Срок "+shortDate(t.due):"";panel.append(h("div",{class:"drow"},h("div",{style:"min-width:0"},h("button",{class:"t",type:"button",onclick:()=>openTask(id)},t.title),h("div",{class:"small muted"},who+due+(t.description?" · "+t.description:""))),t.priority&&!t.done?h("span",{class:"pill",style:"color:var(--gold)"},"Приоритет"):h("span",{class:"pill"},t.done?"Приключена":"Отворена"),h("button",{class:"btn ghost w-only",type:"button",onclick:()=>openTask(id)},"✎")));});
   root.append(panel);return root;
 }
 
 function vToday(){
   const root=h("div",{style:"display:flex;flex-direction:column;gap:14px"}),today=ymd(new Date()),soon=ymd(addDays(new Date(),7));
-  const mine=Object.entries(S.videos).filter(([,v])=>myTeams().includes(teamOf(v))&&!isDone(v)).sort((a,b)=>(a[1].due||"9999").localeCompare(b[1].due||"9999"));
+  const mine=Object.entries(S.videos).filter(([,v])=>v.who===S.uid&&myTeams().includes(teamOf(v))&&!isDone(v)).sort((a,b)=>(a[1].due||"9999").localeCompare(b[1].due||"9999"));
   const late=mine.filter(([,v])=>v.due&&v.due<today),next=mine.filter(([,v])=>v.due&&v.due>=today&&v.due<=soon);
   root.append(h("div",{class:"bar"},h("div",{class:"sum"},h("div",null,h("b",null,mine.length),h("span",null,"Активни задачи")),h("div",null,h("b",{class:late.length?"late":""},late.length),h("span",null,"Просрочени")),h("div",null,h("b",null,next.length),h("span",null,"До 7 дни"))),h("span",{class:"sp"}),h("a",{class:"btn",href:"#due"},"Преглед на всички")));
   const panel=h("section",{class:"panel"},h("div",{class:"ph"},h("span",null,"Моите задачи за днес"),h("span",{class:"mono"},mine.length)));
@@ -397,7 +399,8 @@ function vReports(){
     S.preset==="custom"?[h("input",{type:"date",id:"r-from",value:S.from,"aria-label":"От дата",onchange:chg}),h("input",{type:"date",id:"r-to",value:S.to,"aria-label":"До дата",onchange:chg})]
       :h("span",{class:"muted mono small"},shortDate(S.from)+" – "+shortDate(S.to)),
     h("span",{class:"sp"}),h("span",{class:"small muted"},S.isAdmin?"Целият екип":"Само вашето време"),
-    h("button",{class:"btn",id:"r-export",type:"button",hidden:!S.dl,onclick:exportCsv},"Свали CSV")));
+    h("button",{class:"btn",id:"r-export",type:"button",hidden:!S.dl,onclick:exportCsv},"Свали CSV"),
+    S.isAdmin&&S.dl&&window.teamHubApi?h("button",{class:"btn",type:"button",title:"Кой какво е променил в платформата за избрания период",onclick:exportAudit},"История на действията"):null));
   const agg={c:{},p:{},a:{},v:{},f:{},w:{}};let total=0;const weeks=new Set();
   {for(const r of repRows()){const e=r.e,ms=r.ms,p=r.p,wk=ymd(weekStart(pd(r.date)));weeks.add(wk);
     agg.w[p]=agg.w[p]||{};agg.w[p][wk]=(agg.w[p][wk]||0)+ms;
@@ -405,7 +408,7 @@ function vReports(){
     total+=ms;agg.c[e.c||""]=(agg.c[e.c||""]||0)+ms;agg.p[p]=(agg.p[p]||0)+ms;agg.a[e.a||"other"]=(agg.a[e.a||"other"]||0)+ms;
     if(e.v){const k=e.v;agg.v[k]=agg.v[k]||{ms:0,a:{}};agg.v[k].ms+=ms;agg.v[k].a[e.a||"other"]=(agg.v[k].a[e.a||"other"]||0)+ms;}}}
   const t0=pd(S.from).getTime(),t1=addDays(pd(S.to),1).getTime(),today=ymd(new Date());
-  const deliv=Object.values(S.videos).filter(v=>isDone(v)&&(v.doneAt||v.moved)>=t0&&(v.doneAt||v.moved)<t1);
+  const deliv=Object.values(S.videos).filter(v=>teamOf(v)==="media"&&isDone(v)&&(v.doneAt||v.moved)>=t0&&(v.doneAt||v.moved)<t1);
   const avgRev=deliv.length?(deliv.reduce((a,v)=>a+(+v.revs||0),0)/deliv.length).toLocaleString("bg-BG",{maximumFractionDigits:1}):"–";
   const lateNow=Object.values(S.videos).filter(v=>!isDone(v)&&v.due&&v.due<today).length;
   root.append(h("div",{class:"sum"},h("div",null,h("b",null,hrs(total)),h("span",null,"Общо за периода")),
@@ -620,7 +623,7 @@ function hrCompanyModels(){
   return Object.values(map).map(m=>{const meta=hrClientMeta({company:m.name,stage:m.stage,status:m.status});return {...m,meta,positions:Object.values(m.positions).sort((a,b)=>a.title.localeCompare(b.title,"bg"))};}).sort((a,b)=>a.name.localeCompare(b.name,"bg"));
 }
 async function exportHrQuickReport(models){
-  const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
+  const q=csvCell;
   const rows=[["Компания","Активна позиция","CV-та","Интервюта","Обратна връзка","Наети"]];
   models.filter(m=>m.meta.activeStatus==="active").forEach(m=>m.positions.filter(p=>p.active).forEach(p=>rows.push([m.name,p.title,p.cv||0,p.interviews||0,p.feedback||0,p.hired||0])));
   if(rows.length===1){toast("Няма активни позиции за отчет.");return;}
@@ -731,13 +734,22 @@ function repRows(){const now=Date.now(),out=[];
 async function exportCsv(){
   const rows=repRows().sort((a,b)=>a.date.localeCompare(b.date)||a.e.s-b.e.s);
   if(!rows.length){toast("Няма записи за този период.");return;}
-  const q=v=>{let t=String(v==null?"":v);if(/^[=+\-@\t]/.test(t))t="'"+t;return '"'+t.replace(/"/g,'""')+'"';};
+  const q=csvCell;
   const lines=[["Дата","Човек","Клиент","Видео","Формат","Дейност","Описание","Начало","Край","Часове"].map(q).join(";")];
   rows.forEach(r=>{const e=r.e,v=S.videos[e.v];lines.push([r.date,nameOf(r.p),cName(e.c),v?v.title:"",v?fmtName(v.fmt):"",actName(e.a),e.d||"",hm(e.s),e.e==null?"":hm(e.e),(r.ms/3.6e6).toFixed(2).replace(".",",")].map(q).join(";"));});
   try{await S.dl.save({filename:"otchet-"+S.from+"-"+S.to+".csv",data:"﻿"+lines.join("\r\n")});toast("Отчетът е свален.");}
   catch(x){const c=x&&x.code;if(c==="declined")return;toast(c==="rate_limited"?"Изчакайте малко и опитайте пак.":"Свалянето не е достъпно в този изглед.");}
 }
 
+async function exportAudit(){
+  const months=[];for(let d=pd(S.from.slice(0,7)+"-01");ymd(d)<=S.to;d=new Date(d.getFullYear(),d.getMonth()+1,1))months.push(ymd(d).slice(0,7));
+  let rows=[];try{for(const m of months.slice(0,36))rows=rows.concat((await window.teamHubApi("/api/audit?month="+m)).entries||[]);}catch(e){toast("Историята не се зареди.");return;}
+  rows=rows.filter(r=>r.at.slice(0,10)>=S.from&&r.at.slice(0,10)<=S.to).sort((a,b)=>a.at.localeCompare(b.at));
+  if(!rows.length){toast("Няма записани действия за този период.");return;}
+  const lines=[["Кога","Кой","Действие","Раздел","Запис","Промени"].map(csvCell).join(";")];
+  rows.forEach(r=>lines.push([new Date(r.at).toLocaleString("bg-BG"),r.actorName||nameOf(r.actor),r.action,r.collection,r.id,r.changes].map(csvCell).join(";")));
+  try{await S.dl.save({filename:"istoria-"+S.from+"-"+S.to+".csv",data:"﻿"+lines.join("\r\n")});toast("Историята е свалена.");}catch(e){toast("Свалянето не е достъпно в този изглед.");}
+}
 function vTeam(){
   const root=h("div",{class:"two"});
   const manager=Boolean(S.isAdmin||(S.depts[S.uid]||{}).manager||S.members[S.uid]?.role==="manager");
@@ -791,7 +803,7 @@ function openEntry(e){cur.entry=e;fillSelects();
   $("#d-entry").showModal();}
 $("#f-entry").addEventListener("submit",async ev=>{ev.preventDefault();const e=cur.entry,date=$("#e-date").value;
   const at=t=>{const a=t.split(":"),d=pd(date);d.setHours(+a[0],+a[1],0,0);return d.getTime();};
-  let s=at($("#e-start").value),en=at($("#e-end").value);if(en<=s)en+=864e5;
+  const s=at($("#e-start").value),en=at($("#e-end").value);if(en<=s){toast("Краят трябва да е след началото. За работа след полунощ направете втори запис за следващия ден.");return;}
   const rec={d:$("#e-desc").value.trim(),c:$("#e-client").value,v:$("#e-video").value,a:$("#e-act").value||"other",s:s,e:en},id=e?e.id:nid();
   try{if(e&&e.date!==date)await writeDay(e.date,es=>{delete es[id];});
     await writeDay(date,es=>{es[id]=rec;});$("#d-entry").close();}catch(x){toast(errMsg(x));}});
@@ -829,8 +841,10 @@ $("#f-video").addEventListener("submit",async ev=>{ev.preventDefault();const id=
   if(cur.team==="media"){rec.track=$("#v-track").value;rec.publink=pu||"";rec.results=$("#v-results").value.trim();}
   if(cur.team==="events"){rec.edate=$("#v-edate").value;rec.eloc=$("#v-eloc").value.trim();rec.estart=$("#v-estart").value;rec.eend=$("#v-eend").value;rec.svc=cur.svc||[];}
   rec.doneAt=isDone(rec)?((old&&old.doneAt)||Date.now()):0;
+  // Съществуващо видео: PATCH без коментарите, за да не се изтрие коментар, добавен от колега след последното обновяване.
+  if(id)delete rec.comments;
   const ref=id?S.db.doc("videos/"+id):S.db.collection("videos").doc();
-  if(await tryW(ref.set(rec)))$("#d-video").close();});
+  if(await tryW(id?ref.update(rec):ref.set(rec)))$("#d-video").close();});
 function renderCheck(){const box=$("#v-check");box.textContent="";
   if(!cur.check.length)box.append(h("span",{class:"small muted"},"Още няма стъпки."));
   cur.check.forEach((c,i)=>box.append(h("div",{class:"ci"+(c.done?" done":"")},
@@ -854,12 +868,17 @@ function saveCheck(){if(!cur.video)return;const id=cur.video,val=JSON.parse(JSON
 function addStep(){const i=$("#v-newstep"),t=i.value.trim();if(!t)return;cur.check.push({t:t,done:false});i.value="";saveCheck();renderCheck();}
 function renderComments(){const box=$("#v-comments");box.textContent="";const list=((S.videos[cur.video]||{}).comments)||[];
   if(!list.length)box.append(h("span",{class:"small muted"},"Още няма коментари."));
-  list.forEach((c,i)=>{const canEdit=c.by===S.uid||S.isAdmin;const actions=canEdit?h("div",{class:"acts"},h("button",{type:"button",class:"btn ghost",onclick:()=>editComment(i)},"Редактирай"),h("button",{type:"button",class:"btn ghost danger",onclick:()=>deleteComment(i)},"Изтрий")):null;box.append(h("div",{class:"cm"},h("div",{class:"small muted"},nameOf(c.by)+" · "+new Date(c.at).toLocaleString("bg-BG",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})),h("div",{style:"overflow-wrap:anywhere"},c.t),actions));});}
-async function editComment(index){const id=cur.video,list=((S.videos[id]||{}).comments||[]).slice(),next=window.prompt("Редактирайте коментара:",list[index]?.t||"");if(next==null||!next.trim())return;list[index]={...list[index],t:next.trim(),editedAt:Date.now()};if(await tryW(S.db.doc("videos/"+id).update({comments:list})))renderComments();}
-async function deleteComment(index){const id=cur.video,list=((S.videos[id]||{}).comments||[]).slice();if(!list[index]||!window.confirm("Изтриване на този коментар?"))return;list.splice(index,1);if(await tryW(S.db.doc("videos/"+id).update({comments:list})))renderComments();}
-async function addComment(){const i=$("#v-newc"),t=i.value.trim(),id=cur.video;if(!t||!id||!S.uid)return;
-  const list=((S.videos[id]||{}).comments||[]).concat([{by:S.uid,at:Date.now(),t:t}]);i.value="";
-  await tryW(S.db.doc("videos/"+id).update({comments:list}));}
+  list.forEach((c,i)=>{const canEdit=c.by===S.uid||S.isAdmin;const actions=canEdit?h("div",{class:"acts"},h("button",{type:"button",class:"btn ghost",onclick:()=>editComment(c)},"Редактирай"),h("button",{type:"button",class:"btn ghost danger",onclick:()=>deleteComment(c)},"Изтрий")):null;box.append(h("div",{class:"cm"},h("div",{class:"small muted"},nameOf(c.by)+" · "+new Date(c.at).toLocaleString("bg-BG",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})),h("div",{style:"overflow-wrap:anywhere"},c.t),actions));});}
+// Коментарите се променят върху прясно прочетения списък, а не върху локалното копие (до 15 сек. старо),
+// за да не изчезне коментар на колега, написан междувременно.
+async function changeComments(id,fn){const ref=S.db.doc("videos/"+id),list=(((await ref.get()).data()||{}).comments||[]).slice();fn(list);return ref.update({comments:list});}
+const sameComment=a=>b=>b.at===a.at&&b.by===a.by;
+async function editComment(c){const id=cur.video,next=window.prompt("Редактирайте коментара:",c.t||"");if(next==null||!next.trim())return;
+  if(await tryW(changeComments(id,list=>{const i=list.findIndex(sameComment(c));if(i>=0)list[i]={...list[i],t:next.trim(),editedAt:Date.now()};})))renderComments();}
+async function deleteComment(c){const id=cur.video;if(!window.confirm("Изтриване на този коментар?"))return;
+  if(await tryW(changeComments(id,list=>{const i=list.findIndex(sameComment(c));if(i>=0)list.splice(i,1);})))renderComments();}
+async function addComment(){const i=$("#v-newc"),t=i.value.trim(),id=cur.video;if(!t||!id||!S.uid)return;i.value="";
+  await tryW(changeComments(id,list=>list.push({by:S.uid,at:Date.now(),t:t})));}
 $("#v-addstep").addEventListener("click",addStep);$("#v-addc").addEventListener("click",addComment);
 $("#v-newstep").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addStep();}});
 $("#v-newc").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addComment();}});

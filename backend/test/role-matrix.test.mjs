@@ -1,4 +1,3 @@
-Attempting to perform the InitializeDefaultDrives operation on the 'FileSystem' provider failed.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, collectionKind as K } from '../src/rules.js';

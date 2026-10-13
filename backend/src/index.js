@@ -1,7 +1,7 @@
 import { verifyGoogleIdToken, signSession, verifySession } from './auth.js';
-import { ALL_TEAMS, parsePath, collectionKind, normalizeTeams, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, isFounder } from './rules.js';
+import { ALL_TEAMS, parsePath, collectionKind, normalizeTeams, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, isFounder, auditChanges } from './rules.js';
 import { appendSheetRow, readSheetCsv, textToBase64 } from './sheets.js';
-import { createUser, deleteDoc, findUser, getDoc, getUser, listDocs, listUsers, putDoc, updateUser } from './store.js';
+import { createUser, deleteDoc, findUser, getDoc, getUser, listAudit, listDocs, listUsers, putAudit, putDoc, updateUser } from './store.js';
 import { enqueueNotification } from './notify.js';
 
 const MAX_BODY_BYTES = 256 * 1024;
@@ -82,7 +82,13 @@ async function listCollection(user, collection, where) {
   return (await listDocs(env(), collection)).filter((row) => canReadDoc(user, kind, row.id, row.data) && matchesWhere(row.data, where));
 }
 
+// Всяка промяна минава оттук, затова историята се пише тук. Грешка в историята не отменя вече направената промяна.
+async function audit(actor, action, collection, id, oldData, newData) {
+  try { await putAudit(env(), { actor: actor.id, actorName: actor.name || actor.email || '', action, collection, id, changes: JSON.stringify(auditChanges(oldData, newData)) }); } catch (error) { console.error('audit write failed', error); }
+}
+
 async function notify(event, actor) {
+  await audit(actor, event.action, event.collection, event.id, event.oldData, event.newData);
   try { await enqueueNotification(env(), { ...event, actor: actor.id, actorName: actor.name }); } catch (error) { console.error('notification enqueue failed', error); }
 }
 
@@ -94,7 +100,7 @@ async function writeDepts(user, id, body) {
   if ('teams' in body) fields.teams = normalizeTeams(body.teams);
   if ('manager' in body) fields.role = body.manager ? 'manager' : 'member';
   if ('admin' in body) fields.role = body.admin ? 'manager' : 'member';
-  await updateUser(env(), id, fields); await notify({ action: 'updated', collection: 'depts', id, newData: fields }, user);
+  await updateUser(env(), id, fields); await notify({ action: 'updated', collection: 'depts', id, oldData: { teams: target.teams, role: target.role }, newData: fields }, user);
 }
 
 async function handleDoc(request, user, url) {
@@ -114,7 +120,7 @@ async function handleDoc(request, user, url) {
     if (!target || !canWriteDoc(user, kind, parsed.id, target, body)) throw new HttpError(403, 'invalid_argument', 'Not allowed');
     const nextRole = method === 'PATCH' ? deepMerge({ role: target.memberRole || '' }, body).role : body.role;
     await updateUser(env(), parsed.id, { memberRole: String(nextRole || '').slice(0, 40), updatedAt: new Date().toISOString() });
-    await notify({ action: method === 'PUT' ? 'created' : 'updated', collection: 'members', id: parsed.id, newData: { role: nextRole } }, user);
+    await notify({ action: method === 'PUT' ? 'created' : 'updated', collection: 'members', id: parsed.id, oldData: { role: target.memberRole || '' }, newData: { role: nextRole } }, user);
     return { ok: true };
   }
   const existing = await getDoc(env(), parsed.collection, parsed.id);
@@ -161,12 +167,13 @@ async function handleDoc(request, user, url) {
 async function route(request) {
   const url = new URL(request.url); const path = url.pathname.replace(/\/+$/, '') || '/'; const method = request.method;
   if (path === '/api/health') return { ok: true, service: 'team-hub-api' };
-  if (path === '/api/auth/google' && method === 'POST') { const body = await readJson(request); let claims; try { claims = await verifyGoogleIdToken(body.credential, env()); } catch (error) { throw new HttpError(401, 'not_granted', `Google sign-in failed: ${error.message}`); } const user = await upsertUser(claims); if (!user.active) throw new HttpError(403, 'not_granted', 'Account disabled'); return { token: await signSession(user.id, env().SESSION_SECRET), user: publicUser(user) }; }
+  if (path === '/api/auth/google' && method === 'POST') { const body = await readJson(request); let claims; try { claims = await verifyGoogleIdToken(body.credential, env()); } catch (error) { throw new HttpError(401, 'not_granted', `Google sign-in failed: ${error.message}`); } const user = await upsertUser(claims); if (!user.active) throw new HttpError(403, 'not_granted', 'Account disabled'); await audit(user, 'login', 'session', user.id); return { token: await signSession(user.id, env().SESSION_SECRET), user: publicUser(user) }; }
   if (path === '/api/auth/test' && method === 'POST' && env().ALLOW_TEST_LOGIN === '1') { const body = await readJson(request); const email = String(body.email || '').trim().toLowerCase(); if (!/^[^@\s]+@example\.test$/.test(email)) throw new HttpError(400, 'invalid_argument', 'Test logins use @example.test'); const user = await upsertUser({ sub: `test:${email}`, email, name: body.name || email, picture: '' }); return { token: await signSession(user.id, env().SESSION_SECRET), user: publicUser(user) }; }
   const user = await requireUser(request);
   if (path === '/api/me' && method === 'GET') return { user: publicUser(user) };
   if (path === '/api/sheets/config' && method === 'GET') { if (!canReadSheets(user)) throw new HttpError(403, 'not_in_manifest', 'Not allowed'); return { sheets: await hrSheets() }; }
-  if (path === '/api/sheets/config' && method === 'PUT') { if (!canWriteSheets(user)) throw new HttpError(403, 'not_in_manifest', 'Not allowed'); const body = await readJson(request); if (!plainObject(body)) throw new HttpError(400, 'invalid_argument', 'Invalid sheet configuration'); const next = {}; for (const key of ['track', 'req', 'ads', 'tasks']) { const value = sheetId(body[key]); if (!value) throw new HttpError(400, 'invalid_argument', 'Invalid spreadsheet link'); next[key] = value; } await putDoc(env(), 'settings', 'hrSheets', next, user.id); return { sheets: next }; }
+  if (path === '/api/sheets/config' && method === 'PUT') { if (!canWriteSheets(user)) throw new HttpError(403, 'not_in_manifest', 'Not allowed'); const body = await readJson(request); if (!plainObject(body)) throw new HttpError(400, 'invalid_argument', 'Invalid sheet configuration'); const next = {}; for (const key of ['track', 'req', 'ads', 'tasks']) { const value = sheetId(body[key]); if (!value) throw new HttpError(400, 'invalid_argument', 'Invalid spreadsheet link'); next[key] = value; } const before = await hrSheets(); await putDoc(env(), 'settings', 'hrSheets', next, user.id); await audit(user, 'updated', 'settings', 'hrSheets', before, next); return { sheets: next }; }
+  if (path === '/api/audit' && method === 'GET') { if (!isFounder(user)) throw new HttpError(403, 'not_in_manifest', 'Not allowed'); const month = url.searchParams.get('month') || ''; if (!/^\d{4}-\d{2}$/.test(month)) throw new HttpError(400, 'invalid_argument', 'Use month=YYYY-MM'); return { entries: (await listAudit(env(), month)).map(({ pk, sk, ...entry }) => entry) }; }
   if (path === '/api/users' && method === 'GET') { const rows = (await listUsers(env())).map(toUser).filter((row) => row.active); const visible = rows.filter((row) => isFounder(user) || row.id === user.id || row.teams.length > 0); return { users: visible.map((row) => ({ id: row.id, name: row.name, picture: row.picture, ...(isFounder(user) ? { email: row.email } : {}) })) }; }
   if (path === '/api/sync' && method === 'POST') { const body = await readJson(request); const queries = Array.isArray(body.queries) ? body.queries : []; if (queries.length > MAX_SYNC_QUERIES) throw new HttpError(400, 'resource_exhausted', 'Too many queries'); const results = []; for (const query of queries) { try { results.push({ docs: await listCollection(user, String(query.collection || ''), Array.isArray(query.where) ? query.where : []) }); } catch (error) { results.push({ error: error.code || 'invalid_argument' }); } } return { results, user: publicUser(user) }; }
   if (path === '/api/doc') return handleDoc(request, user, url);
@@ -175,7 +182,7 @@ async function route(request) {
   if (clientSheet && method === 'GET') { if (!canReadSheets(user)) throw new HttpError(403, 'not_in_manifest', 'Not allowed'); try { return { content: textToBase64(await readSheetCsv(clientSheet[1], env(), url.searchParams.get('sheet') || 'обяви')) }; } catch (error) { if (error.status === 403 || error.status === 404) throw new HttpError(502, 'tool_error', 'Client sheet is not shared with the service account'); throw new HttpError(502, 'server_unavailable', 'Google Sheets is unavailable'); } }
   if (sheet && method === 'GET') { if (!canReadSheets(user)) throw new HttpError(403, 'not_in_manifest', 'Not allowed'); const allowed = Object.values(await hrSheets()); if (!allowed.includes(sheet[1])) throw new HttpError(404, 'tool_error', 'Unknown sheet'); try { return { content: textToBase64(await readSheetCsv(sheet[1], env(), url.searchParams.get('gid') || url.searchParams.get('sheet') || '')) }; } catch (error) { if (error.status === 403 || error.status === 404) throw new HttpError(502, 'tool_error', 'Sheet is not shared with the service account'); throw new HttpError(502, 'server_unavailable', 'Google Sheets is unavailable'); } }
   const sheetRow = path.match(/^\/api\/sheets\/([A-Za-z0-9_-]{5,120})\/rows$/);
-  if (sheetRow && method === 'POST') { if (!canWriteSheets(user)) throw new HttpError(403, 'not_in_manifest', 'Not allowed'); const allowed = Object.values(await hrSheets()); if (!allowed.includes(sheetRow[1])) throw new HttpError(404, 'tool_error', 'Unknown sheet'); const body = await readJson(request); if (!plainObject(body)) throw new HttpError(400, 'invalid_argument', 'Row must be an object'); try { await appendSheetRow(sheetRow[1], body, env()); return { ok: true }; } catch (error) { if (error.status === 403 || error.status === 404) throw new HttpError(502, 'tool_error', 'Таблицата не позволява запис от сервизния акаунт'); throw new HttpError(502, 'server_unavailable', 'Google Sheets is unavailable'); } }
+  if (sheetRow && method === 'POST') { if (!canWriteSheets(user)) throw new HttpError(403, 'not_in_manifest', 'Not allowed'); const allowed = Object.values(await hrSheets()); if (!allowed.includes(sheetRow[1])) throw new HttpError(404, 'tool_error', 'Unknown sheet'); const body = await readJson(request); if (!plainObject(body)) throw new HttpError(400, 'invalid_argument', 'Row must be an object'); try { await appendSheetRow(sheetRow[1], body, env()); await audit(user, 'created', 'sheet-row', sheetRow[1], null, body); return { ok: true }; } catch (error) { if (error.status === 403 || error.status === 404) throw new HttpError(502, 'tool_error', 'Таблицата не позволява запис от сервизния акаунт'); throw new HttpError(502, 'server_unavailable', 'Google Sheets is unavailable'); } }
   throw new HttpError(404, 'invalid_argument', 'Not found');
 }
 

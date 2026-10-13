@@ -1,4 +1,3 @@
-Attempting to perform the InitializeDefaultDrives operation on the 'FileSystem' provider failed.
 /* Layout: работен плот – лента с раздели, постоянно видима лента на таймера (като транспорт в монтажна програма), под нея активният изглед. */
 :root{
   color-scheme:dark;
@@ -100,7 +99,7 @@ label.f>*{text-transform:none;letter-spacing:0;font-weight:400;font-size:15px;co
 .card .t{font-weight:600;overflow-wrap:anywhere;cursor:pointer;background:none;border:0;padding:0;text-align:left}
 .card .t:hover{color:var(--accent)}
 .card .m{display:flex;flex-wrap:wrap;gap:4px 8px;font-size:18px;color:var(--muted);align-items:center}
-.card .late{color:var(--rec);font-weight:600}
+.clock.late,.card .late{color:var(--rec);font-weight:600}
 .card .links{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:13px}
 .card .acts{display:flex;gap:2px;justify-content:space-between;margin-top:2px}
 .col .none{font-size:13px;color:var(--muted);padding:6px 4px}

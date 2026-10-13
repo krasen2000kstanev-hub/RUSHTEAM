@@ -139,12 +139,20 @@
         try { sub.fn(snapshot(docs)); } catch (e) { console.error(e); }
       });
       if (Date.now() - lastUsers > 60000) { lastUsers = Date.now(); loadUsers(); }
+      offline(false);
     } catch (e) {
+      // Празните списъци само отключват екрана; банерът казва, че данните не са изтрити, а не са заредени.
+      offline(true);
       batch.forEach((sub) => { if (sub.last === undefined) { sub.last = "[]"; try { sub.fn(snapshot([])); } catch (x) { console.error(x); } } });
     } finally {
       syncing = false;
       if (again) { again = false; syncSoon(); }
     }
+  }
+  const OFFLINE = "Няма връзка със сървъра. Показаните данни може да са непълни – опитваме отново.";
+  function offline(on) {
+    const b = $("banner"); if (!b) return;
+    if (on) { b.textContent = OFFLINE; b.hidden = false; } else if (b.textContent === OFFLINE) b.hidden = true;
   }
   function syncSoon() { clearTimeout(soon); soon = setTimeout(sync, 40); }
 

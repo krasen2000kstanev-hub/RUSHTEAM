@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parsePath, collectionKind, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, normalizeTeams } from '../src/rules.js';
+import { parsePath, collectionKind, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, normalizeTeams, auditChanges } from '../src/rules.js';
 
 const admin = { id: 'u_admin', role: 'admin', teams: [], active: true };
 const manager = { id: 'u_manager', role: 'manager', teams: ['design'], active: true };
@@ -150,3 +150,12 @@ test('helpers', () => {
   assert.deepEqual(normalizeTeams('hr'), []);
 });
 
+
+test('audit history records who changed what', () => {
+  // нов запис за време в съществуващ ден: само той, не целият ден
+  assert.deepEqual(auditChanges({ date: '2026-10-13', entries: { a: { s: 1 } } }, { date: '2026-10-13', entries: { a: { s: 1 }, b: { s: 2 } } }), { 'entries.b': ['', '{"s":2}'] });
+  // изтриване: старите стойности се пазят
+  assert.deepEqual(auditChanges({ title: 'Видео' }, null), { title: ['"Видео"', ''] });
+  assert.deepEqual(auditChanges({ x: 1 }, { x: 1 }), {});
+  assert.equal(auditChanges(null, { t: 'a'.repeat(900) }).t[1].length, 401);
+});

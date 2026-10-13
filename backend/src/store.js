@@ -4,6 +4,12 @@ import { DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, QueryCom
 const db = DynamoDBDocumentClient.from(new DynamoDBClient({}), { marshallOptions: { removeUndefinedValues: true } });
 const table = (env) => env.TABLE_NAME;
 const key = (collection, id) => ({ pk: `DOC#${collection}#${id}`, sk: 'DOC' });
+// DynamoDB връща до 1 MB на заявка; без страниране хора и записи изчезват, щом таблицата порасне.
+async function all(Command, input) {
+  const items = []; let ExclusiveStartKey;
+  do { const out = await db.send(new Command({ ...input, ExclusiveStartKey })); items.push(...(out.Items || [])); ExclusiveStartKey = out.LastEvaluatedKey; } while (ExclusiveStartKey);
+  return items;
+}
 
 export async function getDoc(env, collection, id) {
   const out = await db.send(new GetCommand({ TableName: table(env), Key: key(collection, id) }));
@@ -12,8 +18,8 @@ export async function getDoc(env, collection, id) {
 }
 
 export async function listDocs(env, collection) {
-  const out = await db.send(new QueryCommand({ TableName: table(env), IndexName: 'CollectionIndex', KeyConditionExpression: 'gsi1pk = :collection', ExpressionAttributeValues: { ':collection': `COLLECTION#${collection}` } }));
-  return (out.Items || []).sort((a, b) => String(a.id).localeCompare(String(b.id))).map((item) => ({ id: item.id, data: JSON.parse(item.data) }));
+  const items = await all(QueryCommand, { TableName: table(env), IndexName: 'CollectionIndex', KeyConditionExpression: 'gsi1pk = :collection', ExpressionAttributeValues: { ':collection': `COLLECTION#${collection}` } });
+  return items.sort((a, b) => String(a.id).localeCompare(String(b.id))).map((item) => ({ id: item.id, data: JSON.parse(item.data) }));
 }
 
 export async function putDoc(env, collection, id, data, updatedBy, version = 1) {
@@ -37,8 +43,20 @@ export async function putDoc(env, collection, id, data, updatedBy, version = 1) 
 export async function deleteDoc(env, collection, id) { await db.send(new DeleteCommand({ TableName: table(env), Key: key(collection, id) })); }
 const userKey = (id) => ({ pk: `USER#${id}`, sk: 'PROFILE' });
 export async function getUser(env, id) { return (await db.send(new GetCommand({ TableName: table(env), Key: userKey(id) }))).Item || null; }
-export async function findUser(env, sub, email) { const out = await db.send(new ScanCommand({ TableName: table(env), FilterExpression: 'entity = :entity AND (googleSub = :sub OR email = :email)', ExpressionAttributeValues: { ':entity': 'user', ':sub': sub, ':email': email } })); return out.Items?.[0] || null; }
-export async function listUsers(env) { const out = await db.send(new ScanCommand({ TableName: table(env), FilterExpression: 'entity = :entity', ExpressionAttributeValues: { ':entity': 'user' } })); return out.Items || []; }
+export async function findUser(env, sub, email) { return (await all(ScanCommand, { TableName: table(env), FilterExpression: 'entity = :entity AND (googleSub = :sub OR email = :email)', ExpressionAttributeValues: { ':entity': 'user', ':sub': sub, ':email': email } }))[0] || null; }
+export async function listUsers(env) { return all(ScanCommand, { TableName: table(env), FilterExpression: 'entity = :entity', ExpressionAttributeValues: { ':entity': 'user' } }); }
+
+// История на действията: отделна таблица без срок на изтриване (пази се без ограничение, т.е. и над 2 години).
+// Ключ по месец, за да се чете месец по месец без Scan.
+export async function putAudit(env, entry) {
+  if (!env.AUDIT_TABLE) return;
+  const at = new Date().toISOString();
+  await db.send(new PutCommand({ TableName: env.AUDIT_TABLE, Item: { pk: `AUDIT#${at.slice(0, 7)}`, sk: `${at}#${crypto.randomUUID().slice(0, 8)}`, at, ...entry } }));
+}
+export async function listAudit(env, month) {
+  if (!env.AUDIT_TABLE) return [];
+  return all(QueryCommand, { TableName: env.AUDIT_TABLE, KeyConditionExpression: 'pk = :pk', ExpressionAttributeValues: { ':pk': `AUDIT#${month}` } });
+}
 export async function createUser(env, user) { await db.send(new PutCommand({ TableName: table(env), Item: { ...userKey(user.id), entity: 'user', ...user } })); }
 export async function updateUser(env, id, fields) {
   const names = Object.keys(fields); if (!names.length) return;
