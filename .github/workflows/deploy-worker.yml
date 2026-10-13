@@ -39,4 +39,6 @@ jobs:
 
       - name: Build and deploy
         working-directory: backend
-        run: sam build --template-file template.yaml && sam deploy --no-confirm-changeset --no-fail-on-empty-changeset --template-file .aws-sam/build/template.yaml --stack-name team-hub --capabilities CAPABILITY_IAM --resolve-s3 --region eu-central-1 --parameter-overrides "GoogleClientId=${{ secrets.GOOGLE_CLIENT_ID }}" "AdminEmails=${{ secrets.ADMIN_EMAILS }}" "HrSheetIds=${{ secrets.HR_SHEET_IDS }}" "SessionSecret=${{ secrets.SESSION_SECRET }}" "GoogleServiceAccountJson=${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}" "SesFromEmail=noreply@sofiasummit.bg" "FrontendUrl=https://krasen2000kstanev-hub.github.io/RUSHTEAM/"
+        # Без --parameter-overrides: SAM пази текущите стойности на параметрите (тайните) в stack-а.
+        # Празен GitHub secret иначе би изтрил истинската стойност в продукция.
+        run: sam build --template-file template.yaml && sam deploy --no-confirm-changeset --no-fail-on-empty-changeset --template-file .aws-sam/build/template.yaml --stack-name team-hub --capabilities CAPABILITY_IAM --resolve-s3 --region eu-central-1
