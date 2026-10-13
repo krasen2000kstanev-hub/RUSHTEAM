@@ -690,6 +690,9 @@ $("#f-video").addEventListener("submit",async ev=>{ev.preventDefault();const id=
   rec.doneAt=isDone(rec)?((old&&old.doneAt)||Date.now()):0;
   // Съществуващо видео: PATCH без коментарите, за да не се изтрие коментар, добавен от колега след последното обновяване.
   if(id)delete rec.comments;
+  // Услугите и стъпките се записват автоматично. Изчакваме ги преди
+  // основния запис, за да не се сблъскат две редакции на един и същ документ.
+  await checkChain;
   const ref=id?S.db.doc("videos/"+id):S.db.collection("videos").doc();
   if(await tryW(id?ref.update(rec):ref.set(rec)))$("#d-video").close();});
 function renderCheck(){const box=$("#v-check");box.textContent="";
