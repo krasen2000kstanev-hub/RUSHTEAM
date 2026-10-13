@@ -53,7 +53,12 @@ async function requireUser(request) { const user = await currentUser(request); i
 
 async function upsertUser({ sub, email, name, picture }) {
   const normalizedEmail = String(email).trim().toLowerCase();
-  const admins = String(env().ADMIN_EMAILS || '').split(',').map((v) => v.trim().toLowerCase()).filter(Boolean);
+  // Основателите са допълнение към AWS параметъра, за да не се загубят права
+  // при deployment със стар/непълен ADMIN_EMAILS secret.
+  const admins = new Set([
+    ...String(env().ADMIN_EMAILS || '').split(',').map((v) => v.trim().toLowerCase()).filter(Boolean),
+    'tsvetelin@pleggi.com',
+  ]);
   const existing = await findUser(env(), sub, normalizedEmail); const now = new Date().toISOString();
   if (existing) {
     const role = admins.includes(normalizedEmail) ? 'founder' : (existing.role === 'admin' ? 'founder' : existing.role);
