@@ -32,13 +32,11 @@ const HR_MASTER_SHEET="1mzKA-mzzmQqNzb5glSvcDXdWXb9rTzr4ZwL4r7RMnzY";
 const WHO=["човек","екип","служител","отговорник","рекрутър","консултант"];
 const SHEETS_CFG=(window.TEAM_HUB_CONFIG||{}).sheets||{};Object.assign(SHEET,SHEETS_CFG);
 const sheetUrl=id=>"https://docs.google.com/spreadsheets/d/"+id+"/edit";
-const PST=[["open","Отворена"],["paused","На пауза"],["closed","Затворена"]];
-const pstName=id=>(PST.find(a=>a[0]===id)||PST[0])[1];
 const DEPTS=[["media","Медия"],["hr","Подбор"],["all","И двете"]];
 const actName=id=>(ACTS.find(a=>a[0]===id)||[0,"Друго"])[1];
 
 const S={db:null,user:null,uid:null,isAdmin:false,canWrite:true,ready:false,
-  clients:{},videos:{},shoots:{},tasks:{},members:{},depts:{},people:{},mcp:null,booted:false,hr:{rows:null,jd:{},ads:[],adsErr:false,tasks:[],tasksErr:false,clients:[],clientsErr:false,err:"",at:0,loading:false,hasWho:false},hrPaused:false,hrView:"who",prof:{},myDays:{},rep:{},hrClientNotes:{},hrSearch:"",
+  clients:{},videos:{},shoots:{},tasks:{},members:{},depts:{},people:{},mcp:null,booted:false,hr:{rows:null,clients:[],clientsErr:false,err:"",at:0,loading:false,hasWho:false},hrPaused:false,prof:{},myDays:{},rep:{},hrClientNotes:{},hrSearch:"",
   tab:"timer",preset:"month",from:"",to:"",fClient:"",fFmt:"",mine:false,fWho:"",taskFilter:"all",dl:null,cal:null,runId:null,hrClientStage:"",hrClientStatus:"all",teamSearch:"",teamFilter:"all"};
 
 /* ---------- time helpers ---------- */
@@ -473,10 +471,8 @@ async function loadHr(silent){
   if(!S.mcp&&!window.teamHubApi){S.hr.err="nomcp";schedule();return;}
   if(window.teamHubApi&&!S.hr.configLoaded){try{const cfg=await window.teamHubApi("/api/sheets/config");Object.assign(SHEET,cfg.sheets||{});S.hr.configLoaded=true;}catch(e){S.hr.err=e.code||"upstream_error";schedule();return;}}
   S.hr.loading=true;if(!silent){S.hr.err="";schedule();}
-  const sameSource=[SHEET.track,SHEET.req,SHEET.ads,SHEET.tasks].every(id=>id===SHEET.track);let source;
-  const readConfigured=id=>sameSource?(source||(source=readSheet(SHEET.track))):readSheet(id);
   try{
-    const t=await readConfigured(SHEET.track),hd=(t[0]||[]).map(x=>x.trim().toLowerCase()),ix=k=>hd.findIndex(x=>x.includes(k)),ex=k=>{const e=hd.indexOf(k);return e>=0?e:hd.findIndex(x=>x.includes(k)&&!x.includes("описание")&&!x.includes("бележки"));};
+    const t=await readSheet(SHEET.track),hd=(t[0]||[]).map(x=>x.trim().toLowerCase()),ix=k=>hd.findIndex(x=>x.includes(k)),ex=k=>{const e=hd.indexOf(k);return e>=0?e:hd.findIndex(x=>x.includes(k)&&!x.includes("описание")&&!x.includes("бележки"));};
     const c={cdesc:hd.findIndex(x=>x.includes("описание")&&x.includes("компани")),pdesc:hd.findIndex(x=>x.includes("описание")&&x.includes("позици")),co:ex("компания"),title:ex("позиция"),status:ix("статус"),heads:ix("търсени"),need:ix("нужни"),sent:ix("изпратени"),interview:ix("интервю"),feedback:Math.max(ix("обрат"),ix("feedback")),offer:ix("оферт"),hired:ix("наети"),notes:ix("бележки")};
     c.who=WHO.map(ix).find(i=>i>=0);if(c.who==null)c.who=-1;S.hr.hasWho=c.who>=0;
     if(c.co<0||c.title<0)throw {code:"bad_sheet"};
@@ -485,18 +481,6 @@ async function loadHr(silent){
       interview:num(g(r,"interview")),feedback:num(g(r,"feedback")),offer:num(g(r,"offer")),hired:num(g(r,"hired")),notes:g(r,"notes"),cdesc:g(r,"cdesc"),pdesc:g(r,"pdesc")})).filter(r=>r.co||r.title);
     S.hr.at=Date.now();if(S.hr.err){S.hr.err="";S.hr.sig="";}
   }catch(e){S.hr.loading=false;if(!silent||!S.hr.rows){S.hr.err=(e&&e.code)||"upstream_error";schedule();}return;}
-  try{const q=await readConfigured(SHEET.req),hd=(q[0]||[]).map(x=>x.trim().toLowerCase()),pi=hd.findIndex(x=>x.includes("позиция")),ci=hd.findIndex(x=>x.includes("компания"));
-    const jd={};if(pi>=0&&ci>=0)q.slice(1).forEach(r=>{const txt=r.filter((x,i)=>i!==pi&&i!==ci&&x.trim()).sort((a,b)=>b.length-a.length)[0];
-      if(txt)jd[((r[ci]||"")+"|"+(r[pi]||"")).trim().toLowerCase()]=txt.trim();});
-    S.hr.jd=jd;}catch(e){S.hr.jd={};}
-  try{const a=await readConfigured(SHEET.ads),hd=(a[0]||[]).map(x=>x.trim().toLowerCase()),ix=k=>hd.findIndex(x=>x.includes(k)),
-      c={co:ix("компания"),title:ix("позиция"),plat:ix("платформа"),url:ix("линк"),from:ix("качена"),to:ix("валидна"),who:Math.max(-1,...WHO.map(ix)),notes:ix("бележки")},g=(r,k)=>c[k]<0?"":(r[c[k]]||"").trim();
-    S.hr.ads=a.slice(1).map(r=>({co:g(r,"co"),title:g(r,"title"),plat:g(r,"plat"),url:safeUrl(g(r,"url")),from:g(r,"from"),to:g(r,"to"),who:g(r,"who"),notes:g(r,"notes")})).filter(r=>r.title||r.plat||r.url);
-    S.hr.adsErr=false;}catch(e){S.hr.ads=[];S.hr.adsErr=true;}
-  try{const a=await readConfigured(SHEET.tasks),hd=(a[0]||[]).map(x=>x.trim().toLowerCase()),ix=k=>hd.findIndex(x=>x.includes(k)),
-      c={co:ix("компания"),task:ix("задача"),who:Math.max(-1,...WHO.map(ix)),due:ix("срок"),status:ix("статус"),notes:ix("бележки")},g=(r,k)=>c[k]<0?"":(r[c[k]]||"").trim();
-    S.hr.tasks=a.slice(1).map(r=>({co:g(r,"co"),task:g(r,"task"),who:g(r,"who"),due:g(r,"due"),status:g(r,"status"),notes:g(r,"notes")})).filter(r=>r.task);
-    S.hr.tasksErr=false;}catch(e){S.hr.tasks=[];S.hr.tasksErr=true;}
   try{
     const a=await readSheet(HR_MASTER_SHEET,HR_CLIENTS_GID,true),hd=(a[0]||[]).map(x=>x.trim().toLowerCase()),ix=k=>hd.findIndex(x=>x.includes(k)),g=(r,k)=>ix(k)<0?"":(r[ix(k)]||"").trim();
     const baseId=v=>{const m=String(v||"").match(/\/spreadsheets\/d\/([A-Za-z0-9_-]{20,120})/);return m?m[1]:"";};
@@ -510,12 +494,13 @@ async function loadHr(silent){
     }));
     S.hr.clientsErr=false;
   }catch(e){S.hr.clients=[];S.hr.clientsErr=true;}
-  S.hr.loading=false;const sig=JSON.stringify([S.hr.rows,S.hr.jd,S.hr.ads,S.hr.tasks,S.hr.clients,S.hr.adsErr,S.hr.tasksErr,S.hr.clientsErr,S.hr.hasWho]);
+  S.hr.loading=false;const sig=JSON.stringify([S.hr.rows,S.hr.clients,S.hr.clientsErr,S.hr.hasWho]);
   if(!silent||sig!==S.hr.sig){S.hr.sig=sig;schedule();}else{const el=$("#h-at");if(el)el.textContent=atText();}
 }
-const atText=()=>"Прочетено в "+hm(S.hr.at)+" · обновява се всяка минута";
+// Таблиците се кешират 5 мин. (readSheet), затова и автоматичното обновяване е на 5 мин.
+const atText=()=>"Прочетено в "+hm(S.hr.at)+" · обновява се на всеки 5 минути";
 const hrAuto=()=>{if(S.tab==="hr"&&S.hr.rows&&document.visibilityState==="visible")loadHr(true);};
-setInterval(hrAuto,60000);document.addEventListener("visibilitychange",hrAuto);
+setInterval(hrAuto,300000);document.addEventListener("visibilitychange",hrAuto);
 function hrErr(code){
   const m={nomcp:"Четенето на таблиците не е настроено. Вижте backend/README.md, раздел „Google таблици“.",
     not_in_manifest:"Нямате достъп до раздел „Подбор“. Помолете мениджър да ви добави към екипа.",
@@ -533,87 +518,12 @@ function syncHrRowForm(){const table=$("#hr-row-table").value;$("#hr-row-title-l
 function openHrRow(){if(!hrCanWrite())return;$("#f-hr-row").reset();syncHrRowForm();$("#d-hr-row").showModal();}
 $("#hr-row-table").addEventListener("change",syncHrRowForm);
 $("#f-hr-row").addEventListener("submit",async e=>{e.preventDefault();const table=$("#hr-row-table").value,row={company:hrRowInput("company"),title:hrRowInput("title"),task:hrRowInput("task"),who:hrRowInput("who"),status:hrRowInput("status"),description:hrRowInput("description"),link:hrRowInput("link"),platform:hrRowInput("platform"),due:hrRowInput("due")};if(!row.company||((table!=="tasks")&&!row.title)||(table==="tasks"&&!row.task)){toast("Попълнете компания и име на позицията/задачата.");return;}try{await window.teamHubApi("/api/sheets/"+encodeURIComponent(SHEET[table])+"/rows",{method:"POST",body:row});$("#d-hr-row").close();S.hr.rows=null;S.hr.loading=false;loadHr();toast("Добавено в таблицата.");}catch(x){toast(x&&x.code==="not_in_manifest"?"Само мениджърът на подбор и основателите могат да добавят.":"Записът не се добави. Проверете дали таблицата е споделена с права за редактиране.");}});
-function sheetDate(v){v=String(v||"").trim();let m=v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return m[1]+"-"+p2(m[2])+"-"+p2(m[3]);
-  m=v.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})/);if(m&&+m[2]<=12)return m[3]+"-"+p2(m[2])+"-"+p2(m[1]);return "";}
-function hrSummary(rows,label){
-  const sent=rows.reduce((a,r)=>a+r.sent,0),interview=rows.reduce((a,r)=>a+r.interview,0),offer=rows.reduce((a,r)=>a+r.offer,0),hired=rows.reduce((a,r)=>a+r.hired,0),open=rows.filter(r=>r.status==="open").length;
-  const pct=(a,b)=>b?Math.round(a/b*100)+"%":"–";
-  return h("section",{class:"panel"},h("div",{class:"ph"},h("span",null,label||"Изводи от таблицата"),h("span",{class:"small muted"},"Подробностите са в Google таблицата")),h("div",{class:"sum"},h("div",null,h("b",null,open),h("span",null,"Отворени позиции")),h("div",null,h("b",null,sent),h("span",null,"Изпратени CV-та")),h("div",null,h("b",null,interview),h("span",null,"Интервюта")),h("div",null,h("b",null,offer),h("span",null,"Оферти")),h("div",null,h("b",null,hired),h("span",null,"Наети"))),h("p",{class:"small muted",style:"margin:14px 0 0"},"Извод: "+(sent?"CV → интервю "+pct(interview,sent)+", интервю → оферта "+pct(offer,interview)+", оферта → наемане "+pct(hired,offer)+".":"Няма въведени кандидатури за анализ.")));
-}
-function hrOpenPositions(rows){
-  const open=rows.filter(r=>r.status==="open").sort((a,b)=>(a.co||"").localeCompare(b.co||"","bg")||(a.title||"").localeCompare(b.title||"","bg"));
-  const panel=h("section",{class:"panel"},h("div",{class:"ph"},h("span",null,"Отворени позиции"),h("span",{class:"small muted"},open.length+" позиции · CV-тата се отчитат отделно")));
-  if(!open.length)return panel.append(h("div",{class:"empty"},"Няма отворени позиции.")),panel;
-  open.forEach(r=>panel.append(
-    h("div",{class:"drow"},
-      h("div",{style:"min-width:0"},h("b",{style:"overflow-wrap:anywhere"},r.title||"Без име"),h("div",{class:"small muted"},r.co||"Без компания")),
-      h("span",{class:"pill"},r.sent+" CV-та")
-    )
-  ));
-  return panel;
-}
 const hrClientId=company=>"c_"+String(company||"").trim().toLowerCase().replace(/[^a-z0-9а-яё]+/gi,"-").replace(/^-|-$/g,"").slice(0,100);
 const hrClientMeta=c=>{const saved=S.hrClientNotes[hrClientId(c.company)]||{},rawPay=String(saved.payStatus||c.stage||"").toLowerCase(),rawActive=String(saved.activeStatus||c.status||"").toLowerCase();return {payStatus:rawPay.includes("не")&&rawPay.includes("плащ")?"not_paying":rawPay.includes("изчак")?"pending":rawPay.includes("плащ")?"paying":"pending",activeStatus:/неактив|inactive|затвор/i.test(rawActive)?"inactive":"active"};};
 async function saveHrClientMeta(c,patch){if(!hrCanWrite())return;const id=hrClientId(c.company),next=Object.assign({},S.hrClientNotes[id]||{},patch,{company:c.company,updatedAt:Date.now()});S.hrClientNotes[id]=next;schedule();try{await S.db.doc("hrclients/"+id).set(next);toast("Статусът е запазен.");}catch(e){toast(errMsg(e));}}
 function openHrClient(id,company){
   if(!hrCanWrite())return;
   $("#hr-client-h").textContent="Описание: "+company;$("#hr-client-description").value=(S.hrClientNotes[id]||{}).description||"";cur.hrClient={id,company};$("#d-hr-client").showModal();
-}
-function vHrClients(root){
-  const all=S.hr.clients||[],stage=S.hrClientStage,status=S.hrClientStatus;
-  const filtered=all.filter(c=>(!stage||hrClientMeta(c).payStatus===stage)&&(status==="all"||hrClientMeta(c).activeStatus===status));
-  const st=h("select",{class:"btn",value:stage,onchange:e=>{S.hrClientStage=e.target.value;schedule();}});
-  fill(st,[["paying","Плаща"],["not_paying","Не плаща"],["pending","В изчакване"]],"Всички плащания");st.value=stage;
-  const ss=h("select",{class:"btn",onchange:e=>{S.hrClientStatus=e.target.value;schedule();}},h("option",{value:"active"},"Активни"),h("option",{value:"inactive"},"Неактивни"),h("option",{value:"all"},"Всички"));ss.value=status;
-  root.append(h("div",{class:"bar"},st,ss,h("span",{class:"sp"}),h("span",{class:"small muted"},filtered.length+" компании")));
-  if(S.hr.clientsErr){root.append(h("div",{class:"banner"},"Не успях да заредя клиентската таблица."));return root;}
-  if(!filtered.length){root.append(h("div",{class:"panel empty"},"Няма компании с този филтър."));return root;}
-  const grid=h("div",{class:"two"});
-  filtered.forEach(c=>{const id=hrClientId(c.company),note=(S.hrClientNotes[id]||{}).description||"",link=safeUrl(c.link),positions=c.positions||[],meta=hrClientMeta(c),editable=hrCanWrite();
-    const pay=h("select",{class:"btn",value:meta.payStatus,disabled:!editable,ariaLabel:"Плащане",onchange:e=>saveHrClientMeta(c,{payStatus:e.target.value})},h("option",{value:"paying"},"Плаща"),h("option",{value:"not_paying"},"Не плаща"),h("option",{value:"pending"},"В изчакване"));
-    const active=h("select",{class:"btn",value:meta.activeStatus,disabled:!editable,ariaLabel:"Активност",onchange:e=>saveHrClientMeta(c,{activeStatus:e.target.value})},h("option",{value:"active"},"Активен"),h("option",{value:"inactive"},"Неактивен"));
-    grid.append(h("section",{class:"panel box"},h("div",{class:"ph"},h("div",null,h("h3",{style:"margin:0"},c.company),h("div",{class:"small muted"},pay," ",active)),link?h("a",{class:"btn",href:link,target:"_blank",rel:"noopener noreferrer"},"Отвори базата ↗"):null),
-      h("p",{class:"small",style:"white-space:pre-wrap;overflow-wrap:anywhere"},note||"Няма описание. "+(hrCanWrite()?"Добавете описание.":"")),
-      hrCanWrite()?h("button",{class:"btn ghost",type:"button",onclick:()=>openHrClient(id,c.company)},note?"Редактирай описание":"Добави описание"):null,
-      h("h4",null,"Активни позиции · "+positions.length),
-      positions.length?h("div",{style:"display:flex;flex-direction:column;gap:8px"},positions.map(p=>h("div",{class:"drow"},h("div",{style:"min-width:0"},h("b",null,p.title),p.description?h("div",{class:"small muted",style:"white-space:pre-wrap;overflow-wrap:anywhere"},p.description):null)))):h("div",{class:"small muted"},c.loadError?"Базата не се зареди. Отворете линка за подробности.":"Няма активни позиции.")));
-  });
-  root.append(grid);return root;
-}
-function vAds(root){
-  const ads=S.hr.ads,today=ymd(new Date()),soon=ymd(addDays(new Date(),5));
-  const st=a=>{const d=sheetDate(a.to);return !d?"":d<today?"old":d<=soon?"soon":"ok";};
-  root.append(h("div",{class:"bar"},h("span",{class:"small muted"},ads.length+" обяви · "+ads.filter(a=>st(a)==="old").length+" изтекли · "+ads.filter(a=>st(a)==="soon").length+" изтичат до 5 дни"),
-    h("span",{class:"sp"}),h("a",{class:"btn",href:sheetUrl(SHEET.ads),target:"_blank",rel:"noopener noreferrer",style:"text-decoration:none"},"Отвори таблицата с обявите ↗")));
-  if(S.hr.adsErr){root.append(h("div",{class:"banner"},"Таблицата „Подбор – обяви“ не се зареди. Проверете дали е споделена с вас и натиснете „Обнови“."));return;}
-  if(!ads.length){root.append(h("div",{class:"panel empty"},"Още няма въведени обяви. В таблицата „Подбор – обяви“ добавете по един ред за всяко място, където е качена обява: компания, позиция, платформа, линк и докога е валидна."));return;}
-  root.append(h("section",{class:"panel"},h("div",{class:"sum"},h("div",null,h("b",null,ads.length),h("span",null,"Общо обяви")),h("div",null,h("b",null,ads.filter(a=>st(a)==="ok").length),h("span",null,"Активни")),h("div",null,h("b",{class:ads.filter(a=>st(a)==="soon").length?"late":""},ads.filter(a=>st(a)==="soon").length),h("span",null,"Изтичат скоро")),h("div",null,h("b",{class:ads.filter(a=>st(a)==="old").length?"late":""},ads.filter(a=>st(a)==="old").length),h("span",null,"Изтекли")))));return root;
-  const groups={};ads.forEach(a=>{const k=(a.co||"Без компания")+" – "+(a.title||"Без позиция");(groups[k]=groups[k]||[]).push(a);});
-  Object.keys(groups).sort((a,b)=>a.localeCompare(b,"bg")).forEach(k=>{const tb=h("tbody");
-    groups[k].forEach(a=>{const x=st(a);tb.append(h("tr",{class:x==="old"?"off":""},
-      h("td",null,h("b",null,a.plat||"–")),
-      h("td",null,a.url?ext({url:a.url,label:"Виж обявата"}):h("span",{class:"muted"},"няма линк")),
-      h("td",{class:"small mono"},a.from||"–"),
-      h("td",{class:"small mono",style:x==="old"?"color:var(--rec);font-weight:600":x==="soon"?"color:var(--warn);font-weight:600":""},(a.to||"–")+(x==="old"?" · изтекла":x==="soon"?" · изтича скоро":"")),
-      h("td",{class:"small"},a.who||"–"),h("td",{class:"small",style:"overflow-wrap:anywhere"},a.notes||"–")));});
-    root.append(h("section",{class:"panel"},h("div",{class:"ph"},h("span",{style:"overflow-wrap:anywhere"},k),h("span",{class:"mono"},groups[k].length)),
-      h("div",{class:"tw"},h("table",null,h("thead",null,h("tr",null,h("th",null,"Платформа"),h("th",null,"Обява"),h("th",null,"Качена на"),h("th",null,"Валидна до"),h("th",null,"Човек от екипа"),h("th",null,"Бележки"))),tb))));});
-}
-function vHrTasks(root){
-  const ts=S.hr.tasks,today=ymd(new Date()),done=t=>/готов|приключ|завърш|done/i.test(t.status),late=t=>{const d=sheetDate(t.due);return !done(t)&&d&&d<today;};
-  root.append(h("div",{class:"bar"},h("span",{class:"small muted"},ts.filter(t=>!done(t)).length+" отворени · "+ts.filter(late).length+" просрочени · "+ts.filter(done).length+" готови"),
-    h("span",{class:"sp"}),h("a",{class:"btn",href:sheetUrl(SHEET.tasks),target:"_blank",rel:"noopener noreferrer",style:"text-decoration:none"},"Отвори таблицата със задачите ↗")));
-  if(S.hr.tasksErr){root.append(h("div",{class:"banner"},"Таблицата „Подбор – допълнителни задачи“ не се зареди. Проверете дали е споделена с вас и натиснете „Обнови“."));return;}
-  if(!ts.length){root.append(h("div",{class:"panel empty"},"Още няма допълнителни задачи. В таблицата „Подбор – допълнителни задачи“ добавете ред за всяка задача извън позициите: компания, задача, човек от екипа, срок и статус."));return;}
-  root.append(hrSummary(ts.map(t=>({sent:0,interview:0,offer:0,hired:done(t)?1:0,status:done(t)?"done":"open"})),"Изводи за допълнителните задачи"));return root;
-  const groups={};ts.forEach(t=>{const k=t.co||"Без компания";(groups[k]=groups[k]||[]).push(t);});
-  Object.keys(groups).sort((a,b)=>a.localeCompare(b,"bg")).forEach(k=>{const tb=h("tbody"),list=groups[k].slice().sort((a,b)=>done(a)-done(b));
-    list.forEach(t=>tb.append(h("tr",{class:done(t)?"off":""},
-      h("td",null,h("b",{style:"overflow-wrap:anywhere"},t.task)),h("td",{class:"small"},t.who||"–"),
-      h("td",{class:"small mono",style:late(t)?"color:var(--rec);font-weight:600":""},(t.due||"–")+(late(t)?" · просрочена":"")),
-      h("td",null,h("span",{class:"pill"},t.status||"Без статус")),h("td",{class:"small",style:"overflow-wrap:anywhere"},t.notes||"–"))));
-    root.append(h("section",{class:"panel"},h("div",{class:"ph"},h("span",{style:"overflow-wrap:anywhere"},k),h("span",{class:"mono"},list.filter(t=>!done(t)).length+" отворени")),
-      h("div",{class:"tw"},h("table",null,h("thead",null,h("tr",null,h("th",null,"Задача"),h("th",null,"Човек от екипа"),h("th",null,"Срок"),h("th",null,"Статус"),h("th",null,"Бележки"))),tb))));});
 }
 function hrCompanyModels(){
   const map={};
@@ -639,7 +549,11 @@ function vHrCompanies(){
   const activePositions=filtered.reduce((n,m)=>n+m.positions.filter(p=>p.active).length,0),cv=filtered.reduce((n,m)=>n+m.positions.reduce((sum,p)=>sum+(p.cv||0),0),0);
   const search=h("input",{type:"search",class:"hr-search",value:S.hrSearch||"",placeholder:"Търси компания или позиция…",ariaLabel:"Търсене в подбор",onkeyup:e=>{S.hrSearch=e.target.value;if(e.key==="Enter")schedule();}});
   const overview=h("section",{class:"panel box hr-overview"});
-  overview.append(h("div",{class:"bar"},h("div",null,h("h2",null,"Подбор"),h("p",{class:"small muted",style:"margin:2px 0 0"},"Първо се показват активните компании. Отвори базата само когато ти трябва подробният ред.")),h("span",{class:"sp"}),h("button",{class:"btn primary",type:"button",onclick:()=>exportHrQuickReport(filtered)},"Бърз отчет ↧"),h("a",{class:"btn",href:sheetUrl(SHEET.track),target:"_blank",rel:"noopener noreferrer"},"Отвори базата ↗")));
+  overview.append(h("div",{class:"bar"},h("div",null,h("h2",null,"Подбор"),h("p",{class:"small muted",style:"margin:2px 0 0"},"Първо се показват активните компании. Отвори базата само когато ти трябва подробният ред.")),h("span",{class:"sp"}),S.hr.at?h("span",{class:"small muted mono",id:"h-at"},atText()):null,
+    h("button",{class:"btn",type:"button",disabled:S.hr.loading,onclick:()=>{sheetCache.clear();S.hr.err="";loadHr();}},S.hr.loading?"Зареждане…":"Обнови"),
+    write?h("button",{class:"btn",type:"button",onclick:openHrRow},"+ Добави в таблица"):null,
+    write?h("button",{class:"btn",type:"button",onclick:openHrConfig},"⚙ Таблици"):null,
+    h("button",{class:"btn primary",type:"button",onclick:()=>exportHrQuickReport(filtered)},"Бърз отчет ↧"),h("a",{class:"btn",href:sheetUrl(SHEET.track),target:"_blank",rel:"noopener noreferrer"},"Отвори базата ↗")));
   overview.append(h("div",{class:"hr-toolbar"},search,h("button",{class:"btn",type:"button",disabled:!S.hrSearch,onclick:()=>{S.hrSearch="";schedule();}},"Изчисти"),payFilter,activeFilter));
   overview.append(h("div",{class:"hr-stats"},h("div",null,h("b",null,filtered.length),h("span",null,"Компании")),h("div",null,h("b",null,activePositions),h("span",null,"Активни позиции")),h("div",null,h("b",null,cv),h("span",null,"Изпратени CV-та"))));
   root.append(overview);
@@ -659,74 +573,7 @@ function vHrCompanies(){
 function vHr(){
   if(S.hrPaused)return h("section",{class:"panel empty"},h("h2",null,"Подбор"),h("p",{class:"small muted"},"Този раздел е изчистен и чака новите правила за извличане от Google таблиците."));
   return vHrCompanies();
-  const root=h("div",{style:"display:flex;flex-direction:column;gap:14px"}),H=S.hr,rows=H.rows||[];
-  const big=(n,l)=>h("div",null,h("b",null,n),h("span",null,l));
-  const cos=[...new Set(rows.map(r=>r.co||"Без компания"))].sort((a,b)=>a.localeCompare(b,"bg"));
-  root.append(h("div",{class:"bar"},
-    h("div",{class:"sum"},big(H.rows?cos.length:"–","Компании"),big(H.ads.length,"Обяви"),big(H.rows?rows.filter(r=>r.status==="open").length:"–","Отворени позиции"),
-      big(H.rows?new Set(rows.flatMap(r=>r.who)).size:"–","Хора от екипа"),big(H.rows?rows.reduce((a,r)=>a+r.sent,0):"–","Изпратени CV-та"),big(H.rows?rows.reduce((a,r)=>a+r.hired,0):"–","Наети")),
-    h("span",{class:"sp"}),
-    H.at?h("span",{class:"small muted mono",id:"h-at"},atText()):null,
-    h("button",{class:"btn",type:"button",id:"h-refresh",disabled:H.loading,onclick:()=>{sheetCache.clear();S.hr.err="";loadHr();}},H.loading?"Зареждане…":"Обнови"),
-    hrCanWrite()?h("button",{class:"btn primary",type:"button",onclick:openHrRow},"+ Добави в таблица"):null,
-    hrCanWrite()?h("button",{class:"btn",type:"button",onclick:openHrConfig},"⚙ Таблици"):null,
-    h("a",{class:"btn primary",href:sheetUrl(SHEET.track),target:"_blank",rel:"noopener noreferrer",style:"text-decoration:none"},"Отвори таблицата ↗")));
-  root.append(h("p",{class:"small muted",style:"margin:0"},"Данните се въвеждат само в Google таблицата „Подбор – проследяване“. Тук се показват за преглед и за отчет."));
-  if(H.err){root.append(h("div",{class:"banner"},hrErr(H.err)));if(!H.rows)return root;}
-  if(!H.rows){root.append(h("div",{class:"panel empty"},"Зареждане на таблицата…"));return root;}
-  const tg=(k,l)=>h("button",{class:"btn"+(S.hrView===k?" primary":""),type:"button","aria-pressed":String(S.hrView===k),onclick:()=>{S.hrView=k;schedule();}},l);
-  root.append(h("div",{class:"bar"},tg("who","По хора от екипа"),tg("co","По компании"),tg("clients","Клиенти"),tg("ads","Обяви"),tg("tasks","Допълнителни задачи")));
-  if(S.hrView==="ads"){vAds(root);return root;}
-  if(S.hrView==="tasks"){vHrTasks(root);return root;}
-  if(S.hrView==="clients"){vHrClients(root);return root;}
-  if(!rows.length){root.append(h("div",{class:"panel empty"},"Таблицата е празна. Добавете ред за всяка позиция: компания, позиция, статус и бройките."));return root;}
-  root.append(hrSummary(rows,"Изводи от проследяването"),hrOpenPositions(rows));return root;
-  const byWho=S.hrView==="who",NOW="Без човек от екипа",NOC="Без компания";
-  if(byWho&&!H.hasWho)root.append(h("div",{class:"banner"},"В таблицата още няма колона „Човек от екипа“. Добавете я на първия ред и впишете кой работи по всяка позиция. Ако по една позиция работят двама, направете отделен ред за всеки или ги разделете със запетая."));
-  const cd={};rows.forEach(r=>{if(r.cdesc&&!cd[r.co])cd[r.co]=r.cdesc;});
-  const dsc=(label,text)=>h("details",{class:"small",style:"margin-top:4px;max-width:440px;font-weight:400"},h("summary",{style:"cursor:pointer;color:var(--accent)"},label),h("div",{style:"white-space:pre-wrap;overflow-wrap:anywhere;margin-top:4px"},text));
-  const groups={};rows.forEach(r=>{(byWho?(r.who.length?r.who:[NOW]):[r.co||NOC]).forEach(k=>{(groups[k]=groups[k]||[]).push(r);});});
-  Object.keys(groups).sort((a,b)=>(a===NOW)-(b===NOW)||a.localeCompare(b,"bg")).forEach(k=>{const ps=groups[k],tb=h("tbody");
-    ps.slice().sort((a,b)=>(a.status==="open"?0:1)-(b.status==="open"?0:1)||a.co.localeCompare(b.co,"bg")).forEach(p=>{const jd=p.pdesc||H.jd[(p.co+"|"+p.title).toLowerCase()];
-      tb.append(h("tr",{class:p.status==="open"?"":"off"},
-        h("td",null,h("b",{style:"overflow-wrap:anywhere"},p.title||"Без име"),h("div",null,h("span",{class:"pill"},pstName(p.status))),
-          (()=>{const l=H.ads.filter(a=>a.url&&a.title.toLowerCase()===p.title.toLowerCase()&&(!a.co||a.co.toLowerCase()===p.co.toLowerCase()));
-            return l.length?h("div",{class:"small",style:"display:flex;flex-wrap:wrap;gap:2px 10px;margin-top:4px"},l.map(a=>ext({url:a.url,label:a.plat||"Обява"}))):null;})(),
-          jd?dsc("Описание на позицията",jd):null),
-        h("td",{style:"overflow-wrap:anywhere"},byWho?(p.co||NOC):(p.who.join(", ")||"–"),(byWho&&cd[p.co])?dsc("За компанията",cd[p.co]):null),
-        h("td",{class:"num"},p.sent+(p.need?" / "+p.need:""),p.need?h("div",{class:"mini"+(p.sent>=p.need?" full":"")},h("i",{style:"width:"+Math.min(100,p.sent/p.need*100).toFixed(0)+"%"})):null),
-        h("td",{class:"num"},p.interview),h("td",{class:"num"},p.offer),
-        h("td",{class:"num",style:p.hired?"color:var(--ok);font-weight:600":""},p.hired+(p.heads?" / "+p.heads:"")),
-        h("td",{class:"small",style:"min-width:160px;overflow-wrap:anywhere"},p.notes||"–")));});
-    const sm=f=>ps.reduce((a,r)=>a+r[f],0);
-    root.append(h("section",{class:"panel"},h("div",{class:"ph",style:"align-items:center;flex-wrap:wrap"},
-        h("div",{style:"min-width:0;display:flex;flex-direction:column"},h("span",{style:"overflow-wrap:anywhere"},k),
-          h("span",{class:"small muted mono",style:"font-weight:400"},ps.filter(r=>r.status==="open").length+" отворени · "+sm("sent")+" CV-та · "+sm("interview")+" интервюта · "+sm("hired")+" наети"),(!byWho&&cd[k])?dsc("За компанията",cd[k]):null),
-        h("button",{class:"btn",type:"button",onclick:()=>openReport({by:byWho?"who":"co",val:k})},"Отчет")),
-      h("div",{class:"tw"},h("table",null,h("thead",null,h("tr",null,h("th",null,"Позиция"),h("th",null,byWho?"Компания":"Човек от екипа"),h("th",{class:"num"},"CV-та"),h("th",{class:"num"},"Интервю"),h("th",{class:"num"},"Оферти"),h("th",{class:"num"},"Наети"),h("th",null,"Бележки от компанията"))),tb))));});
-  return root;
 }
-function genReport(f,notes){f=f||{};const NOW="Без човек от екипа",NOC="Без компания",L=[];
-  const rows=(S.hr.rows||[]).filter(r=>f.by==="co"?(r.co||NOC)===f.val:f.by==="who"?(r.who.length?r.who.includes(f.val):f.val===NOW):true);
-  L.push(f.by==="co"?"Отчет за подбор: "+f.val:f.by==="who"?"Отчет за подбор – "+f.val:"Общ отчет за подбор");L.push("Дата: "+new Date().toLocaleDateString("bg-BG"));
-  const sm=k=>rows.reduce((a,r)=>a+r[k],0);
-  L.push("Общо: "+rows.length+" позиции, "+sm("sent")+" изпратени CV-та, "+sm("interview")+" интервюта, "+sm("hired")+" наети");
-  let last=null;rows.slice().sort((a,b)=>a.co.localeCompare(b.co,"bg")||a.title.localeCompare(b.title,"bg")).forEach(p=>{
-    if(f.by!=="co"&&p.co!==last){L.push("");L.push("== "+(p.co||NOC)+" ==");last=p.co;}
-    L.push("");L.push(p.title+" ("+pstName(p.status).toLowerCase()+")"+(f.by!=="who"&&p.who.length?" – "+p.who.join(", "):""));
-    L.push("Изпратени CV-та: "+p.sent+(p.need?" от "+p.need+" нужни":""));
-    L.push("Интервюта: "+p.interview+", оферти: "+p.offer);
-    L.push("Наети: "+p.hired+(p.heads?" от "+p.heads+" търсени":""));
-    if(notes&&p.notes)L.push("Бележки: "+p.notes);});
-  return L.join("\n");}
-function drawReport(){$("#p-text").value=genReport(cur.rep,$("#p-notes").checked);}
-function openReport(co){cur.rep=co;$("#p-save").hidden=!S.dl;drawReport();$("#d-rep").showModal();}
-$("#p-notes").addEventListener("change",drawReport);
-$("#f-rep").addEventListener("submit",e=>e.preventDefault());
-$("#p-copy").addEventListener("click",()=>{const t=$("#p-text");const fb=()=>{t.focus();t.select();toast("Текстът е маркиран. Копирайте го с Ctrl+C.");};
-  try{navigator.clipboard.writeText(t.value).then(()=>toast("Отчетът е копиран."),fb);}catch(e){fb();}});
-$("#p-save").addEventListener("click",async()=>{try{await S.dl.save({filename:"otchet-podbor-"+ymd(new Date())+".txt",data:$("#p-text").value});toast("Отчетът е свален.");}
-  catch(x){if(!(x&&x.code==="declined"))toast("Свалянето не е достъпно в този изглед.");}});
 
 function repRows(){const now=Date.now(),out=[];
   for(const p in S.rep)for(const d in S.rep[p]){const es=S.rep[p][d].entries||{};for(const id in es){const e=es[id];out.push({p:p,date:d,e:e,ms:Math.max(0,(e.e==null?now:e.e)-e.s)});}}

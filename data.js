@@ -1,4 +1,4 @@
-// Слой за данни: вход с Google и връзка с Cloudflare Worker-а.
+// Слой за данни: вход с Google и връзка с API-то в AWS (Lambda + DynamoDB).
 // Дава на app.js същия интерфейс (db, user, downloads, mcp), с който е писано приложението,
 // така че логиката на екраните не знае къде живеят данните.
 (function () {
@@ -67,7 +67,9 @@
       window.google.accounts.id.renderButton($("gbtn"), { theme: "filled_blue", size: "large", shape: "pill", text: "signin_with", locale: "bg" });
     };
     if (window.google && window.google.accounts) { render(); return; }
+    if (document.getElementById("gsi-script")) return; // вече се зарежда (showLogin се вика и от таймера)
     const script = document.createElement("script");
+    script.id = "gsi-script";
     script.src = "https://accounts.google.com/gsi/client";
     script.async = true;
     script.onload = render;

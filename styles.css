@@ -185,7 +185,6 @@ td .t:hover{color:var(--accent)}
 .mini>i{display:block;height:100%;background:var(--accent)}
 .mini.full>i{background:var(--ok)}
 tr.off td{color:var(--muted)}
-#p-text{font-family:var(--f-mono);font-size:13px;min-height:260px;white-space:pre-wrap}
 /* ---- телефон ---- */
 @media (max-width:700px){
   .top{gap:8px}

@@ -8,7 +8,7 @@
 <title>Team Hub</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="styles.css?v=20261013-qa">
+<link rel="stylesheet" href="styles.css?v=20261013-qa2">
 </head>
 <body>
 <div id="login" class="login">
@@ -201,22 +201,11 @@
     <button type="button" class="btn" data-close>Отказ</button><button class="btn primary">Запази</button></div>
 </form></dialog>
 
-<!-- отчет -->
-<dialog id="d-rep"><form id="f-rep">
-  <h2>Отчет за изпращане</h2>
-  <div class="checks">
-    <label><input type="checkbox" id="p-notes" checked> С бележките</label>
-  </div>
-  <textarea id="p-text" readonly aria-label="Текст на отчета"></textarea>
-  <div class="dfoot"><button type="button" class="btn primary" id="p-copy">Копирай</button><button type="button" class="btn" id="p-save">Свали като файл</button><span class="sp"></span>
-    <button type="button" class="btn" data-close>Затвори</button></div>
-</form></dialog>
-
 <div id="toast" hidden></div>
 
 <script src="config.js"></script>
-<script src="data.js?v=20261013-qa"></script>
-<script src="app.js?v=20261013-qa"></script>
+<script src="data.js?v=20261013-qa2"></script>
+<script src="app.js?v=20261013-qa2"></script>
 <script>
   // Ако браузърът блокира кеширан скрипт, входът остава достъпен вместо празна страница.
   setTimeout(function () {

@@ -25,8 +25,22 @@
 ## Данни
 
 - Задачи, клиенти, снимачни дни, време и роли живеят в DynamoDB.
-- Раздел „Подбор“ не пази данни: чете четири Google таблици през сервизен акаунт и се обновява всяка минута. Промените се правят в таблиците.
+- Раздел „Подбор“ не пази данни: чете Google таблиците през сервизен акаунт и се обновява на всеки 5 минути (или с „Обнови“). Промените се правят в таблиците.
 - Файлове не се качват никъде. Към задачите се добавят само линкове.
+- **История на действията:** всяка промяна, вход и смяна на права се записва в отделната таблица `AuditTable` (кой, кога, кой запис, кои полета преди/след). Записите нямат срок на изтриване, таблицата е с `DeletionPolicy: Retain` и PITR. Основателите я свалят като CSV от „Отчети“ → „История на действията“.
+
+## Ръчно качване на бекенда
+
+Докато `AWS_ROLE_ARN` в GitHub не е настроен, бекендът се качва от компютъра. Параметрите (тайните) се пазят със старите стойности:
+
+```powershell
+cd backend; sam build --template-file template.yaml
+sam package --template-file .aws-sam/build/template.yaml --resolve-s3 --region eu-central-1 --output-template-file $env:TEMP\th.yaml
+$p = 'SesFromEmail','AllowedOrigins','ReportRecipients','GoogleServiceAccountJson','GoogleClientId','HrSheetIds','SessionSecret','HourlyRatesJson','FrontendUrl','AdminEmails' | % { "ParameterKey=$_,UsePreviousValue=true" }
+aws cloudformation create-change-set --stack-name team-hub --region eu-central-1 --change-set-name manual-$(Get-Date -f yyyyMMddHHmm) --template-body file://$env:TEMP\th.yaml --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND --parameters $p
+```
+
+Прегледайте change set-а в AWS конзолата (никакво `Replacement: True` за таблиците) и го изпълнете.
 
 ## Пускане за първи път
 

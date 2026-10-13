@@ -1,4 +1,4 @@
-// Настройки на сайта. Тези стойности са публични – тайните стоят само в Cloudflare.
+// Настройки на сайта. Тези стойности са публични – тайните стоят само в AWS (параметрите на stack-а team-hub).
 window.TEAM_HUB_CONFIG = {
   // Адресът на AWS API Gateway (без наклонена черта накрая).
   apiBase: "https://4hj7bckbo5.execute-api.eu-central-1.amazonaws.com",
