@@ -312,8 +312,31 @@ function moveVideo(id,i){const v=S.videos[id]||{},st=stagesOf(v),upd={stage:st[i
 
 function dueText(due,today){const n=Math.round((pd(due)-pd(today))/864e5);
   return n===0?"днес":n<0?("преди "+(-n)+(n===-1?" ден":" дни")):("след "+n+(n===1?" ден":" дни"));}
+// Само за основатели: активните задачи на всеки човек, по отдели и йерархия (основатели, мениджър, членове).
+// Човек в два отдела се вижда и в двата.
+function vOrg(){
+  const today=ymd(new Date()),ppl=memberIds(),mgr=id=>!!(S.depts[id]||{}).manager;
+  const work=id=>[...Object.entries(S.videos).filter(([,v])=>!isDone(v)&&ownersOf(v).includes(id)).map(([vid,v])=>({t:v.title,due:v.due||v.edate,tag:TNAME[teamOf(v)],open:()=>openVideo(vid)})),
+    ...Object.entries(S.tasks).filter(([,t])=>!t.done&&(t.participants||[]).includes(id)).map(([tid,t])=>({t:t.title,due:t.due,tag:"Споделена",open:()=>openTask(tid)}))]
+    .sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999"));
+  // Отвореното име остава отворено, въпреки че екранът се прерисува на 15 сек.
+  const opened=S.orgOpen=S.orgOpen||new Set();
+  const person=(id,rank,grp)=>{const key=grp+id;const w=work(id),late=w.filter(x=>x.due&&x.due<today).length,role=(S.members[id]||{}).role;
+    return h("details",{class:"drow",style:"display:block",open:opened.has(key),ontoggle:e=>{e.target.open?opened.add(key):opened.delete(key);}},
+      h("summary",{style:"cursor:pointer"},h("b",null,nameOf(id)),h("span",{class:"small muted"}," · "+rank+(role?" · "+role:"")),
+        h("span",{class:"mono small"+(late?" late":"")}," · "+w.length+(w.length===1?" задача":" задачи")+(late?" ("+late+" просроч.)":""))),
+      w.length?w.map(x=>h("div",{class:"small",style:"display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;margin-top:6px"},
+        h("button",{class:"t",type:"button",onclick:x.open},x.t),h("span",{class:"pill"},x.tag),x.due?h("span",{class:"mono"+(x.due<today?" late":"")},shortDate(x.due)):null))
+        :h("div",{class:"small muted"},"Няма активни задачи."));};
+  const group=(title,ids,rank)=>h("section",{class:"panel"},h("div",{class:"ph"},h("span",null,title),h("span",{class:"mono"},ids.length+(ids.length===1?" човек":" души"))),
+    ids.length?ids.map(id=>person(id,rank(id),title)):h("div",{class:"empty"},"Няма хора в този отдел."));
+  return [h("div",null,h("h2",null,"Екипът по отдели"),h("p",{class:"small muted",style:"margin:2px 0 0"},"Вижда се само от основателите. Натиснете име, за да видите задачите.")),
+    group("Основатели",ppl.filter(founderId),()=>"основател"),
+    ...ALLT.map(t=>group(TNAME[t],ppl.filter(id=>!founderId(id)&&teamsOf(id).includes(t)).sort((a,b)=>Number(mgr(b))-Number(mgr(a))),id=>mgr(id)?"мениджър":"член"))];
+}
 function vDue(){
   const root=h("div",{style:"display:flex;flex-direction:column;gap:16px"});
+  if(S.isAdmin)root.append(...vOrg());
   const mine=Object.entries(S.videos).filter(e=>myTeams().includes(teamOf(e[1])));
   if(!mine.length){root.append(h("div",{class:"panel empty"},S.ready?"Тук ще се вижда докъде е стигнал всеки екип, кои задачи са просрочени и кой колко е натоварен. Добавете задачи в разделите на екипите.":"Зареждане…"));return root;}
   const today=ymd(new Date()),soon=ymd(addDays(new Date(),7)),byDue=(a,b)=>a[1].due.localeCompare(b[1].due);
