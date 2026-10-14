@@ -648,6 +648,19 @@ function vTeam(){
 
 /* ---------- dialogs ---------- */
 document.querySelectorAll("dialog [data-close]").forEach(b=>b.addEventListener("click",()=>b.closest("dialog").close()));
+// „В Google Календар“: отваря Google Календар на човека с попълнено събитие от формата; той го записва в своя профил.
+// ponytail: само Google (всички влизат с Google); .ics файл за Outlook/Apple – когато някой го поиска.
+function gcalUrl(e){const D=s=>s.replace(/-/g,""),T=s=>s.replace(":","")+"00",plus1=s=>s>="23:00"?"23:59":p2(+s.slice(0,2)+1)+s.slice(2);
+  const dates=e.start?D(e.date)+"T"+T(e.start)+"/"+D(e.date)+"T"+T(e.end&&e.end>e.start?e.end:plus1(e.start)):D(e.date)+"/"+D(ymd(addDays(pd(e.date),1)));
+  const q=new URLSearchParams({action:"TEMPLATE",text:e.title||"Team Hub",dates,ctz:"Europe/Sofia",details:[e.details,"Team Hub: "+location.origin+location.pathname].filter(Boolean).join("\n\n"),location:e.loc||""});
+  return "https://calendar.google.com/calendar/render?"+q;}
+const calForm={
+  v:()=>$("#v-team").value==="events"?{title:$("#v-title").value,date:$("#v-edate").value,start:$("#v-estart").value,end:$("#v-eend").value,loc:$("#v-eloc").value,details:$("#v-notes").value}
+    :{title:$("#v-title").value,date:$("#v-due").value,details:$("#v-notes").value},
+  s:()=>({title:$("#s-title").value,date:$("#s-date").value,start:$("#s-start").value,end:$("#s-end").value,loc:$("#s-loc").value,details:$("#s-gear").value}),
+  task:()=>({title:$("#task-title").value,date:$("#task-due").value,details:$("#task-description").value})};
+document.querySelectorAll("[data-cal]").forEach(b=>b.addEventListener("click",()=>{const e=calForm[b.dataset.cal]();
+  if(!e.date){toast("Първо попълнете дата или срок.");return;}window.open(gcalUrl(e),"_blank","noopener");}));
 function arm(btn,fn){btn.addEventListener("click",()=>{if(btn.dataset.armed){delete btn.dataset.armed;btn.textContent=btn.dataset.label;fn();}
   else{btn.dataset.label=btn.textContent;btn.dataset.armed="1";btn.textContent="Потвърдете";setTimeout(()=>{if(btn.dataset.armed){delete btn.dataset.armed;btn.textContent=btn.dataset.label;}},3000);}});}
 let cur={};
