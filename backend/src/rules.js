@@ -78,6 +78,14 @@ export const canWriteSheets = (user) => usable(user) && (isFounder(user) || (use
 
 // Отговорник на видео/задача от дъската: колега от отдела или основател (основателите виждат всички отдели).
 export const canBeAssigned = (assignee, team) => usable(assignee) && (isFounder(assignee) || assignee.teams.includes(team));
+// Отговорници на видео: `who` (главен) + `helpers`.
+export const videoTeam = (data) => (ALL_TEAMS.includes(data?.team) ? data.team : 'media');
+export const videoOwners = (data) => [...new Set([data?.who, ...(Array.isArray(data?.helpers) ? data.helpers : [])].filter(Boolean).map(String))];
+// Проверяват се само новите отговорници (или всички, ако отделът се сменя), за да не блокира стар отговорник редакцията.
+export const ownersToCheck = (next, old) => {
+  const before = old && videoTeam(next) === videoTeam(old) ? videoOwners(old) : [];
+  return videoOwners(next).filter((id) => !before.includes(id));
+};
 
 export function matchesWhere(data, where) {
   return (where || []).every(([field, op, value]) => {

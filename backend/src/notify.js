@@ -14,6 +14,7 @@ const idsForChange = (event) => {
   const ids = new Set(); const data = event.newData || event.oldData || {};
   if (event.collection === 'time') ids.add(event.owner);
   if (data.who) ids.add(data.who);
+  if (Array.isArray(data.helpers)) data.helpers.forEach((id) => ids.add(id));
   if (Array.isArray(data.crew)) data.crew.forEach((id) => ids.add(id));
   if (event.collection === 'members' || event.collection === 'depts') ids.add(event.id);
   return ids;

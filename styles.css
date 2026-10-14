@@ -44,8 +44,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 input[type=text],input[type=url],input[type=date],input[type=time],input[type=number],input[type=search],select,textarea{
   border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:7px 9px;min-width:0;width:100%}
 textarea{resize:vertical;min-height:64px}
-label.f{display:flex;flex-direction:column;gap:5px;font-size:17px;font-weight:600;color:var(--muted);letter-spacing:.03em;text-transform:uppercase;min-width:0}
-label.f>*{text-transform:none;letter-spacing:0;font-weight:400;font-size:15px;color:var(--ink)}
+label.f,div.f{display:flex;flex-direction:column;gap:5px;font-size:17px;font-weight:600;color:var(--muted);letter-spacing:.03em;text-transform:uppercase;min-width:0}
+label.f>*,div.f>*{text-transform:none;letter-spacing:0;font-weight:400;font-size:15px;color:var(--ink)}
 
 /* timer bar */
 .timer{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);

@@ -20,6 +20,9 @@ const TEAMS={
 const TASK_TEMPLATES={media:[["Сценарий","Потвърден бриф","Сценарий/структура","Заснемане","Монтаж","Вътрешна ревизия","Одобрение от клиент","Публикуване"]],web:[["Уеб проект","Събрани изисквания","Структура и дизайн","Разработка","QA проверка","Предаване"]],events:[["Събитие","Дата и локация","Доставчици","Програма","Потвърждение с клиента","Провеждане"]],design:[["Дизайн","Бриф","Концепция","Изработка","Вътрешна ревизия","Предаване"]]};
 const TAB_TEAM={board:"media",web:"web",events:"events",design:"design"},ALLT=["media","web","events","design","hr"],TNAME={media:"Видео",web:"Сайтове",events:"Събития",design:"Дизайн",hr:"Подбор"};
 const teamOf=v=>TEAMS[v.team]?v.team:"media",stagesOf=v=>TEAMS[teamOf(v)].stages;
+// Отговорници: `who` е главният (за известията и старите записи), `helpers` са останалите.
+const ownersOf=v=>[...new Set([v.who,...(Array.isArray(v.helpers)?v.helpers:[])].filter(Boolean))];
+const ownerNames=v=>ownersOf(v).map(id=>nameOf(id)).join(", ")||"Без отговорник";
 const stageId=v=>{const st=stagesOf(v);return (st.find(x=>x[0]===v.stage)||st[0])[0];},stageName=v=>{const st=stagesOf(v);return (st.find(x=>x[0]===v.stage)||st[0])[1];};
 const isDone=v=>{const st=stagesOf(v);return st.findIndex(x=>x[0]===stageId(v))>=st.findIndex(x=>x[0]==="done");};
 const STAGE_ACT={idea:"script",script:"script",shoot:"shoot",edit:"edit",review:"review",done:"other"};
@@ -90,7 +93,7 @@ function onErr(e){if(e&&e.code==="revoked"){showBanner("Достъпът до д
 function showBanner(m){const b=$("#banner");b.textContent=m;b.hidden=false;}
 function subCol(name,after){S.db.collection(name).onSnapshot(s=>{const o={};s.docs.forEach(d=>{o[d.id]=d.data();});S[name]=o;if(after)after();fillSelects();schedule();},onErr);}
 async function loadProfiles(){if(!S.user)return;try{S.people=Object.fromEntries((await S.user.list()).map(u=>[u.id,u]));}catch(e){toast("Имената временно не се заредиха. Опитайте обновяване.");}const ids=new Set([...Object.keys(S.members),...Object.keys(S.people)]);if(S.uid)ids.add(S.uid);
-  Object.values(S.videos).forEach(v=>{if(v.who)ids.add(v.who);(v.comments||[]).forEach(c=>c.by&&ids.add(c.by));});
+  Object.values(S.videos).forEach(v=>{ownersOf(v).forEach(id=>ids.add(id));(v.comments||[]).forEach(c=>c.by&&ids.add(c.by));});
   try{S.prof=await S.user.profiles([...ids]);}catch(e){toast("Профилите временно не се заредиха. Опитайте обновяване.");} schedule();}
 
 let repUnsubs=[],repKey="";
@@ -126,11 +129,14 @@ const videoOpts=cid=>Object.entries(S.videos).filter(e=>(!cid||e[1].client===cid
 function fillSelects(){
   ["#t-client","#e-client","#v-client","#s-client"].forEach(s=>fill($(s),clientOpts(),"Без клиент"));
   [["#t-video","#t-client"],["#e-video","#e-client"],["#s-video","#s-client"]].forEach(p=>fill($(p[0]),videoOpts($(p[1]).value),"Без задача"));
-  const who=assigneeOpts(TEAMS[cur.team]?cur.team:"media"),old=cur.video&&(S.videos[cur.video]||{}).who;
-  // Сегашният отговорник остава избран, дори да е излязъл от отдела, иначе „Запази“ би го изтрил тихо.
-  if(old&&!who.some(o=>o[0]===old))who.push([old,nameOf(old)+" (извън отдела)"]);
-  fill($("#v-who"),who,"Без отговорник");
+  renderOwners();
 }
+// Отговорниците във формата са отметки. Без аргумент пази вече маркираните (списъкът се опреснява на 15 сек.).
+// Маркиран човек извън отдела остава в списъка с „(извън отдела)“, иначе „Запази“ би го махнал тихо.
+function renderOwners(sel){const box=$("#v-who");sel=sel||[...box.querySelectorAll("input:checked")].map(i=>i.value);
+  const opts=assigneeOpts(TEAMS[cur.team]?cur.team:"media");
+  sel.forEach(id=>{if(!opts.some(o=>o[0]===id))opts.push([id,nameOf(id)+" (извън отдела)"]);});
+  box.textContent="";opts.forEach(([id,label])=>box.append(h("label",null,h("input",{type:"checkbox",value:id,checked:sel.includes(id)}),label)));}
 function videoTeams(){return Object.entries(TEAMS).filter(([id])=>myTeams().includes(id)).map(([id,t])=>[id,t.name]);}
 function fillTemplateOptions(team,selected=""){const s=$("#v-template");s.textContent="";s.append(h("option",{value:""},"Без шаблон"));(TASK_TEMPLATES[team]||[]).forEach((t,i)=>s.append(h("option",{value:String(i)},t[0])));s.value=selected;}
 function memberIds(){const ids=new Set([...Object.keys(S.members),...Object.keys(S.people)]);if(S.uid)ids.add(S.uid);return [...ids].sort((a,b)=>nameOf(a).localeCompare(nameOf(b),"bg"));}
@@ -208,12 +214,12 @@ function vTasks(){
 
 function vToday(){
   const root=h("div",{style:"display:flex;flex-direction:column;gap:14px"}),today=ymd(new Date()),soon=ymd(addDays(new Date(),7));
-  const mine=Object.entries(S.videos).filter(([,v])=>v.who===S.uid&&myTeams().includes(teamOf(v))&&!isDone(v)).sort((a,b)=>(a[1].due||"9999").localeCompare(b[1].due||"9999"));
+  const mine=Object.entries(S.videos).filter(([,v])=>ownersOf(v).includes(S.uid)&&myTeams().includes(teamOf(v))&&!isDone(v)).sort((a,b)=>(a[1].due||"9999").localeCompare(b[1].due||"9999"));
   const late=mine.filter(([,v])=>v.due&&v.due<today),next=mine.filter(([,v])=>v.due&&v.due>=today&&v.due<=soon);
   root.append(h("div",{class:"bar"},h("div",{class:"sum"},h("div",null,h("b",null,mine.length),h("span",null,"Активни задачи")),h("div",null,h("b",{class:late.length?"late":""},late.length),h("span",null,"Просрочени")),h("div",null,h("b",null,next.length),h("span",null,"До 7 дни"))),h("span",{class:"sp"}),h("a",{class:"btn",href:"#due"},"Преглед на всички")));
   const panel=h("section",{class:"panel"},h("div",{class:"ph"},h("span",null,"Моите задачи за днес"),h("span",{class:"mono"},mine.length)));
   if(!mine.length)panel.append(h("div",{class:"empty"},"Нямате активни задачи, на които сте отговорник. Добра работа!"));
-  mine.slice(0,12).forEach(([id,v])=>panel.append(h("div",{class:"drow"},h("div",{style:"min-width:0"},h("button",{class:"t",type:"button",onclick:()=>openVideo(id)},v.title),h("div",{class:"small muted"},cName(v.client)+" · "+nameOf(v.who))),h("span",{class:"pill"},TNAME[teamOf(v)]),v.due?h("span",{class:"mono small"+(v.due<today?" late":"")},shortDate(v.due)):h("span",{class:"small muted"},"без срок"))));
+  mine.slice(0,12).forEach(([id,v])=>panel.append(h("div",{class:"drow"},h("div",{style:"min-width:0"},h("button",{class:"t",type:"button",onclick:()=>openVideo(id)},v.title),h("div",{class:"small muted"},cName(v.client)+" · "+ownerNames(v))),h("span",{class:"pill"},TNAME[teamOf(v)]),v.due?h("span",{class:"mono small"+(v.due<today?" late":"")},shortDate(v.due)):h("span",{class:"small muted"},"без срок"))));
   root.append(panel);return root;
 }
 
@@ -253,15 +259,15 @@ function vBoard(){
   root.append(h("div",{class:"bar"},fc,team==="media"?ff:null,
     h("span",{class:"sp"}),h("button",{class:"btn primary w-only",type:"button",onclick:()=>openVideo(null,team)},T.add)));
   const all=Object.entries(S.videos).filter(e=>teamOf(e[1])===team);
-  const ppl=[...new Set([...memberIds().filter(id=>id===S.uid?myTeams().includes(team):teamsOf(id).includes(team)),...all.map(e=>e[1].who).filter(Boolean)])].sort((a,b)=>nameOf(a).localeCompare(nameOf(b),"bg"));
+  const ppl=[...new Set([...memberIds().filter(id=>id===S.uid?myTeams().includes(team):teamsOf(id).includes(team)),...all.flatMap(e=>ownersOf(e[1]))])].sort((a,b)=>nameOf(a).localeCompare(nameOf(b),"bg"));
   if(S.fWho&&S.fWho!=="-"&&!ppl.includes(S.fWho))S.fWho="";
-  const cnt=id=>all.filter(e=>!isDone(e[1])&&(id==="-"?!e[1].who:e[1].who===id)).length;
+  const cnt=id=>all.filter(e=>!isDone(e[1])&&(id==="-"?!ownersOf(e[1]).length:ownersOf(e[1]).includes(id))).length;
   const chip=(id,label)=>h("button",{class:"btn"+(S.fWho===id?" primary":""),type:"button","aria-pressed":String(S.fWho===id),style:"min-height:0;padding:6px 10px",title:id&&id!=="-"?((S.members[id]||{}).role||""):"",
     onclick:()=>{S.fWho=id;schedule();}},label,id?h("span",{class:"mono small",style:"margin-left:6px;opacity:.8"},cnt(id)):null);
   root.append(h("section",{class:"panel",style:"padding:10px 12px;display:flex;flex-direction:column;gap:8px"},
     h("div",{class:"small",style:"font-weight:700;color:var(--accent-2)"},"Екип „"+T.name+"“ · "+ppl.length+(ppl.length===1?" човек":" души")+" · числото е броят активни задачи"),
     h("div",{style:"display:flex;flex-wrap:wrap;gap:8px"},chip("","Всички"),ppl.map(id=>chip(id,nameOf(id)+(id===S.uid?" (вие)":""))),cnt("-")?chip("-","Без отговорник"):null)));
-  const vids=all.filter(e=>(!S.fClient||e[1].client===S.fClient)&&(team!=="media"||!S.fFmt||e[1].fmt===S.fFmt)&&(!S.fWho||(S.fWho==="-"?!e[1].who:e[1].who===S.fWho)));
+  const vids=all.filter(e=>(!S.fClient||e[1].client===S.fClient)&&(team!=="media"||!S.fFmt||e[1].fmt===S.fFmt)&&(!S.fWho||(S.fWho==="-"?!ownersOf(e[1]).length:ownersOf(e[1]).includes(S.fWho))));
   const today=ymd(new Date()),board=h("div",{class:"board"});
   T.stages.forEach((st,i)=>{
     const list=vids.filter(e=>stageId(e[1])===st[0]).sort((a,b)=>(a[1].due||"9999").localeCompare(b[1].due||"9999"));
@@ -276,7 +282,7 @@ function vBoard(){
         ondragstart:e=>{S.drag=id;e.dataTransfer.effectAllowed="move";try{e.dataTransfer.setData("text/plain",v.title);}catch(x){}e.currentTarget.classList.add("dragging");},
         ondragend:e=>{S.drag=null;e.currentTarget.classList.remove("dragging");document.querySelectorAll(".col.over").forEach(c=>c.classList.remove("over"));}},
         h("button",{class:"t",type:"button",onclick:()=>openVideo(id)},v.title),
-        h("div",{class:"m"},h("span",null,cName(v.client)),h("span",null,"· "+nameOf(v.who))),
+        h("div",{class:"m"},h("span",null,cName(v.client)),h("span",null,"· "+ownerNames(v))),
         (v.due||v.est)?h("div",{class:"m"},v.due?h("span",{class:late?"late":""},(late?"Просрочено: ":"Срок: ")+shortDate(v.due)):null,v.est?h("span",{class:"mono"},v.est+" ч план"):null):null,
         cardExtra(v),
         (v.links&&v.links.length)?h("div",{class:"links"},v.links.map(ext)):null,
@@ -325,11 +331,11 @@ function vDue(){
     if(!items.length)p.append(h("div",{class:"drow muted"},none));
     items.forEach(([id,v])=>p.append(h("div",{class:"drow"},
       h("div",{style:"min-width:0;display:flex;flex-direction:column;gap:2px"},h("button",{class:"t",type:"button",onclick:()=>openVideo(id)},v.title),
-        h("span",{class:"small muted",style:"display:flex;gap:6px;align-items:center;flex-wrap:wrap"},h("span",{class:"dot",style:"--c:"+cColor(v.client)}),cName(v.client)+" · "+nameOf(v.who))),
+        h("span",{class:"small muted",style:"display:flex;gap:6px;align-items:center;flex-wrap:wrap"},h("span",{class:"dot",style:"--c:"+cColor(v.client)}),cName(v.client)+" · "+ownerNames(v))),
       h("span",{class:"pill"},TNAME[teamOf(v)]+" · "+stageName(v)),
       v.due?h("span",{class:"mono small"+(v.due<today?" late":"")},shortDate(v.due)+" · "+dueText(v.due,today)):h("span",{class:"small muted"},"без срок"))));
     return p;};
-  const load={};act.forEach(([id,v])=>{const k=v.who||"";load[k]=load[k]||{n:0,late:0,est:0};load[k].n++;if(v.due&&v.due<today)load[k].late++;load[k].est+=+v.est||0;});
+  const load={};act.forEach(([id,v])=>{const ks=ownersOf(v);(ks.length?ks:[""]).forEach(k=>{load[k]=load[k]||{n:0,late:0,est:0};load[k].n++;if(v.due&&v.due<today)load[k].late++;load[k].est+=+v.est||0;});});
   const lr=Object.entries(load).sort((a,b)=>b[1].n-a[1].n),max=lr.length?lr[0][1].n:1;
   const wl=h("section",{class:"panel box"},h("h2",null,"Натоварване"),h("p",{class:"small muted",style:"margin:0"},"Активни задачи по отговорник, без приключените."),
     lr.length?lr.map(([k,o])=>h("div",{class:"meter"+(o.late?" over":"")},h("span",{class:"nm"},nameOf(k)),
@@ -387,7 +393,7 @@ function vCal(){
         h("div",{class:"hd"},h("span",{style:"display:flex;gap:8px;align-items:center;min-width:0"},h("span",{class:"ord"},n+"."),h("span",{class:"dot",style:"--c:"+cColor(o.client)}),h("b",null,o.title)),
           h("button",{class:"btn ghost",type:"button","aria-label":"Отвори събитието",onclick:()=>openVideo(x.id)},"✎")),
         h("div",{class:"small mono",style:"color:var(--gold)"},(o.estart?o.estart+(o.eend?"–"+o.eend:""):"цял ден")+" · събитие"),
-        h("div",{class:"small muted"},[cName(o.client),o.eloc,nameOf(o.who)].filter(Boolean).join(" · ")),
+        h("div",{class:"small muted"},[cName(o.client),o.eloc,ownerNames(o)].filter(Boolean).join(" · ")),
         h("div",null,h("span",{class:"pill"},stageName(o)),sv.length?h("span",{class:"small muted"}," Услуги "+sv.filter(q=>q.done).length+"/"+sv.length):null),
         sv.length?h("ol",{class:"svl small"},sv.map(q=>h("li",{class:q.done?"done":""},q.t+(q.d?" · "+q.d:"")))):null));}});
   root.append(h("div",{class:"cal"},left,ag));return root;
@@ -673,7 +679,7 @@ function openVideo(id,team,date){cur.video=id;const v=id?S.videos[id]:null;cur.t
   cur.svc=v&&v.svc?JSON.parse(JSON.stringify(v.svc)):[];renderSvc();$("#v-newsvc").value="";$("#v-newsvcd").value="";fillSelects();
   $("#v-h").textContent=(v?"Редакция: ":"Добавяне: ")+T.one;$("#v-del").hidden=!v;
   $("#v-title").value=v?v.title:"";$("#v-client").value=v?v.client||"":S.fClient;$("#v-team").value=cur.team;$("#v-stage").value=v?stageId(v):T.stages[0][0];
-  $("#v-who").value=v?v.who||"":"";$("#v-due").value=v?v.due||"":"";$("#v-est").value=v&&v.est?v.est:"";$("#v-notes").value=v?v.notes||"":"";
+  renderOwners(v?ownersOf(v):[]);$("#v-due").value=v?v.due||"":"";$("#v-est").value=v&&v.est?v.est:"";$("#v-notes").value=v?v.notes||"":"";
   $("#v-fmt").value=v?v.fmt||"":S.fFmt;$("#v-revs").value=v&&v.revs?v.revs:"";
   $("#v-track").value=v?v.track||"":"";$("#v-publink").value=v?v.publink||"":"";$("#v-results").value=v?v.results||"":"";
   cur.check=v&&v.check?JSON.parse(JSON.stringify(v.check)):[];renderCheck();$("#v-newstep").value="";$("#v-newc").value="";
@@ -687,7 +693,9 @@ $("#f-video").addEventListener("submit",async ev=>{ev.preventDefault();const id=
   if(bad){toast("Един от линковете не е валиден адрес. Трябва да започва с https://");return;}
   const praw=$("#v-publink").value.trim(),pu=safeUrl(praw);if(praw&&!pu){toast("Линкът към публикацията не е валиден адрес. Трябва да започва с https://");return;}
   const selectedTeam=$("#v-team").value||cur.team;cur.team=selectedTeam;const teamStages=TEAMS[selectedTeam].stages;
-  const rec={title:$("#v-title").value.trim(),client:$("#v-client").value,stage:teamStages.some(([s])=>s===$("#v-stage").value)?$("#v-stage").value:teamStages[0][0],who:$("#v-who").value,due:$("#v-due").value,
+  // Главният отговорник остава същият, ако още е маркиран; останалите отиват в helpers.
+  const sel=[...$("#v-who").querySelectorAll("input:checked")].map(i=>i.value),lead=old&&sel.includes(old.who)?old.who:(sel[0]||"");
+  const rec={title:$("#v-title").value.trim(),client:$("#v-client").value,stage:teamStages.some(([s])=>s===$("#v-stage").value)?$("#v-stage").value:teamStages[0][0],who:lead,helpers:sel.filter(x=>x!==lead),due:$("#v-due").value,
     est:+$("#v-est").value||0,notes:$("#v-notes").value.trim(),links:links,created:(old&&old.created)||Date.now(),
     fmt:$("#v-fmt").value,revs:Math.max(0,Math.round(+$("#v-revs").value||0)),check:cur.check||[],comments:(old&&old.comments)||[]};
   rec.moved=(old&&old.stage===rec.stage)?(old.moved||0):Date.now();rec.team=cur.team;if(cur.team!=="media")rec.fmt="";

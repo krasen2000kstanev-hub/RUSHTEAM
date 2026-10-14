@@ -1,5 +1,5 @@
 import { verifyGoogleIdToken, signSession, verifySession } from './auth.js';
-import { ALL_TEAMS, parsePath, collectionKind, normalizeTeams, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, isFounder, auditChanges, canBeAssigned } from './rules.js';
+import { ALL_TEAMS, parsePath, collectionKind, normalizeTeams, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, isFounder, auditChanges, canBeAssigned, ownersToCheck, videoTeam } from './rules.js';
 import { appendSheetRow, readSheetCsv, textToBase64 } from './sheets.js';
 import { createUser, deleteDoc, findUser, getDoc, getUser, listAudit, listDocs, listUsers, putAudit, putDoc, updateUser } from './store.js';
 import { enqueueNotification } from './notify.js';
@@ -147,10 +147,11 @@ async function handleDoc(request, user, url) {
     next.participants = participants; next.title = String(next.title).trim(); next.description = String(next.description || '').trim(); next.due = String(next.due || '').trim();
     if (next.due && !/^\d{4}-\d{2}-\d{2}$/.test(next.due)) throw new HttpError(400, 'invalid_argument', 'Invalid task due date');
   }
-  // Проверява се само нов/сменен отговорник (или смяна на отдел), иначе стар отговорник би блокирал всяка редакция.
-  if (kind.kind === 'videos' && next.who && (next.who !== existing?.data?.who || next.team !== existing?.data?.team)) {
-    const team = ALL_TEAMS.includes(next.team) ? next.team : 'media';
-    if (!canBeAssigned(toUser(await getUser(env(), String(next.who))), team)) throw new HttpError(400, 'bad_assignee', 'Video tasks can only be assigned to this team');
+  if (kind.kind === 'videos') {
+    if (next.helpers !== undefined && (!Array.isArray(next.helpers) || next.helpers.length > 20)) throw new HttpError(400, 'invalid_argument', 'helpers must be a list of up to 20 people');
+    for (const id of ownersToCheck(next, existing?.data)) {
+      if (!canBeAssigned(toUser(await getUser(env(), id)), videoTeam(next))) throw new HttpError(400, 'bad_assignee', 'Video tasks can only be assigned to this team');
+    }
   }
   if (!canWriteDoc(user, kind, parsed.id, existing?.data || null, next)) throw new HttpError(403, 'permission_denied', 'Not allowed');
   if (JSON.stringify(next).length > MAX_BODY_BYTES) throw new HttpError(413, 'document_too_large', 'Document too large');

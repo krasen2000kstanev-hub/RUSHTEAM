@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parsePath, collectionKind, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, normalizeTeams, auditChanges, canBeAssigned } from '../src/rules.js';
+import { parsePath, collectionKind, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, normalizeTeams, auditChanges, canBeAssigned, videoOwners, ownersToCheck } from '../src/rules.js';
 
 const admin = { id: 'u_admin', role: 'admin', teams: [], active: true };
 const manager = { id: 'u_manager', role: 'manager', teams: ['design'], active: true };
@@ -167,4 +167,15 @@ test('assignee: team member or founder, never a stopped or teamless account', ()
   assert.equal(canBeAssigned({ id: 'n', role: 'member', teams: [], active: true }, 'media'), false);
   assert.equal(canBeAssigned({ ...editor, active: false }, 'media'), false);
   assert.equal(canBeAssigned(null, 'media'), false);
+});
+
+test('several owners: only newly added ones are checked', () => {
+  assert.deepEqual(videoOwners({ who: 'a', helpers: ['b', 'a', 'c'] }), ['a', 'b', 'c']);
+  assert.deepEqual(videoOwners({}), []);
+  // нов запис: всички се проверяват
+  assert.deepEqual(ownersToCheck({ who: 'a', helpers: ['b'] }, null), ['a', 'b']);
+  // добавен е само c; стар запис без team се брои за media
+  assert.deepEqual(ownersToCheck({ team: 'media', who: 'a', helpers: ['b', 'c'] }, { who: 'a', helpers: ['b'] }), ['c']);
+  // смяна на отдел: проверяват се всички
+  assert.deepEqual(ownersToCheck({ team: 'web', who: 'a' }, { team: 'media', who: 'a' }), ['a']);
 });
