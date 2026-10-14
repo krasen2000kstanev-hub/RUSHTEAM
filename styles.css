@@ -216,7 +216,11 @@ tr.off td{color:var(--muted)}
   .sum b{font-size:19px}
   dialog{width:calc(100vw - 16px)}
   dialog form{padding:14px}
-  .dfoot{position:sticky;bottom:0;background:var(--surface);padding-block:10px;margin-bottom:-14px;border-top:1px solid var(--line)}
+  .dfoot{position:sticky;bottom:0;background:var(--surface);padding-block:10px;margin-bottom:-14px;border-top:1px solid var(--line);flex-wrap:wrap}
+  /* бутоните долу във формите се делят на реда, вместо „Запази“ да излиза извън екрана */
+  .dfoot .sp{display:none}
+  .dfoot .btn{flex:1 1 auto}
+  h2{font-size:23px}
   /* таблиците стават карти */
   .tw{overflow:visible}
   .tw table,.tw tbody,.tw tr,.tw td{display:block;width:100%}
