@@ -1,5 +1,5 @@
 import { verifyGoogleIdToken, signSession, verifySession } from './auth.js';
-import { ALL_TEAMS, parsePath, collectionKind, normalizeTeams, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, isFounder, auditChanges } from './rules.js';
+import { ALL_TEAMS, parsePath, collectionKind, normalizeTeams, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, isFounder, auditChanges, canBeAssigned } from './rules.js';
 import { appendSheetRow, readSheetCsv, textToBase64 } from './sheets.js';
 import { createUser, deleteDoc, findUser, getDoc, getUser, listAudit, listDocs, listUsers, putAudit, putDoc, updateUser } from './store.js';
 import { enqueueNotification } from './notify.js';
@@ -139,7 +139,7 @@ async function handleDoc(request, user, url) {
     if (!participants.length || participants.length > 20 || (!canAssign && !participants.includes(user.id))) throw new HttpError(403, 'permission_denied', 'Invalid task participants');
     if (canAssign) {
       const targets = await Promise.all(participants.filter((id) => id !== user.id).map((id) => getUser(env(), id)));
-      if (targets.some((target) => !target || !target.active)) throw new HttpError(403, 'permission_denied', 'Tasks can only be assigned to active users');
+      if (targets.some((target) => !target || !target.active)) throw new HttpError(400, 'bad_assignee', 'Tasks can only be assigned to active users');
     }
     if (!existing && next.createdBy !== user.id) throw new HttpError(403, 'permission_denied', 'Only the creator can create this task');
     if (next.priority && !isFounder(user)) throw new HttpError(403, 'permission_denied', 'Only founders can create priority tasks');
@@ -147,10 +147,10 @@ async function handleDoc(request, user, url) {
     next.participants = participants; next.title = String(next.title).trim(); next.description = String(next.description || '').trim(); next.due = String(next.due || '').trim();
     if (next.due && !/^\d{4}-\d{2}-\d{2}$/.test(next.due)) throw new HttpError(400, 'invalid_argument', 'Invalid task due date');
   }
-  if (kind.kind === 'videos' && next.who) {
+  // Проверява се само нов/сменен отговорник (или смяна на отдел), иначе стар отговорник би блокирал всяка редакция.
+  if (kind.kind === 'videos' && next.who && (next.who !== existing?.data?.who || next.team !== existing?.data?.team)) {
     const team = ALL_TEAMS.includes(next.team) ? next.team : 'media';
-    const assignee = await getUser(env(), String(next.who));
-    if (!assignee || !assignee.active || !assignee.teams.includes(team)) throw new HttpError(403, 'permission_denied', 'Video tasks can only be assigned to this team');
+    if (!canBeAssigned(toUser(await getUser(env(), String(next.who))), team)) throw new HttpError(400, 'bad_assignee', 'Video tasks can only be assigned to this team');
   }
   if (!canWriteDoc(user, kind, parsed.id, existing?.data || null, next)) throw new HttpError(403, 'permission_denied', 'Not allowed');
   if (JSON.stringify(next).length > MAX_BODY_BYTES) throw new HttpError(413, 'document_too_large', 'Document too large');

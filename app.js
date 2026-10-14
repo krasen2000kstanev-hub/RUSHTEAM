@@ -72,6 +72,7 @@ function errMsg(e){const c=e&&e.code;
   if(c==="document_too_large")return "Записът е прекалено голям. Намалете текста или разделете информацията на отделни записи.";
   if(c==="quota_exceeded")return "Базата е пълна. Изтрийте стари записи и опитайте пак.";
   if(c==="permission_denied")return "Нямате права за тази промяна.";
+  if(c==="bad_assignee")return "Този човек не може да е отговорник: не е в отдела на задачата или профилът му е спрян.";
   if(c==="invalid_argument")return "Някое поле не е попълнено правилно (празно, твърде дълго или грешна дата).";
   if(c==="resource_exhausted")return "Твърде много заявки. Изчакайте малко и опитайте пак.";
   return "Промяната не се запази. Опитайте пак.";}
@@ -120,11 +121,15 @@ function fill(sel,items,empty){const v=sel.value;sel.textContent="";if(empty!=nu
   items.forEach(i=>sel.append(h("option",{value:i[0]},i[1])));sel.value=[...sel.options].some(o=>o.value===v)?v:"";}
 const clientOpts=()=>Object.entries(S.clients).filter(e=>!e[1].archived).sort((a,b)=>a[1].name.localeCompare(b[1].name,"bg")).map(e=>[e[0],e[1].name]);
 const videoOpts=cid=>Object.entries(S.videos).filter(e=>(!cid||e[1].client===cid)&&teamOf(e[1])!=="events"&&myTeams().includes(teamOf(e[1]))).sort((a,b)=>a[1].title.localeCompare(b[1].title,"bg")).map(e=>[e[0],e[1].title]);
-  const assigneeOpts=team=>(S.isAdmin?memberIds():memberIds().filter(id=>teamsOf(id).includes(team))).map(id=>[id,nameOf(id)]);
+  // Само хора, които сървърът приема за отговорник (canBeAssigned): от отдела или основател (teamsOf дава всички отдели).
+  const assigneeOpts=team=>memberIds().filter(id=>teamsOf(id).includes(team)).map(id=>[id,nameOf(id)]);
 function fillSelects(){
   ["#t-client","#e-client","#v-client","#s-client"].forEach(s=>fill($(s),clientOpts(),"Без клиент"));
   [["#t-video","#t-client"],["#e-video","#e-client"],["#s-video","#s-client"]].forEach(p=>fill($(p[0]),videoOpts($(p[1]).value),"Без задача"));
-  fill($("#v-who"),assigneeOpts(TEAMS[cur.team]?cur.team:"media"),"Без отговорник");
+  const who=assigneeOpts(TEAMS[cur.team]?cur.team:"media"),old=cur.video&&(S.videos[cur.video]||{}).who;
+  // Сегашният отговорник остава избран, дори да е излязъл от отдела, иначе „Запази“ би го изтрил тихо.
+  if(old&&!who.some(o=>o[0]===old))who.push([old,nameOf(old)+" (извън отдела)"]);
+  fill($("#v-who"),who,"Без отговорник");
 }
 function videoTeams(){return Object.entries(TEAMS).filter(([id])=>myTeams().includes(id)).map(([id,t])=>[id,t.name]);}
 function fillTemplateOptions(team,selected=""){const s=$("#v-template");s.textContent="";s.append(h("option",{value:""},"Без шаблон"));(TASK_TEMPLATES[team]||[]).forEach((t,i)=>s.append(h("option",{value:String(i)},t[0])));s.value=selected;}

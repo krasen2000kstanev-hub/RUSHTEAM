@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parsePath, collectionKind, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, normalizeTeams, auditChanges } from '../src/rules.js';
+import { parsePath, collectionKind, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, normalizeTeams, auditChanges, canBeAssigned } from '../src/rules.js';
 
 const admin = { id: 'u_admin', role: 'admin', teams: [], active: true };
 const manager = { id: 'u_manager', role: 'manager', teams: ['design'], active: true };
@@ -158,4 +158,13 @@ test('audit history records who changed what', () => {
   assert.deepEqual(auditChanges({ title: 'Видео' }, null), { title: ['"Видео"', ''] });
   assert.deepEqual(auditChanges({ x: 1 }, { x: 1 }), {});
   assert.equal(auditChanges(null, { t: 'a'.repeat(900) }).t[1].length, 401);
+});
+
+test('assignee: team member or founder, never a stopped or teamless account', () => {
+  assert.equal(canBeAssigned(editor, 'media'), true);
+  assert.equal(canBeAssigned(editor, 'web'), false);
+  assert.equal(canBeAssigned({ id: 'f', role: 'founder', teams: [], active: true }, 'web'), true);
+  assert.equal(canBeAssigned({ id: 'n', role: 'member', teams: [], active: true }, 'media'), false);
+  assert.equal(canBeAssigned({ ...editor, active: false }, 'media'), false);
+  assert.equal(canBeAssigned(null, 'media'), false);
 });

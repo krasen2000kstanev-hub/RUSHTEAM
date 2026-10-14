@@ -76,6 +76,9 @@ export function canWriteDoc(user, kind, id, oldData, newData) {
 export const canReadSheets = (user) => usable(user) && (isFounder(user) || user.teams.includes('hr'));
 export const canWriteSheets = (user) => usable(user) && (isFounder(user) || (user.role === 'manager' && user.teams.includes('hr')));
 
+// Отговорник на видео/задача от дъската: колега от отдела или основател (основателите виждат всички отдели).
+export const canBeAssigned = (assignee, team) => usable(assignee) && (isFounder(assignee) || assignee.teams.includes(team));
+
 export function matchesWhere(data, where) {
   return (where || []).every(([field, op, value]) => {
     const actual = data?.[field];
