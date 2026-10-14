@@ -95,7 +95,7 @@ async function notify(event, actor) {
 async function writeDepts(user, id, body) {
   const target = await getUser(env(), id);
   if (!target) throw new HttpError(404, 'invalid_argument', 'Unknown user');
-  if (!canWriteDoc(user, { kind: 'depts' }, id, target, body)) throw new HttpError(403, 'invalid_argument', 'Not allowed');
+  if (!canWriteDoc(user, { kind: 'depts' }, id, target, body)) throw new HttpError(403, 'permission_denied', 'Not allowed');
   const fields = { updatedAt: new Date().toISOString() };
   if ('teams' in body) fields.teams = normalizeTeams(body.teams);
   if ('manager' in body) fields.role = body.manager ? 'manager' : 'member';
@@ -117,7 +117,7 @@ async function handleDoc(request, user, url) {
     if (method === 'GET') { if (!target || !canReadDoc(user, kind, parsed.id, target)) return { exists: false }; return { exists: true, data: { role: target.memberRole || '' } }; }
     if (method !== 'PUT' && method !== 'PATCH') throw new HttpError(405, 'invalid_argument', 'Method not allowed');
     const body = await readJson(request); if (!plainObject(body)) throw new HttpError(400, 'invalid_argument', 'Body must be an object');
-    if (!target || !canWriteDoc(user, kind, parsed.id, target, body)) throw new HttpError(403, 'invalid_argument', 'Not allowed');
+    if (!target || !canWriteDoc(user, kind, parsed.id, target, body)) throw new HttpError(403, 'permission_denied', 'Not allowed');
     const nextRole = method === 'PATCH' ? deepMerge({ role: target.memberRole || '' }, body).role : body.role;
     await updateUser(env(), parsed.id, { memberRole: String(nextRole || '').slice(0, 40), updatedAt: new Date().toISOString() });
     await notify({ action: method === 'PUT' ? 'created' : 'updated', collection: 'members', id: parsed.id, oldData: { role: target.memberRole || '' }, newData: { role: nextRole } }, user);
@@ -126,7 +126,7 @@ async function handleDoc(request, user, url) {
   const existing = await getDoc(env(), parsed.collection, parsed.id);
   if (method === 'GET') { if (!existing || !canReadDoc(user, kind, parsed.id, existing.data)) return { exists: false }; return { exists: true, data: existing.data, version: existing.version }; }
   if (method === 'DELETE') {
-    if (!existing) return { ok: true }; if (!canWriteDoc(user, kind, parsed.id, existing.data, null)) throw new HttpError(403, 'invalid_argument', 'Not allowed');
+    if (!existing) return { ok: true }; if (!canWriteDoc(user, kind, parsed.id, existing.data, null)) throw new HttpError(403, 'permission_denied', 'Not allowed');
     await deleteDoc(env(), parsed.collection, parsed.id); await notify({ action: 'deleted', collection: parsed.collection, id: parsed.id, oldData: existing.data }, user); return { ok: true };
   }
   if (method !== 'PUT' && method !== 'PATCH') throw new HttpError(405, 'invalid_argument', 'Method not allowed');
@@ -136,13 +136,13 @@ async function handleDoc(request, user, url) {
   if (kind.kind === 'tasks') {
     const participants = Array.isArray(next.participants) ? [...new Set(next.participants.map((id) => String(id)))] : [];
     const canAssign = isFounder(user) || user.role === 'manager';
-    if (!participants.length || participants.length > 20 || (!canAssign && !participants.includes(user.id))) throw new HttpError(403, 'invalid_argument', 'Invalid task participants');
+    if (!participants.length || participants.length > 20 || (!canAssign && !participants.includes(user.id))) throw new HttpError(403, 'permission_denied', 'Invalid task participants');
     if (canAssign) {
       const targets = await Promise.all(participants.filter((id) => id !== user.id).map((id) => getUser(env(), id)));
-      if (targets.some((target) => !target || !target.active)) throw new HttpError(403, 'invalid_argument', 'Tasks can only be assigned to active users');
+      if (targets.some((target) => !target || !target.active)) throw new HttpError(403, 'permission_denied', 'Tasks can only be assigned to active users');
     }
-    if (!existing && next.createdBy !== user.id) throw new HttpError(403, 'invalid_argument', 'Only the creator can create this task');
-    if (next.priority && !isFounder(user)) throw new HttpError(403, 'invalid_argument', 'Only founders can create priority tasks');
+    if (!existing && next.createdBy !== user.id) throw new HttpError(403, 'permission_denied', 'Only the creator can create this task');
+    if (next.priority && !isFounder(user)) throw new HttpError(403, 'permission_denied', 'Only founders can create priority tasks');
     if (!String(next.title || '').trim() || String(next.title).length > 200 || String(next.description || '').length > 4000) throw new HttpError(400, 'invalid_argument', 'Invalid task details');
     next.participants = participants; next.title = String(next.title).trim(); next.description = String(next.description || '').trim(); next.due = String(next.due || '').trim();
     if (next.due && !/^\d{4}-\d{2}-\d{2}$/.test(next.due)) throw new HttpError(400, 'invalid_argument', 'Invalid task due date');
@@ -150,9 +150,9 @@ async function handleDoc(request, user, url) {
   if (kind.kind === 'videos' && next.who) {
     const team = ALL_TEAMS.includes(next.team) ? next.team : 'media';
     const assignee = await getUser(env(), String(next.who));
-    if (!assignee || !assignee.active || !assignee.teams.includes(team)) throw new HttpError(403, 'invalid_argument', 'Video tasks can only be assigned to this team');
+    if (!assignee || !assignee.active || !assignee.teams.includes(team)) throw new HttpError(403, 'permission_denied', 'Video tasks can only be assigned to this team');
   }
-  if (!canWriteDoc(user, kind, parsed.id, existing?.data || null, next)) throw new HttpError(403, 'invalid_argument', 'Not allowed');
+  if (!canWriteDoc(user, kind, parsed.id, existing?.data || null, next)) throw new HttpError(403, 'permission_denied', 'Not allowed');
   if (JSON.stringify(next).length > MAX_BODY_BYTES) throw new HttpError(413, 'document_too_large', 'Document too large');
   try {
     await putDoc(env(), parsed.collection, parsed.id, next, user.id, (existing?.version || 0) + 1);

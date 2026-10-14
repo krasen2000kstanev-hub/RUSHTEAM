@@ -71,7 +71,8 @@ function errMsg(e){const c=e&&e.code;
   if(c==="conflict")return "Друг потребител промени записа. Презаредете и опитайте отново.";
   if(c==="document_too_large")return "Записът е прекалено голям. Намалете текста или разделете информацията на отделни записи.";
   if(c==="quota_exceeded")return "Базата е пълна. Изтрийте стари записи и опитайте пак.";
-  if(c==="invalid_argument")return "Нямате права за тази промяна.";
+  if(c==="permission_denied")return "Нямате права за тази промяна.";
+  if(c==="invalid_argument")return "Някое поле не е попълнено правилно (празно, твърде дълго или грешна дата).";
   if(c==="resource_exhausted")return "Твърде много заявки. Изчакайте малко и опитайте пак.";
   return "Промяната не се запази. Опитайте пак.";}
 async function tryW(p,ok){try{await p;if(ok)toast(ok);return true;}catch(e){toast(errMsg(e));if(e&&e.code==="conflict"&&window.confirm("Друг потребител промени този запис. Презареждане на актуалните данни?"))location.reload();return false;}}

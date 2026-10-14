@@ -44,7 +44,13 @@ export async function deleteDoc(env, collection, id) { await db.send(new DeleteC
 const userKey = (id) => ({ pk: `USER#${id}`, sk: 'PROFILE' });
 export async function getUser(env, id) { return (await db.send(new GetCommand({ TableName: table(env), Key: userKey(id) }))).Item || null; }
 export async function findUser(env, sub, email) { return (await all(ScanCommand, { TableName: table(env), FilterExpression: 'entity = :entity AND (googleSub = :sub OR email = :email)', ExpressionAttributeValues: { ':entity': 'user', ':sub': sub, ':email': email } }))[0] || null; }
-export async function listUsers(env) { return all(ScanCommand, { TableName: table(env), FilterExpression: 'entity = :entity', ExpressionAttributeValues: { ':entity': 'user' } }); }
+// ponytail: списъкът с хора е Scan на цялата таблица и се иска 2 пъти на всяко опресняване (15 сек. × всеки колега).
+// Кеш 10 сек. в паметта на Lambda; изчиства се при запис на потребител. Ако таблицата стане голяма – GSI за потребителите.
+let usersCache = null;
+export async function listUsers(env) {
+  if (!usersCache || usersCache.at < Date.now() - 10000) usersCache = { at: Date.now(), items: all(ScanCommand, { TableName: table(env), FilterExpression: 'entity = :entity', ExpressionAttributeValues: { ':entity': 'user' } }) };
+  try { return await usersCache.items; } catch (error) { usersCache = null; throw error; }
+}
 
 // История на действията: отделна таблица без срок на изтриване (пази се без ограничение, т.е. и над 2 години).
 // Ключ по месец, за да се чете месец по месец без Scan.
@@ -57,11 +63,12 @@ export async function listAudit(env, month) {
   if (!env.AUDIT_TABLE) return [];
   return all(QueryCommand, { TableName: env.AUDIT_TABLE, KeyConditionExpression: 'pk = :pk', ExpressionAttributeValues: { ':pk': `AUDIT#${month}` } });
 }
-export async function createUser(env, user) { await db.send(new PutCommand({ TableName: table(env), Item: { ...userKey(user.id), entity: 'user', ...user } })); }
+export async function createUser(env, user) { usersCache = null; await db.send(new PutCommand({ TableName: table(env), Item: { ...userKey(user.id), entity: 'user', ...user } })); }
 export async function updateUser(env, id, fields) {
   const names = Object.keys(fields); if (!names.length) return;
   const expression = names.map((name, i) => `#f${i} = :v${i}`).join(', ');
   const namesMap = Object.fromEntries(names.map((name, i) => [`#f${i}`, name]));
   const valuesMap = Object.fromEntries(names.map((name, i) => [`:v${i}`, fields[name]]));
+  usersCache = null;
   await db.send(new UpdateCommand({ TableName: table(env), Key: userKey(id), UpdateExpression: `SET ${expression}`, ExpressionAttributeNames: namesMap, ExpressionAttributeValues: valuesMap }));
 }

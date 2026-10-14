@@ -134,6 +134,8 @@
       (out.results || []).forEach((result, i) => {
         const sub = batch[i];
         if (!sub || subs.indexOf(sub) < 0) return;
+        // Грешка за един списък: пазим последните данни, вместо да ги покажем празни.
+        if (result.error && sub.last !== undefined) return;
         const docs = result.docs || [];
         const signature = JSON.stringify(docs);
         if (signature === sub.last) return;
