@@ -61,12 +61,12 @@ async function upsertUser({ sub, email, name, picture }) {
   ]);
   const existing = await findUser(env(), sub, normalizedEmail); const now = new Date().toISOString();
   if (existing) {
-    const role = admins.includes(normalizedEmail) ? 'founder' : (existing.role === 'admin' ? 'founder' : existing.role);
+    const role = admins.has(normalizedEmail) ? 'founder' : (existing.role === 'admin' ? 'founder' : existing.role);
     await updateUser(env(), existing.id, { googleSub: sub, email: normalizedEmail, name: name || existing.name, picture: picture || existing.picture, role, updatedAt: now });
     return toUser({ ...existing, googleSub: sub, email: normalizedEmail, name: name || existing.name, picture: picture || existing.picture, role });
   }
   const id = `u_${crypto.randomUUID().replace(/-/g, '').slice(0, 22)}`;
-  const role = admins.includes(normalizedEmail) ? 'founder' : 'member';
+  const role = admins.has(normalizedEmail) ? 'founder' : 'member';
   const user = { id, googleSub: sub, email: normalizedEmail, name: name || normalizedEmail, picture: picture || '', role, teams: [], active: true, createdAt: now, updatedAt: now };
   await createUser(env(), user); return toUser(user);
 }
