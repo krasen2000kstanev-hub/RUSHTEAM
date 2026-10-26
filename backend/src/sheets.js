@@ -60,10 +60,12 @@ const positionName = (label, company, tab = '') => {
   return [...(own.length ? own : parts.slice(0, 1)), ...note].join(own.length ? ' - ' : ' ').replace(/ - (\()/, ' $1');
 };
 export function summarizeTab(company, { title, values }) {
-  // Редът с колоните е първият с „CV“ – понякога над него стои заглавие на позицията.
-  const at = Math.max(values.slice(0, 5).findIndex((row) => col(row, 'cv') >= 0), 0); const head = values[at] || [];
+  // Редът с колоните е първият с „CV“ – понякога над него стои заглавие, а понякога го няма изобщо.
+  const at = values.slice(0, 5).findIndex((row) => col(row, 'cv') >= 0); const head = values[at] || [];
   const named = /^(лист|sheet)\s*\d*$/i.test(title.trim()) ? '' : title;
-  const cvCol = col(head, 'cv'); const c = { checked: col(head, 'провер'), rejected: col(head, 'отхвър'), interview: col(head, 'интерв'), hired: col(head, 'нает') };
+  // Без ред с колони: CV е колоната с най-много линкове.
+  const links = (i) => values.filter((row) => /^https?:\/\//i.test(String(row[i] ?? '').trim())).length;
+  const cvCol = at >= 0 ? col(head, 'cv') : [...Array(26).keys()].reduce((best, i) => (links(i) > links(best) ? i : best), 0); const c = { checked: col(head, 'провер'), rejected: col(head, 'отхвър'), interview: col(head, 'интерв'), hired: col(head, 'нает') };
   const sections = [{ title: named.trim(), rows: [] }];
   for (const row of values.filter((_, i) => i !== at)) {
     const cells = row.map((cell) => String(cell ?? '').trim()).filter(Boolean);

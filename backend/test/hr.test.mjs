@@ -30,3 +30,7 @@ test('title above the column row; title naming the tab keeps the tab name', () =
   assert.deepEqual(summarizeTab('Technopolis', { title: 'Marketing Automation Specialist', values: [['Marketing Automation Specialist - Technopolis'], head, row('Иван'), row('Мария')] }).map((p) => [p.title, p.candidates]), [['Marketing Automation Specialist', 2]]);
   assert.deepEqual(summarizeTab('Technopolis', { title: 'QA Automation lead', values: [head, ['QA Automation Lead - Технополис'], row('Иван')] }).map((p) => [p.title, p.candidates]), [['QA Automation lead', 1]]);
 });
+
+test('tab with no column row: CV column found by links, every row counts', () => {
+  assert.deepEqual(summarizeTab('Technopolis', { title: 'Marketing Automation Specialist', values: [row('Иван'), row('Мария'), row('Без CV', '', '', '', '', '')] }).map((p) => [p.title, p.candidates]), [['Marketing Automation Specialist', 2]]);
+});
