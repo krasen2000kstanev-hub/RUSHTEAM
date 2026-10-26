@@ -17,7 +17,7 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="styles.css?v=20261014-6">
+<link rel="stylesheet" href="styles.css?v=20261026-5">
 </head>
 <body>
 <div id="login" class="login">
@@ -146,10 +146,11 @@
     <label class="f m-only">Публикуване и резултати<select id="v-track"><option value="">Следим ги</option><option value="nodata">Нямаме данни (не се грижим за това)</option></select></label>
     <label class="f m-only">Линк към публикацията<input type="text" id="v-publink" maxlength="500" placeholder="https://"></label>
     <label class="f w m-only">Резултати<textarea id="v-results" maxlength="2000" placeholder="Гледания, обхват, реакции, обратна връзка от клиента"></textarea></label>
-    <label class="f e-only">Дата на събитието<input type="date" id="v-edate"></label>
-    <label class="f e-only">Локация<input type="text" id="v-eloc" maxlength="140"></label>
+    <label class="f e-only">Първи ден<input type="date" id="v-edate"></label>
+    <label class="f e-only">Последен ден<input type="date" id="v-eedate"><span class="small muted">Само ако е повече от един ден.</span></label>
     <label class="f e-only">Начало<input type="time" id="v-estart"></label>
     <label class="f e-only">Край<input type="time" id="v-eend"></label>
+    <label class="f w e-only">Локация<input type="text" id="v-eloc" maxlength="140"></label>
     <label class="f w">Описание и какво трябва да се направи<textarea id="v-notes" maxlength="4000" placeholder="Опишете задачата, изискванията и конкретните стъпки"></textarea></label>
   </div>
   <div>
@@ -216,7 +217,7 @@
 
 <script src="config.js"></script>
 <script src="data.js?v=20261014-6"></script>
-<script src="app.js?v=20261026-3"></script>
+<script src="app.js?v=20261026-5"></script>
 <script>
   // Ако браузърът блокира кеширан скрипт, входът остава достъпен вместо празна страница.
   setTimeout(function () {

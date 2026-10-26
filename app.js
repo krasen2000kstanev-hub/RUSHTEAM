@@ -296,7 +296,7 @@ function vBoard(){
   root.append(board);return root;
 }
 function cardExtra(v){const ck=v.check||[],cm=(v.comments||[]).length,bits=[];
-  if(teamOf(v)==="events"){if(v.edate)bits.push(h("span",{class:"mono",style:"color:var(--gold)"},shortDate(v.edate)+(v.estart?" "+v.estart:"")));
+  if(teamOf(v)==="events"){if(v.edate)bits.push(h("span",{class:"mono",style:"color:var(--gold)"},shortDate(v.edate)+(v.eedate>v.edate?"–"+shortDate(v.eedate):"")+(v.estart?" "+v.estart:"")));
     const sv=v.svc||[];if(sv.length)bits.push(h("span",null,"Услуги "+sv.filter(x=>x.done).length+"/"+sv.length));}
   if(teamOf(v)==="media"&&isDone(v)){if(v.track==="nodata")bits.push(h("span",{class:"pill",style:"opacity:.75"},"Нямаме данни"));
     else{const pl=safeUrl(v.publink);if(pl)bits.push(ext({url:pl,label:"Публикация"}));if(v.results)bits.push(h("span",{class:"pill",style:"color:var(--gold)"},"Има резултати"));}}
@@ -368,6 +368,8 @@ function vDue(){
   return root;
 }
 
+// Дните на събитието: от edate до eedate включително. ponytail: таван 60 дни срещу сгрешена година.
+function eventDays(o){const out=[o.edate];if(o.eedate>o.edate)for(let d=pd(o.edate);out.length<60;){d=addDays(d,1);const ds=ymd(d);if(ds>o.eedate)break;out.push(ds);}return out;}
 function vCal(){
   if(!S.cal){const n=new Date();S.cal=new Date(n.getFullYear(),n.getMonth(),1);}
   const m=S.cal,root=h("div",{style:"display:flex;flex-direction:column;gap:12px"}),mt=myTeams(),sm=mt.includes("media"),se=mt.includes("events");
@@ -381,7 +383,7 @@ function vCal(){
     sm?h("button",{class:"btn"+(se?"":" primary")+" w-only",type:"button",onclick:()=>openShoot(null)},"+ Снимачен ден"):null));
   const items=[];
   if(sm)Object.entries(S.shoots).forEach(([id,o])=>{if(o.date)items.push({k:"shoot",id:id,date:o.date,start:o.start||"",o:o});});
-  let nodate=0;if(se)Object.entries(S.videos).forEach(([id,o])=>{if(teamOf(o)!=="events")return;if(o.edate)items.push({k:"event",id:id,date:o.edate,start:o.estart||"",o:o});else if(!isDone(o))nodate++;});
+  let nodate=0;if(se)Object.entries(S.videos).forEach(([id,o])=>{if(teamOf(o)!=="events")return;if(o.edate)eventDays(o).forEach(date=>items.push({k:"event",id:id,date,start:o.estart||"",o:o}));else if(!isDone(o))nodate++;});
   items.sort((a,b)=>(a.date+(a.start||"99")).localeCompare(b.date+(b.start||"99")));
   const byDate={};items.forEach(x=>{(byDate[x.date]=byDate[x.date]||[]).push(x);});
   const grid=h("div",{class:"grid7"});["пн","вт","ср","чт","пт","сб","нд"].forEach(w=>grid.append(h("div",{class:"wd"},w)));
@@ -398,24 +400,26 @@ function vCal(){
     nodate?h("div",{class:"small",style:"color:var(--warn)"},nodate+(nodate===1?" активно събитие е":" активни събития са")+" без дата и не се вижда"+(nodate===1?"":"т")+" в календара."):null);
   const pre=ymd(m).slice(0,7),list=items.filter(x=>x.date.slice(0,7)===pre),ag=h("div",{class:"panel agenda"});
   if(!list.length)ag.append(h("div",{class:"empty"},S.ready?"Няма нищо планирано за този месец. Натиснете ден от календара, за да добавите.":"Зареждане…"));
-  let last="",n=0;
+  let last="",n=0;S.calOpen=S.calOpen||new Set();
+  // Свито по подразбиране: вижда се заглавието и часът; разгънатите се помнят при опресняване.
+  const fold=(x,head,time,...rest)=>{const key=x.k+x.id+x.date;return h("details",{class:"shoot",open:S.calOpen.has(key),ontoggle:e=>e.target.open?S.calOpen.add(key):S.calOpen.delete(key)},h("summary",null,head,time),...rest);};
   list.forEach(x=>{const o=x.o;
     if(x.date!==last){last=x.date;n=0;ag.append(h("div",{class:"agd"},h("span",{style:"text-transform:capitalize"},pd(x.date).toLocaleDateString("bg-BG",{weekday:"long",day:"numeric",month:"long"})),h("span",{class:"mono small"},byDate[x.date].length)));}
     n++;
     if(x.k==="shoot"){const l=safeUrl(o.link),vid=S.videos[o.video];
-      ag.append(h("div",{class:"shoot"},
+      ag.append(fold(x,
         h("div",{class:"hd"},h("span",{style:"display:flex;gap:8px;align-items:center;min-width:0"},h("span",{class:"ord"},n+"."),h("span",{class:"dot",style:"--c:"+cColor(o.client)}),h("b",null,o.title)),
-          h("button",{class:"btn ghost w-only",type:"button","aria-label":"Редактирай",onclick:()=>openShoot(x.id)},"✎")),
+          h("button",{class:"btn ghost w-only",type:"button","aria-label":"Редактирай",onclick:e=>{e.preventDefault();openShoot(x.id);}},"✎")),
         h("div",{class:"small mono"},(o.start?o.start+(o.end?"–"+o.end:""):"цял ден")+" · снимачен ден"),
         h("div",{class:"small muted"},[cName(o.client),vid&&vid.title,o.loc].filter(Boolean).join(" · ")),
         (o.crew&&o.crew.length)?h("div",{class:"small"},"Екип: "+o.crew.map(nameOf).join(", ")):null,
         o.gear?h("div",{class:"small muted"},"Техника: "+o.gear):null,
         l?h("div",{class:"small"},ext({url:l})):null));}
     else{const sv=o.svc||[];
-      ag.append(h("div",{class:"shoot"},
+      ag.append(fold(x,
         h("div",{class:"hd"},h("span",{style:"display:flex;gap:8px;align-items:center;min-width:0"},h("span",{class:"ord"},n+"."),h("span",{class:"dot",style:"--c:"+cColor(o.client)}),h("b",null,o.title)),
-          h("button",{class:"btn ghost",type:"button","aria-label":"Отвори събитието",onclick:()=>openVideo(x.id)},"✎")),
-        h("div",{class:"small mono",style:"color:var(--gold)"},(o.estart?o.estart+(o.eend?"–"+o.eend:""):"цял ден")+" · събитие"),
+          h("button",{class:"btn ghost",type:"button","aria-label":"Отвори събитието",onclick:e=>{e.preventDefault();openVideo(x.id);}},"✎")),
+        h("div",{class:"small mono",style:"color:var(--gold)"},(o.estart?o.estart+(o.eend?"–"+o.eend:""):"цял ден")+" · събитие"+(eventDays(o).length>1?" · ден "+(eventDays(o).indexOf(x.date)+1)+" от "+eventDays(o).length:"")),
         h("div",{class:"small muted"},[cName(o.client),o.eloc,ownerNames(o)].filter(Boolean).join(" · ")),
         h("div",null,h("span",{class:"pill"},stageName(o)),sv.length?h("span",{class:"small muted"}," Услуги "+sv.filter(q=>q.done).length+"/"+sv.length):null),
         sv.length?h("ol",{class:"svl small"},sv.map(q=>h("li",{class:q.done?"done":""},q.t+(q.d?" · "+q.d:"")))):null));}});
@@ -674,11 +678,11 @@ document.querySelectorAll("dialog [data-close]").forEach(b=>b.addEventListener("
 // „В Google Календар“: отваря Google Календар на човека с попълнено събитие от формата; той го записва в своя профил.
 // ponytail: само Google (всички влизат с Google); .ics файл за Outlook/Apple – когато някой го поиска.
 function gcalUrl(e){const D=s=>s.replace(/-/g,""),T=s=>s.replace(":","")+"00",plus1=s=>s>="23:00"?"23:59":p2(+s.slice(0,2)+1)+s.slice(2);
-  const dates=e.start?D(e.date)+"T"+T(e.start)+"/"+D(e.date)+"T"+T(e.end&&e.end>e.start?e.end:plus1(e.start)):D(e.date)+"/"+D(ymd(addDays(pd(e.date),1)));
+  const last=e.last>e.date?e.last:e.date,dates=e.start?D(e.date)+"T"+T(e.start)+"/"+D(last)+"T"+T(e.end&&(last>e.date||e.end>e.start)?e.end:plus1(e.start)):D(e.date)+"/"+D(ymd(addDays(pd(last),1)));
   const q=new URLSearchParams({action:"TEMPLATE",text:e.title||"Team Hub",dates,ctz:"Europe/Sofia",details:[e.details,"Team Hub: "+location.origin+location.pathname].filter(Boolean).join("\n\n"),location:e.loc||""});
   return "https://calendar.google.com/calendar/render?"+q;}
 const calForm={
-  v:()=>$("#v-team").value==="events"?{title:$("#v-title").value,date:$("#v-edate").value,start:$("#v-estart").value,end:$("#v-eend").value,loc:$("#v-eloc").value,details:$("#v-notes").value}
+  v:()=>$("#v-team").value==="events"?{title:$("#v-title").value,date:$("#v-edate").value,last:$("#v-eedate").value,start:$("#v-estart").value,end:$("#v-eend").value,loc:$("#v-eloc").value,details:$("#v-notes").value}
     :{title:$("#v-title").value,date:$("#v-due").value,details:$("#v-notes").value},
   s:()=>({title:$("#s-title").value,date:$("#s-date").value,start:$("#s-start").value,end:$("#s-end").value,loc:$("#s-loc").value,details:$("#s-gear").value}),
   task:()=>({title:$("#task-title").value,date:$("#task-due").value,details:$("#task-description").value})};
@@ -711,7 +715,7 @@ $("#v-addlink").addEventListener("click",()=>{if($("#v-links").children.length<8
 function openVideo(id,team,date){cur.video=id;const v=id?S.videos[id]:null;cur.team=v?teamOf(v):(TEAMS[team]?team:"media");const T=TEAMS[cur.team];
   fill($("#v-team"),videoTeams());fillTemplateOptions(cur.team);
   fill($("#v-stage"),T.stages);$("#v-fmt-l").hidden=cur.team!=="media";document.querySelectorAll("#d-video .m-only").forEach(x=>{x.hidden=cur.team!=="media";});document.querySelectorAll("#d-video .e-only").forEach(x=>{x.hidden=cur.team!=="events";});
-  $("#v-notes").placeholder=cur.team==="media"?"Бриф, насоки за монтажа, забележки от клиента":"Бриф, изисквания и забележки от клиента";$("#v-edate").value=v?v.edate||"":(date||"");$("#v-eloc").value=v?v.eloc||"":"";$("#v-estart").value=v?v.estart||"":"";$("#v-eend").value=v?v.eend||"":"";
+  $("#v-notes").placeholder=cur.team==="media"?"Бриф, насоки за монтажа, забележки от клиента":"Бриф, изисквания и забележки от клиента";$("#v-edate").value=v?v.edate||"":(date||"");$("#v-eedate").value=v?v.eedate||"":"";$("#v-eloc").value=v?v.eloc||"":"";$("#v-estart").value=v?v.estart||"":"";$("#v-eend").value=v?v.eend||"":"";
   cur.svc=v&&v.svc?JSON.parse(JSON.stringify(v.svc)):[];renderSvc();$("#v-newsvc").value="";$("#v-newsvcd").value="";fillSelects();
   $("#v-h").textContent=(v?"Редакция: ":"Добавяне: ")+T.one;$("#v-del").hidden=!v;
   $("#v-title").value=v?v.title:"";$("#v-client").value=v?v.client||"":S.fClient;$("#v-team").value=cur.team;$("#v-stage").value=v?stageId(v):T.stages[0][0];
@@ -736,7 +740,7 @@ $("#f-video").addEventListener("submit",async ev=>{ev.preventDefault();const id=
     fmt:$("#v-fmt").value,revs:Math.max(0,Math.round(+$("#v-revs").value||0)),check:cur.check||[],comments:(old&&old.comments)||[]};
   rec.moved=(old&&old.stage===rec.stage)?(old.moved||0):Date.now();rec.team=cur.team;if(cur.team!=="media")rec.fmt="";
   if(cur.team==="media"){rec.track=$("#v-track").value;rec.publink=pu||"";rec.results=$("#v-results").value.trim();}
-  if(cur.team==="events"){rec.edate=$("#v-edate").value;rec.eloc=$("#v-eloc").value.trim();rec.estart=$("#v-estart").value;rec.eend=$("#v-eend").value;rec.svc=cur.svc||[];}
+  if(cur.team==="events"){rec.edate=$("#v-edate").value;rec.eedate=$("#v-eedate").value>rec.edate?$("#v-eedate").value:"";rec.eloc=$("#v-eloc").value.trim();rec.estart=$("#v-estart").value;rec.eend=$("#v-eend").value;rec.svc=cur.svc||[];}
   rec.doneAt=isDone(rec)?((old&&old.doneAt)||Date.now()):0;
   // Съществуващо видео: PATCH без коментарите, за да не се изтрие коментар, добавен от колега след последното обновяване.
   if(id)delete rec.comments;

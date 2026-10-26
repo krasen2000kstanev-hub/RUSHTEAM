@@ -119,6 +119,10 @@ label.f>*,div.f>*{text-transform:none;letter-spacing:0;font-weight:400;font-size
 .shoot:first-child{border-top:0}
 .shoot .hd{display:flex;gap:8px;align-items:center;justify-content:space-between}
 .shoot .hd b{overflow-wrap:anywhere}
+.shoot summary{list-style:none;cursor:pointer;display:flex;flex-direction:column;gap:3px}
+.shoot summary::-webkit-details-marker{display:none}
+.shoot summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.shoot[open] summary{margin-bottom:3px}
 
 /* reports */
 .rep{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;align-items:start}
