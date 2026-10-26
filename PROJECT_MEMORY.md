@@ -34,7 +34,7 @@
 
 ## Оставащи стъпки
 
-1. GitHub Actions deploy: да се добави `AWS_ROLE_ARN` (скриптът е `setup/github-deploy-role.ps1`). Дотогава бекендът се качва ръчно по README.
+1. GitHub Actions deploy работи: push към `main` с промени в `backend/` пуска тестовете и качва stack-а (проверено на 26.10.2026).
 2. SES: production access за `noreply@sofiasummit.bg`, ако още е в sandbox.
 3. Нова група в Graphify картата получава автоматично име; преименува се в `graphify-out/.graphify_labels.json`.
 
