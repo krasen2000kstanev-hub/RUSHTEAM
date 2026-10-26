@@ -20,7 +20,7 @@ AWS Lambda + API Gateway + DynamoDB backend. Lambda прилага правил�
 - `POST /api/auth/google` — `{credential}` → `{token, user}`.
 - `GET /api/me`
 - `GET /api/users`
-- `POST /api/sync` — `{queries:[{collection, where}]}`.
+- `POST /api/sync` — `{queries:[{collection, where, hash}]}`. Ако `hash` съвпада, връща `{hash, same:true}` без документите.
 - `GET | PUT | PATCH | DELETE /api/doc?path=<колекция>/<id>`.
 - `GET /api/sheets/:id` — първият лист като CSV в base64.
 
