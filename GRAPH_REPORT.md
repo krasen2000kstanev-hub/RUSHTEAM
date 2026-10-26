@@ -1,7 +1,9 @@
-# Graph Report - repo  (2026-10-26)
+# Graph Report - RUSHTEAM  (2026-10-26)
 
 ## Corpus Check
-- cluster-only mode — file stats not available
+- 20 files · ~16,119 words
+- Verdict: corpus is large enough that graph structure adds value.
+- Unclassified: 9 file(s) not represented in the graph (top: (none) 3, .example 2, .toml 2)
 
 ## Summary
 - 275 nodes · 721 edges · 17 communities (14 shown, 3 thin omitted)
@@ -9,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `6bfb698d`
+- Built from commit: `19ea1f44`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -31,27 +33,27 @@
 - Услуги на събития
 
 ## God Nodes (most connected - your core abstractions)
-1. `route()` - 26 edges
-2. `h()` - 26 edges
+1. `h()` - 26 edges
+2. `route()` - 26 edges
 3. `handleDoc()` - 24 edges
 4. `render()` - 16 edges
-5. `openVideo()` - 15 edges
-6. `schedule()` - 15 edges
-7. `vHrCompanies()` - 15 edges
+5. `schedule()` - 15 edges
+6. `vHrCompanies()` - 15 edges
+7. `openVideo()` - 15 edges
 8. `tryW()` - 14 edges
-9. `env()` - 13 edges
-10. `canReadDoc()` - 13 edges
+9. `vBoard()` - 13 edges
+10. `env()` - 13 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `route()` --calls--> `verifyGoogleIdToken()`  [EXTRACTED]
+  backend/src/index.js → backend/src/auth.js
+- `route()` --calls--> `signSession()`  [EXTRACTED]
+  backend/src/index.js → backend/src/auth.js
 - `currentUser()` --calls--> `verifySession()`  [EXTRACTED]
   backend/src/index.js → backend/src/auth.js
-- `handleDoc()` --calls--> `canBeAssigned()`  [EXTRACTED]
+- `toUser()` --calls--> `normalizeTeams()`  [EXTRACTED]
   backend/src/index.js → backend/src/rules.js
-- `handleDoc()` --calls--> `canReadDoc()`  [EXTRACTED]
-  backend/src/index.js → backend/src/rules.js
-- `handleDoc()` --calls--> `canWriteDoc()`  [EXTRACTED]
-  backend/src/index.js → backend/src/rules.js
-- `handleDoc()` --calls--> `isFounder()`  [EXTRACTED]
+- `listDepts()` --calls--> `canReadDoc()`  [EXTRACTED]
   backend/src/index.js → backend/src/rules.js
 
 ## Import Cycles
