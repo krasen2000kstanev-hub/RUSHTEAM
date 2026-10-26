@@ -49,21 +49,28 @@ const col = (head, ...keys) => head.findIndex((cell) => keys.some((key) => low(c
 const yes = (value) => low(value) !== '' && !/^(false|не|no|0|-)$/.test(low(value));
 const sameCompany = (part, company) => { const a = low(part), b = low(company); return !!a && (b.includes(a) || a.includes(b) || a.split(/\s+/)[0] === b.split(/\s+/)[0]); };
 
-// Лист от базата на компания = една позиция, редовете = кандидати. Името на позицията е името на листа,
-// а при „Лист1“ – от реда-заглавие под колоните: „Shelly - Офис Мениджър“ → „Офис Мениджър“.
+// Лист от базата на компания: първият ред са колоните, после позиции една под друга. Всяка позиция започва
+// с ред-заглавие с една клетка („Складов работник - Нови - Магнум 7“), под него са кандидатите.
+// Лист без такива редове е една позиция с името на листа. Най-новите (най-долу) излизат първи.
 const filled = (row) => row.filter((cell) => String(cell ?? '').trim()).length;
+const positionName = (label, company) => {
+  const parts = String(label).replace(/^\s*(дата|име)\s+/i, '').split(' - ').map((part) => part.trim()).filter(Boolean);
+  const own = parts.filter((part) => !sameCompany(part, company)); const note = parts.filter((part) => sameCompany(part, company)).map((part) => part.match(/\([^)]*\)/)?.[0]).filter(Boolean);
+  return [...(own.length ? own : parts.slice(0, 1)), ...note].join(own.length ? ' - ' : ' ').replace(/ - (\()/, ' $1');
+};
 export function summarizeTab(company, { title, values }) {
-  const head = values[0] || []; let name = title;
-  if (/^(лист|sheet)\s*\d*$/i.test(title.trim())) {
-    const label = values.slice(0, 4).flatMap((row) => row.slice(0, 3)).map((cell) => String(cell || '')).find((cell) => cell.includes(' - ')) || '';
-    const parts = label.replace(/^\s*(дата|име)\s+/i, '').split(' - ').map((part) => part.trim()).filter(Boolean);
-    name = parts.find((part) => !sameCompany(part, company)) || parts[0] || title;
-  }
+  const head = values[0] || [];
   const nameCol = Math.max(col(head, 'име'), 0); const c = { checked: col(head, 'провер'), rejected: col(head, 'отхвър'), interview: col(head, 'интерв'), hired: col(head, 'нает') };
-  // Кандидат = ред с име и поне още едно попълнено поле; редът-заглавие има само една клетка.
-  const rows = values.slice(1).filter((row) => String(row[nameCol] ?? '').trim() && filled(row) > 1);
-  const count = (key) => (c[key] < 0 ? 0 : rows.filter((row) => yes(row[c[key]])).length);
-  return { title: name.trim(), candidates: rows.length, checked: count('checked'), rejected: count('rejected'), interview: count('interview'), hired: count('hired') };
+  const sections = [{ title: /^(лист|sheet)\s*\d*$/i.test(title.trim()) ? '' : title.trim(), rows: [] }];
+  for (const row of values.slice(1)) {
+    const cells = row.map((cell) => String(cell ?? '').trim()).filter(Boolean);
+    if (cells.length === 1 && cells[0].includes(' - ')) sections.push({ title: positionName(cells[0], company), rows: [] });
+    // Кандидат = ред с име и поне още едно попълнено поле.
+    else if (String(row[nameCol] ?? '').trim() && filled(row) > 1) sections[sections.length - 1].rows.push(row);
+  }
+  const count = (rows, key) => (c[key] < 0 ? 0 : rows.filter((row) => yes(row[c[key]])).length);
+  return sections.filter((section) => section.title && (section.rows.length || sections.length === 1)).reverse()
+    .map(({ title: name, rows }) => ({ title: name, candidates: rows.length, checked: count(rows, 'checked'), rejected: count(rows, 'rejected'), interview: count(rows, 'interview'), hired: count(rows, 'hired') }));
 }
 
 // „Подбор“: компаниите от „Достъп до Бази“, позициите и бройките от базата на всяка активна компания,
@@ -84,7 +91,7 @@ export async function readHrSummary(masterId, env) {
     const out = { company, link: base ? link : '', stage: cell(row, ac.stage), status, active, positions: [] };
     if (!active || !base) return out;
     try {
-      out.positions = (await readTabs(base, token)).map((t) => summarizeTab(company, t)).filter((p) => p.title)
+      out.positions = (await readTabs(base, token)).flatMap((t) => summarizeTab(company, t))
         .map((p) => ({ ...p, description: descriptions.find((d) => sameCompany(d.company, company) && d.title && (low(p.title).includes(d.title) || d.title.includes(low(p.title))))?.text || '' }));
     } catch (error) { out.error = error.status === 403 || error.status === 404 ? 'not_shared' : 'unavailable'; }
     return out;
