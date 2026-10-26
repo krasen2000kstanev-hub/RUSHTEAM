@@ -98,6 +98,7 @@
   <h2>Настройки на таблиците „Подбор“</h2>
   <p class="small muted">Поставете линк към Google таблица за всяка роля. Таблицата трябва да е споделена със service account-а като Editor.</p>
   <div class="fg">
+    <label class="f w">Главна таблица („Достъп до Бази“, „Обяви“)<input id="hr-sheet-master" type="url" required placeholder="https://docs.google.com/spreadsheets/d/…"></label>
     <label class="f w">Проследяване<input id="hr-sheet-track" type="url" required placeholder="https://docs.google.com/spreadsheets/d/…"></label>
     <label class="f w">Изисквания<input id="hr-sheet-req" type="url" required placeholder="https://docs.google.com/spreadsheets/d/…"></label>
     <label class="f w">Обяви<input id="hr-sheet-ads" type="url" required placeholder="https://docs.google.com/spreadsheets/d/…"></label>
@@ -216,8 +217,8 @@
 <div id="toast" hidden></div>
 
 <script src="config.js"></script>
-<script src="data.js?v=20261026-8"></script>
-<script src="app.js?v=20261026-8"></script>
+<script src="data.js?v=20261026-9"></script>
+<script src="app.js?v=20261026-9"></script>
 <script>
   // Ако браузърът блокира кеширан скрипт, входът остава достъпен вместо празна страница.
   setTimeout(function () {

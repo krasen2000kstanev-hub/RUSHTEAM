@@ -69,10 +69,10 @@ await ok('клиенти: пише само мениджър; подборът �
   assert.ok((await list(med.token, 'clients')).docs.some((d) => d.id === `c-${run}`));
   assert.equal((await list(hr.token, 'clients')).docs.length, 0);
 });
-await ok('таблиците на подбора: само екип „Подбор“ и мениджъри, само разрешени таблици', async () => {
-  assert.equal((await call(med.token, 'GET', '/api/sheets/sheet-a')).status, 403);
-  assert.equal((await call(hr.token, 'GET', '/api/sheets/not-listed')).status, 404);
-  assert.notEqual((await call(hr.token, 'GET', '/api/sheets/sheet-a')).status, 403);
+await ok('подборът: само екип „Подбор“; суровите таблици не се отдават', async () => {
+  assert.equal((await call(med.token, 'GET', '/api/hr/summary')).status, 403);
+  assert.notEqual((await call(hr.token, 'GET', '/api/hr/summary')).status, 403);
+  assert.equal((await call(hr.token, 'GET', '/api/sheets/sheet-a')).status, 404);
 });
 await ok('непознати колекции и пътища се отказват', async () => {
   assert.equal((await call(admin.token, 'PUT', doc('users/u1'), { role: 'admin' })).status, 400);

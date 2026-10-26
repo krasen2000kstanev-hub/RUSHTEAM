@@ -1,5 +1,5 @@
 // Слой за данни: вход с Google и връзка с API-то в AWS (Lambda + DynamoDB).
-// Дава на app.js същия интерфейс (db, user, downloads, mcp), с който е писано приложението,
+// Дава на app.js същия интерфейс (db, user, downloads), с който е писано приложението,
 // така че логиката на екраните не знае къде живеят данните.
 (function () {
   "use strict";
@@ -229,15 +229,7 @@
     },
   };
 
-  // Таблиците на „Подбор“ се четат от Worker-а със сервизен акаунт.
-  const mcp = {
-    async callTool(server, tool, input) {
-      const out = await api("/api/sheets/" + encodeURIComponent((input || {}).fileId || ""));
-      return { payload: { content: out.content } };
-    },
-  };
-
-  const caps = { db: db, user: user, downloads: downloads, mcp: mcp };
+  const caps = { db: db, user: user, downloads: downloads };
   window.claude = { use: async (name) => { await ready; return caps[name] || null; } };
 
   (async function init() {

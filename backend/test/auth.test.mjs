@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { signSession, verifySession, verifyGoogleIdToken } from '../src/auth.js';
-import { rowsToCsv, textToBase64 } from '../src/sheets.js';
 
 const SECRET = 'unit-test-secret-0123456789';
 
@@ -37,10 +36,4 @@ test('google token: wrong audience or issuer fails before any network call', asy
   await assert.rejects(() => verifyGoogleIdToken(make({ ...base, exp: 1 }), env), /Expired/);
   await assert.rejects(() => verifyGoogleIdToken(make({ ...base, email_verified: false }), env), /verified/);
   await assert.rejects(() => verifyGoogleIdToken('nope', env), /Invalid/);
-});
-
-test('csv export keeps commas, quotes, newlines and Cyrillic', () => {
-  const csv = rowsToCsv([['Компания', 'Бележки'], ['Магнум 7', 'опит, "английски"\nвтори ред'], ['AVIAT']]);
-  assert.equal(csv, 'Компания,Бележки\r\nМагнум 7,"опит, ""английски""\nвтори ред"\r\nAVIAT');
-  assert.equal(new TextDecoder().decode(Uint8Array.from(atob(textToBase64('Здравей')), (c) => c.charCodeAt(0))), 'Здравей');
 });
