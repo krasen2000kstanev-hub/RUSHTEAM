@@ -1,7 +1,7 @@
 # Graph Report - RUSHTEAM  (2026-10-26)
 
 ## Corpus Check
-- 21 files · ~16,524 words
+- 21 files · ~16,680 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 9 file(s) not represented in the graph (top: (none) 3, .example 2, .toml 2)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `f35f6e22`
+- Built from commit: `6408721b`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -66,7 +66,7 @@ Nodes (55): audit(), corsHeaders(), currentUser(), defaultHrSheets(), env(), eve
 
 ### Community 1 - "role-matrix.test.mjs"
 Cohesion: 0.08
-Nodes (24): base64UrlToBytes(), bytesToBase64Url(), decodePart(), encoder, googleKeys(), hmacKey(), signSession(), verifyGoogleIdToken() (+16 more)
+Nodes (25): base64UrlToBytes(), bytesToBase64Url(), decodePart(), encoder, googleKeys(), hmacKey(), signSession(), verifyGoogleIdToken() (+17 more)
 
 ### Community 2 - "notify.js"
 Cohesion: 0.07
@@ -86,7 +86,7 @@ Nodes (20): allowed(), cardExtra(), deptManager(), dueText(), fillTemplateOption
 
 ### Community 6 - "sheets.js"
 Cohesion: 0.26
-Nodes (16): accessToken(), appendSheetRow(), b64url(), b64urlText(), col(), encoder, fieldMatches, filled() (+8 more)
+Nodes (16): accessToken(), appendSheetRow(), b64url(), b64urlText(), col(), encoder, fieldMatches, get() (+8 more)
 
 ### Community 7 - "data.js"
 Cohesion: 0.28
