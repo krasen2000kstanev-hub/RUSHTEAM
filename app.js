@@ -661,9 +661,9 @@ function vTeam(){
   if(!cs.length)cl.append(h("div",{class:"empty"},S.isAdmin?"Добавете първия клиент, за да засичате време по него.":"Мениджърът още не е добавил клиенти."));
   visibleClientTeams.forEach(team=>{const list=cs.filter(([,c])=>cTeams(c).includes(team));if(!list.length)return;
     const group=h("section",{class:"panel box"},h("div",{class:"ph"},h("span",null,TNAME[team]),h("span",{class:"mono"},list.length)));
-    list.forEach(([id,c])=>{const l=safeUrl(c.link);
+    list.forEach(([id,c])=>{const l=safeUrl(c.link),w=safeUrl(c.wishes);
       group.append(h("div",{class:"li"},h("span",{class:"dot",style:"--c:"+c.color}),
-        h("div",{class:"g"},h("b",{style:"overflow-wrap:anywhere"},c.name),h("span",{class:"small muted"},cTeams(c).map(t=>TNAME[t]).join(", ")+" · "+(c.hours?c.hours+" ч на месец":"Без месечен лимит")),l?h("span",{class:"small"},ext({url:l,label:"Папка с материали"})):null),
+        h("div",{class:"g"},h("b",{style:"overflow-wrap:anywhere"},c.name),h("span",{class:"small muted"},cTeams(c).map(t=>TNAME[t]).join(", ")+" · "+(c.hours?c.hours+" ч на месец":"Без месечен лимит")),l?h("span",{class:"small"},ext({url:l,label:"Папка с материали"})):null,w?h("span",{class:"small"},ext({url:w,label:"Желания на клиента"})):null),
         canEditClients?h("button",{class:"btn ghost",type:"button",onclick:()=>openClient(id)},"✎"):null));});
     cl.append(group);});
   root.append(team,cl);return root;
@@ -811,15 +811,15 @@ arm($("#s-del"),async()=>{if(await tryW(S.db.doc("shoots/"+cur.shoot).delete()))
 function openClient(id){cur.client=id;const c=id?S.clients[id]:null;
   $("#c-h").textContent=c?"Редакция на клиент":"Нов клиент";$("#c-del").hidden=!c;
   const selected=cTeams(c),teamsBox=$("#c-teams");teamsBox.textContent="";ALLT.forEach(t=>teamsBox.append(h("label",null,h("input",{type:"checkbox",value:t,checked:selected.includes(t)}),TNAME[t])));
-  $("#c-name").value=c?c.name:"";$("#c-hours").value=c&&c.hours?c.hours:"";$("#c-link").value=c?c.link||"":"";
+  $("#c-name").value=c?c.name:"";$("#c-hours").value=c&&c.hours?c.hours:"";$("#c-link").value=c?c.link||"":"";$("#c-wishes").value=c?c.wishes||"":"";
   const used=Object.values(S.clients).map(x=>x.color),pick=c?c.color:(COLORS.find(x=>!used.includes(x))||COLORS[0]);
   const box=$("#c-colors");box.textContent="";COLORS.forEach((col,i)=>box.append(h("label",null,h("input",{type:"radio",name:"c-color",id:"c-col-"+i,value:col,checked:col===pick,"aria-label":"Цвят "+(i+1)}),h("span",{style:"--c:"+col}))));
   $("#d-client").showModal();}
-$("#f-client").addEventListener("submit",async ev=>{ev.preventDefault();const id=cur.client,raw=$("#c-link").value.trim(),u=safeUrl(raw);
-  if(raw&&!u){toast("Линкът не е валиден адрес. Трябва да започва с https://");return;}
+$("#f-client").addEventListener("submit",async ev=>{ev.preventDefault();const id=cur.client,raw=$("#c-link").value.trim(),u=safeUrl(raw),rawW=$("#c-wishes").value.trim(),w=safeUrl(rawW);
+  if((raw&&!u)||(rawW&&!w)){toast("Линкът не е валиден адрес. Трябва да започва с https://");return;}
   const sel=$("#c-colors").querySelector("input:checked");
   const teams=[...$("#c-teams").querySelectorAll("input:checked")].map(i=>i.value);if(!teams.length){toast("Изберете поне един отдел.");return;}
-  const rec={name:$("#c-name").value.trim(),teams:teams,team:teams[0],hours:+$("#c-hours").value||0,link:u||"",color:sel?sel.value:COLORS[0],archived:false};
+  const rec={name:$("#c-name").value.trim(),teams:teams,team:teams[0],hours:+$("#c-hours").value||0,link:u||"",wishes:w||"",color:sel?sel.value:COLORS[0],archived:false};
   const ref=id?S.db.doc("clients/"+id):S.db.collection("clients").doc();
   if(await tryW(ref.set(rec)))$("#d-client").close();});
 arm($("#c-del"),async()=>{const c=S.clients[cur.client];if(await tryW(S.db.doc("clients/"+cur.client).set(Object.assign({},c,{archived:true}))))$("#d-client").close();});
