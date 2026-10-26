@@ -86,6 +86,7 @@
     <label class="f w">Каква е задачата?<input type="text" id="task-title" required maxlength="200" placeholder="Напр. Подготви монтаж за клиента"></label>
     <label class="f w">За кого / с кого е задачата?<div class="checks" id="task-partner" aria-describedby="task-partner-help"></div><span id="task-partner-help" class="small muted">Маркирайте един или повече човека. Маркирайте „Лична задача (вие)“ за задача само към себе си.</span></label>
     <label class="f">Срок<input type="date" id="task-due"></label>
+    <label class="f">Клиент<select id="task-client"></select></label>
     <label class="f w">Какво трябва да се направи?<textarea id="task-description" maxlength="4000" placeholder="Опишете конкретните стъпки и очаквания резултат"></textarea></label>
     <label class="f" id="task-priority-label"><input type="checkbox" id="task-priority"> Приоритетна задача</label>
     <label class="f"><input type="checkbox" id="task-done"> Приключена</label>
@@ -214,7 +215,7 @@
 
 <script src="config.js"></script>
 <script src="data.js?v=20261014-6"></script>
-<script src="app.js?v=20261026-1"></script>
+<script src="app.js?v=20261026-2"></script>
 <script>
   // Ако браузърът блокира кеширан скрипт, входът остава достъпен вместо празна страница.
   setTimeout(function () {

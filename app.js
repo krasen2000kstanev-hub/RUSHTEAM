@@ -127,7 +127,7 @@ const videoOpts=cid=>Object.entries(S.videos).filter(e=>(!cid||e[1].client===cid
   // Само хора, които сървърът приема за отговорник (canBeAssigned): от отдела или основател (teamsOf дава всички отдели).
   const assigneeOpts=team=>memberIds().filter(id=>teamsOf(id).includes(team)).map(id=>[id,nameOf(id)]);
 function fillSelects(){
-  ["#t-client","#e-client","#v-client","#s-client"].forEach(s=>fill($(s),clientOpts(),"Без клиент"));
+  ["#t-client","#e-client","#v-client","#s-client","#task-client"].forEach(s=>fill($(s),clientOpts(),"Без клиент"));
   [["#t-video","#t-client"],["#e-video","#e-client"],["#s-video","#s-client"]].forEach(p=>fill($(p[0]),videoOpts($(p[1]).value),"Без задача"));
   renderOwners();
 }
@@ -200,7 +200,7 @@ function openTask(id){
   partners.forEach(([id,label])=>box.append(h("label",null,h("input",{type:"checkbox",value:id,checked:Boolean(t&&Array.isArray(t.participants)&&t.participants.includes(id))}),label)));
   $("#task-h").textContent=t?"Редакция на задача":"Нова задача";$("#task-del").hidden=!t;
   $("#task-title").value=t?t.title||"":"";$("#task-description").value=t?t.description||"":"";
-  $("#task-due").value=t?t.due||"":"";
+  $("#task-due").value=t?t.due||"":"";$("#task-client").value=t?t.client||"":"";
   $("#task-priority").checked=!!(t&&t.priority);$("#task-done").checked=!!(t&&t.done);$("#task-priority-label").hidden=!S.isAdmin;$("#d-task").showModal();
 }
 function vTasks(){
@@ -208,7 +208,7 @@ function vTasks(){
   const filter=h("select",{class:"btn",value:S.taskFilter,"aria-label":"Филтър на задачите",onchange:e=>{S.taskFilter=e.target.value;schedule();}},h("option",{value:"all"},"Всички задачи"),h("option",{value:"mine"},"Моите задачи"),h("option",{value:"overdue"},"Просрочени"));
   root.append(h("div",{class:"bar"},h("div",null,h("h2",null,"Задачи"),h("p",{class:"small muted",style:"margin:2px 0 0"},"Лични, назначени и споделени задачи.")),h("span",{class:"sp"}),filter,h("button",{class:"btn primary w-only",type:"button",onclick:()=>openTask(null)},"+ Нова задача")));
   const panel=h("section",{class:"panel"});if(!items.length)panel.append(h("div",{class:"empty"},"Няма споделени задачи."));
-  items.forEach(([id,t])=>{const others=(t.participants||[]).filter(p=>p!==S.uid),who=others.length?"За "+others.map(nameOf).join(", "):"Лична задача",due=t.due?" · Срок "+shortDate(t.due):"";panel.append(h("div",{class:"drow"},h("div",{style:"min-width:0"},h("button",{class:"t",type:"button",onclick:()=>openTask(id)},t.title),h("div",{class:"small muted"},who+due+(t.description?" · "+t.description:""))),t.priority&&!t.done?h("span",{class:"pill",style:"color:var(--gold)"},"Приоритет"):h("span",{class:"pill"},t.done?"Приключена":"Отворена"),h("button",{class:"btn ghost w-only",type:"button",onclick:()=>openTask(id)},"✎")));});
+  items.forEach(([id,t])=>{const others=(t.participants||[]).filter(p=>p!==S.uid),who=others.length?"За "+others.map(nameOf).join(", "):"Лична задача",due=t.due?" · Срок "+shortDate(t.due):"";panel.append(h("div",{class:"drow"},h("div",{style:"min-width:0"},h("button",{class:"t",type:"button",onclick:()=>openTask(id)},t.title),h("div",{class:"small muted"},who+(t.client?" · "+cName(t.client):"")+due+(t.description?" · "+t.description:""))),t.priority&&!t.done?h("span",{class:"pill",style:"color:var(--gold)"},"Приоритет"):h("span",{class:"pill"},t.done?"Приключена":"Отворена"),h("button",{class:"btn ghost w-only",type:"button",onclick:()=>openTask(id)},"✎")));});
   root.append(panel);return root;
 }
 
@@ -787,7 +787,7 @@ arm($("#v-del"),async()=>{if(await tryW(S.db.doc("videos/"+cur.video).delete()))
 $("#f-task").addEventListener("submit",async e=>{e.preventDefault();const id=cur.task,old=id?S.tasks[id]:null,selected=[...$("#task-partner").querySelectorAll("input:checked")].map(o=>o.value),due=$("#task-due").value;
   const assigned=selected.length?selected:(old&&Array.isArray(old.participants)?old.participants.filter(p=>p!==S.uid):[]);
   const participants=assigned.length?(S.isAdmin||((S.depts[S.uid]||{}).manager)?assigned:[S.uid,...assigned.filter(p=>p!==S.uid)]):[S.uid];
-  const rec={title:$("#task-title").value.trim(),description:$("#task-description").value.trim(),participants,createdBy:old?old.createdBy:S.uid,due,priority:S.isAdmin&&$("#task-priority").checked,done:$("#task-done").checked,createdAt:old?old.createdAt:Date.now(),updatedAt:Date.now()};
+  const rec={title:$("#task-title").value.trim(),description:$("#task-description").value.trim(),client:$("#task-client").value,participants,createdBy:old?old.createdBy:S.uid,due,priority:S.isAdmin&&$("#task-priority").checked,done:$("#task-done").checked,createdAt:old?old.createdAt:Date.now(),updatedAt:Date.now()};
   if(!rec.title){toast("Въведете каква е задачата.");return;}
   const ref=id?S.db.doc("tasks/"+id):S.db.collection("tasks").doc();if(await tryW(ref.set(rec)))$("#d-task").close();
 });
