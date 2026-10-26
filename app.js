@@ -219,7 +219,8 @@ function vToday(){
   root.append(h("div",{class:"bar"},h("div",{class:"sum"},h("div",null,h("b",null,mine.length),h("span",null,"Активни задачи")),h("div",null,h("b",{class:late.length?"late":""},late.length),h("span",null,"Просрочени")),h("div",null,h("b",null,next.length),h("span",null,"До 7 дни"))),h("span",{class:"sp"}),h("a",{class:"btn",href:"#due"},"Преглед на всички")));
   const panel=h("section",{class:"panel"},h("div",{class:"ph"},h("span",null,"Моите задачи за днес"),h("span",{class:"mono"},mine.length)));
   if(!mine.length)panel.append(h("div",{class:"empty"},"Нямате активни задачи, на които сте отговорник. Добра работа!"));
-  mine.slice(0,12).forEach(([id,v])=>panel.append(h("div",{class:"drow"},h("div",{style:"min-width:0"},h("button",{class:"t",type:"button",onclick:()=>openVideo(id)},v.title),h("div",{class:"small muted"},cName(v.client)+" · "+ownerNames(v))),h("span",{class:"pill"},TNAME[teamOf(v)]),v.due?h("span",{class:"mono small"+(v.due<today?" late":"")},shortDate(v.due)):h("span",{class:"small muted"},"без срок"))));
+  mine.slice(0,12).forEach(([id,v])=>panel.append(h("div",{class:"drow"},h("div",{style:"min-width:0"},h("button",{class:"t",type:"button",onclick:()=>openVideo(id)},v.title),h("div",{class:"small muted"},cName(v.client)+" · "+ownerNames(v))),h("span",{class:"pill"},TNAME[teamOf(v)]),v.due?h("span",{class:"mono small"+(v.due<today?" late":"")},shortDate(v.due)):h("span",{class:"small muted"},"без срок"),
+    h("button",{class:"btn ghost w-only",type:"button",title:"Мести в етап „"+stagesOf(v).find(x=>x[0]==="done")[1]+"“. Задачата остава на дъската.",onclick:()=>{moveVideo(id,stagesOf(v).findIndex(x=>x[0]==="done"));toast("„"+v.title+"“ е отбелязана като свършена.");}},"✓ Готово"))));
   root.append(panel);return root;
 }
 
