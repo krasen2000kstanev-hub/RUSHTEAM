@@ -52,18 +52,22 @@ const sameCompany = (part, company) => { const a = low(part), b = low(company); 
 // Лист от базата на компания: първият ред са колоните, после позиции една под друга. Всяка позиция започва
 // с ред-заглавие с една клетка („Складов работник - Нови - Магнум 7“), под него са кандидатите.
 // Лист без такива редове е една позиция с името на листа. Най-новите (най-долу) излизат първи.
-const positionName = (label, company) => {
+const positionName = (label, company, tab = '') => {
   const parts = String(label).replace(/^\s*(дата|име)\s+/i, '').split(' - ').map((part) => part.trim()).filter(Boolean);
+  // В лист с име на позиция заглавието „QA Automation Lead - Технополис“ е самият лист.
+  if (tab && parts.some((part) => low(part) === low(tab))) return tab.trim();
   const own = parts.filter((part) => !sameCompany(part, company)); const note = parts.filter((part) => sameCompany(part, company)).map((part) => part.match(/\([^)]*\)/)?.[0]).filter(Boolean);
   return [...(own.length ? own : parts.slice(0, 1)), ...note].join(own.length ? ' - ' : ' ').replace(/ - (\()/, ' $1');
 };
 export function summarizeTab(company, { title, values }) {
-  const head = values[0] || [];
+  // Редът с колоните е първият с „CV“ – понякога над него стои заглавие на позицията.
+  const at = Math.max(values.slice(0, 5).findIndex((row) => col(row, 'cv') >= 0), 0); const head = values[at] || [];
+  const named = /^(лист|sheet)\s*\d*$/i.test(title.trim()) ? '' : title;
   const cvCol = col(head, 'cv'); const c = { checked: col(head, 'провер'), rejected: col(head, 'отхвър'), interview: col(head, 'интерв'), hired: col(head, 'нает') };
-  const sections = [{ title: /^(лист|sheet)\s*\d*$/i.test(title.trim()) ? '' : title.trim(), rows: [] }];
-  for (const row of values.slice(1)) {
+  const sections = [{ title: named.trim(), rows: [] }];
+  for (const row of values.filter((_, i) => i !== at)) {
     const cells = row.map((cell) => String(cell ?? '').trim()).filter(Boolean);
-    if (cells.length === 1 && cells[0].includes(' - ')) sections.push({ title: positionName(cells[0], company), rows: [] });
+    if (cells.length === 1 && cells[0].includes(' - ')) sections.push({ title: positionName(cells[0], company, named), rows: [] });
     // Кандидат се зачита само с линк към CV.
     else if (cvCol >= 0 && String(row[cvCol] ?? '').trim()) sections[sections.length - 1].rows.push(row);
   }

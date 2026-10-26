@@ -25,3 +25,8 @@ test('named tab without title rows is one position', () => {
   const p = summarizeTab('Technopolis', { title: 'QA Automation lead', values: [head, row('Иван', 'TRUE', '', 'TRUE'), row('Мария', 'TRUE', 'TRUE'), row(''), row('Петя', 'FALSE', '', '', 'TRUE')] });
   assert.deepEqual(p, [{ title: 'QA Automation lead', candidates: 3, checked: 2, rejected: 1, interview: 1, hired: 1 }]);
 });
+
+test('title above the column row; title naming the tab keeps the tab name', () => {
+  assert.deepEqual(summarizeTab('Technopolis', { title: 'Marketing Automation Specialist', values: [['Marketing Automation Specialist - Technopolis'], head, row('Иван'), row('Мария')] }).map((p) => [p.title, p.candidates]), [['Marketing Automation Specialist', 2]]);
+  assert.deepEqual(summarizeTab('Technopolis', { title: 'QA Automation lead', values: [head, ['QA Automation Lead - Технополис'], row('Иван')] }).map((p) => [p.title, p.candidates]), [['QA Automation lead', 1]]);
+});
