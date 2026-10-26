@@ -52,7 +52,6 @@ const sameCompany = (part, company) => { const a = low(part), b = low(company); 
 // Лист от базата на компания: първият ред са колоните, после позиции една под друга. Всяка позиция започва
 // с ред-заглавие с една клетка („Складов работник - Нови - Магнум 7“), под него са кандидатите.
 // Лист без такива редове е една позиция с името на листа. Най-новите (най-долу) излизат първи.
-const filled = (row) => row.filter((cell) => String(cell ?? '').trim()).length;
 const positionName = (label, company) => {
   const parts = String(label).replace(/^\s*(дата|име)\s+/i, '').split(' - ').map((part) => part.trim()).filter(Boolean);
   const own = parts.filter((part) => !sameCompany(part, company)); const note = parts.filter((part) => sameCompany(part, company)).map((part) => part.match(/\([^)]*\)/)?.[0]).filter(Boolean);
@@ -60,13 +59,13 @@ const positionName = (label, company) => {
 };
 export function summarizeTab(company, { title, values }) {
   const head = values[0] || [];
-  const nameCol = Math.max(col(head, 'име'), 0); const c = { checked: col(head, 'провер'), rejected: col(head, 'отхвър'), interview: col(head, 'интерв'), hired: col(head, 'нает') };
+  const cvCol = col(head, 'cv'); const c = { checked: col(head, 'провер'), rejected: col(head, 'отхвър'), interview: col(head, 'интерв'), hired: col(head, 'нает') };
   const sections = [{ title: /^(лист|sheet)\s*\d*$/i.test(title.trim()) ? '' : title.trim(), rows: [] }];
   for (const row of values.slice(1)) {
     const cells = row.map((cell) => String(cell ?? '').trim()).filter(Boolean);
     if (cells.length === 1 && cells[0].includes(' - ')) sections.push({ title: positionName(cells[0], company), rows: [] });
-    // Кандидат = ред с име и поне още едно попълнено поле.
-    else if (String(row[nameCol] ?? '').trim() && filled(row) > 1) sections[sections.length - 1].rows.push(row);
+    // Кандидат се зачита само с линк към CV.
+    else if (cvCol >= 0 && String(row[cvCol] ?? '').trim()) sections[sections.length - 1].rows.push(row);
   }
   const count = (rows, key) => (c[key] < 0 ? 0 : rows.filter((row) => yes(row[c[key]])).length);
   return sections.filter((section) => section.title && (section.rows.length || sections.length === 1)).reverse()
