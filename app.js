@@ -195,8 +195,12 @@ function render(){
 function entryMeta(e){const vid=S.videos[e.v];return h("div",{class:"meta"},
   h("span",{class:"dot",style:"--c:"+cColor(e.c)}),h("span",null,cName(e.c)),vid?h("span",null,"· "+vid.title):null,h("span",{class:"pill"},actName(e.a)));}
 async function deleteEntry(e){if(!window.confirm("Изтриване на този запис за време?"))return;await tryW(writeDay(e.date,es=>{delete es[e.id];}));}
+// Редакция: пращаме само полетата, сменени във формата спрямо момента на отваряне – промяна на колега междувременно остава.
+const snap=o=>o?JSON.parse(JSON.stringify(o)):{};
+const blank=v=>v==null||v===false||v===""||v===0||(Array.isArray(v)&&!v.length)?"":JSON.stringify(v);
+const changes=(orig,rec)=>Object.fromEntries(Object.entries(rec).filter(([k,v])=>blank(v)!==blank((orig||{})[k])));
 function openTask(id){
-  cur.task=id;const t=id?S.tasks[id]:null;const partners=[[S.uid,"Лична задача (вие)"],...memberIds().filter(p=>p!==S.uid).map(p=>[p,nameOf(p)])],box=$("#task-partner");box.textContent="";
+  cur.task=id;const t=id?S.tasks[id]:null;cur.orig=snap(t);const partners=[[S.uid,"Лична задача (вие)"],...memberIds().filter(p=>p!==S.uid).map(p=>[p,nameOf(p)])],box=$("#task-partner");box.textContent="";
   partners.forEach(([id,label])=>box.append(h("label",null,h("input",{type:"checkbox",value:id,checked:Boolean(t&&Array.isArray(t.participants)&&t.participants.includes(id))}),label)));
   $("#task-h").textContent=t?"Редакция на задача":"Нова задача";$("#task-del").hidden=!t;
   $("#task-title").value=t?t.title||"":"";$("#task-description").value=t?t.description||"":"";
@@ -794,11 +798,11 @@ $("#f-task").addEventListener("submit",async e=>{e.preventDefault();const id=cur
   const participants=assigned.length?(S.isAdmin||((S.depts[S.uid]||{}).manager)?assigned:[S.uid,...assigned.filter(p=>p!==S.uid)]):[S.uid];
   const rec={title:$("#task-title").value.trim(),description:$("#task-description").value.trim(),client:$("#task-client").value,participants,createdBy:old?old.createdBy:S.uid,due,priority:S.isAdmin&&$("#task-priority").checked,done:$("#task-done").checked,createdAt:old?old.createdAt:Date.now(),updatedAt:Date.now()};
   if(!rec.title){toast("Въведете каква е задачата.");return;}
-  const ref=id?S.db.doc("tasks/"+id):S.db.collection("tasks").doc();if(await tryW(ref.set(rec)))$("#d-task").close();
+  const ref=id?S.db.doc("tasks/"+id):S.db.collection("tasks").doc();if(await tryW(id?ref.update(changes(cur.orig,rec)):ref.set(rec)))$("#d-task").close();
 });
 arm($("#task-del"),async()=>{if(await tryW(S.db.doc("tasks/"+cur.task).delete()))$("#d-task").close();});
 
-function openShoot(id,date){cur.shoot=id;const s=id?S.shoots[id]:null;fillSelects();
+function openShoot(id,date){cur.shoot=id;const s=id?S.shoots[id]:null;cur.orig=snap(s);fillSelects();
   $("#s-h").textContent=s?"Редакция на снимачен ден":"Нов снимачен ден";$("#s-del").hidden=!s;
   $("#s-title").value=s?s.title:"";$("#s-client").value=s?s.client||"":"";fill($("#s-video"),videoOpts($("#s-client").value),"Без задача");$("#s-video").value=s?s.video||"":"";
   $("#s-date").value=s?s.date:(date||ymd(new Date()));$("#s-loc").value=s?s.loc||"":"";$("#s-start").value=s?s.start||"":"";$("#s-end").value=s?s.end||"":"";
@@ -810,10 +814,10 @@ $("#f-shoot").addEventListener("submit",async ev=>{ev.preventDefault();const id=
   const rec={title:$("#s-title").value.trim(),client:$("#s-client").value,video:$("#s-video").value,date:$("#s-date").value,loc:$("#s-loc").value.trim(),
     start:$("#s-start").value,end:$("#s-end").value,gear:$("#s-gear").value.trim(),link:u||"",crew:[...$("#s-crew").querySelectorAll("input:checked")].map(i=>i.value)};
   const ref=id?S.db.doc("shoots/"+id):S.db.collection("shoots").doc();
-  if(await tryW(ref.set(rec))){S.cal=new Date(pd(rec.date).getFullYear(),pd(rec.date).getMonth(),1);$("#d-shoot").close();schedule();}});
+  if(await tryW(id?ref.update(changes(cur.orig,rec)):ref.set(rec))){S.cal=new Date(pd(rec.date).getFullYear(),pd(rec.date).getMonth(),1);$("#d-shoot").close();schedule();}});
 arm($("#s-del"),async()=>{if(await tryW(S.db.doc("shoots/"+cur.shoot).delete()))$("#d-shoot").close();});
 
-function openClient(id){cur.client=id;const c=id?S.clients[id]:null;
+function openClient(id){cur.client=id;const c=id?S.clients[id]:null;cur.orig=snap(c);
   $("#c-h").textContent=c?"Редакция на клиент":"Нов клиент";$("#c-del").hidden=!c;
   const selected=cTeams(c),teamsBox=$("#c-teams");teamsBox.textContent="";ALLT.forEach(t=>teamsBox.append(h("label",null,h("input",{type:"checkbox",value:t,checked:selected.includes(t)}),TNAME[t])));
   $("#c-name").value=c?c.name:"";$("#c-hours").value=c&&c.hours?c.hours:"";$("#c-link").value=c?c.link||"":"";$("#c-wishes").value=c?c.wishes||"":"";
@@ -826,8 +830,8 @@ $("#f-client").addEventListener("submit",async ev=>{ev.preventDefault();const id
   const teams=[...$("#c-teams").querySelectorAll("input:checked")].map(i=>i.value);if(!teams.length){toast("Изберете поне един отдел.");return;}
   const rec={name:$("#c-name").value.trim(),teams:teams,team:teams[0],hours:+$("#c-hours").value||0,link:u||"",wishes:w||"",color:sel?sel.value:COLORS[0],archived:false};
   const ref=id?S.db.doc("clients/"+id):S.db.collection("clients").doc();
-  if(await tryW(ref.set(rec)))$("#d-client").close();});
-arm($("#c-del"),async()=>{const c=S.clients[cur.client];if(await tryW(S.db.doc("clients/"+cur.client).set(Object.assign({},c,{archived:true}))))$("#d-client").close();});
+  if(await tryW(id?ref.update(changes(cur.orig,rec)):ref.set(rec)))$("#d-client").close();});
+arm($("#c-del"),async()=>{if(await tryW(S.db.doc("clients/"+cur.client).update({archived:true})))$("#d-client").close();});
 
 /* ---------- boot ---------- */
 function route(){const t=(location.hash||"").slice(1);S.tab=["today","tasks","timer","board","web","events","design","due","calendar","reports","team","hr"].includes(t)?t:"today";schedule();}
