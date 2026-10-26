@@ -1,17 +1,17 @@
 # Graph Report - RUSHTEAM  (2026-10-26)
 
 ## Corpus Check
-- 21 files · ~16,680 words
+- 21 files · ~16,808 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 9 file(s) not represented in the graph (top: (none) 3, .example 2, .toml 2)
 
 ## Summary
-- 279 nodes · 731 edges · 16 communities (13 shown, 3 thin omitted)
+- 279 nodes · 732 edges · 16 communities (13 shown, 3 thin omitted)
 - Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 28 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `6408721b`
+- Built from commit: `064c211d`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
