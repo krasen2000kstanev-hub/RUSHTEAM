@@ -36,7 +36,7 @@ const DEPTS=[["media","Медия"],["hr","Подбор"],["all","И двете"
 const actName=id=>(ACTS.find(a=>a[0]===id)||[0,"Друго"])[1];
 
 const S={db:null,user:null,uid:null,isAdmin:false,canWrite:true,ready:false,
-  clients:{},videos:{},shoots:{},tasks:{},members:{},depts:{},people:{},booted:false,hr:{companies:null,err:"",at:0,loading:false},hrPaused:false,prof:{},myDays:{},rep:{},hrClientNotes:{},hrSearch:"",
+  clients:{},videos:{},shoots:{},tasks:{},members:{},depts:{},people:{},booted:false,hr:{companies:null,err:"",at:0,loading:false},hrPaused:false,prof:{},myDays:{},rep:{},hrClientNotes:{},hrSearch:"",hrOpen:new Set(),
   tab:"timer",preset:"month",from:"",to:"",fClient:"",fFmt:"",mine:false,fWho:"",taskFilter:"all",dl:null,cal:null,runId:null,hrClientStage:"",hrClientStatus:"all",teamSearch:"",teamFilter:"all"};
 
 /* ---------- time helpers ---------- */
@@ -554,12 +554,20 @@ function vHrCompanies(){
   if(!filtered.length){root.append(h("div",{class:"panel empty"},"Няма компании с този филтър."));return root;}
   const companyCard=m=>{const meta=m.meta,id=hrClientId(m.name),note=(S.hrClientNotes[id]||{}).description||m.description||"",link=safeUrl(m.link),paySelect=h("select",{class:"btn",value:meta.payStatus,disabled:!write,"aria-label":"Плащане",onchange:e=>saveHrClientMeta({company:m.name},{payStatus:e.target.value})},h("option",{value:"paying"},"Плаща"),h("option",{value:"not_paying"},"Не плаща"),h("option",{value:"pending"},"В изчакване")),activeSelect=h("select",{class:"btn",value:meta.activeStatus,disabled:!write,"aria-label":"Активност",onchange:e=>saveHrClientMeta({company:m.name},{activeStatus:e.target.value})},h("option",{value:"active"},"Активна"),h("option",{value:"inactive"},"Неактивна"));
     const positions=m.positions;
-    const cards=positions.map(p=>h("div",{class:"drow",style:"display:block"},h("b",null,p.title),h("div",{class:"small muted",style:"margin-top:4px"},"Кандидати: "+p.candidates+" · Проверени: "+p.checked+" · Интервюта: "+p.interview+" · Отхвърлени: "+p.rejected+(p.hired?" · Наети: "+p.hired:"")),p.description?h("div",{class:"small",style:"white-space:pre-wrap;overflow-wrap:anywhere;margin-top:4px"},p.description):null,));
+    const cards=positions.map(p=>h("div",{class:"drow",style:"display:block"},h("b",null,p.title),h("div",{class:"small muted",style:"margin-top:4px"},"Кандидати: "+p.candidates+" · Проверени: "+p.checked+" · Интервюта: "+p.interview+" · Отхвърлени: "+p.rejected+(p.hired?" · Наети: "+p.hired:"")),p.description?h("details",{class:"small",style:"margin-top:4px"},h("summary",{style:"cursor:pointer"},"Описание"),h("div",{style:"white-space:pre-wrap;overflow-wrap:anywhere;margin-top:4px"},p.description)):null));
     const positionView=positions.length?h("div",{style:"display:flex;flex-direction:column;gap:8px"},cards):h("div",{class:"small muted"},m.error==="not_shared"?"Базата не е споделена със сервизния акаунт на платформата.":m.error?"Базата не се прочете. Опитайте „Обнови“.":meta.activeStatus==="active"?"Няма позиции в базата.":"Неактивна компания – позициите не се четат.");
-    return h("section",{class:"panel box"},h("div",{class:"ph"},h("div",null,h("h3",{style:"margin:0"},m.name),h("div",{class:"small muted"},paySelect," ",activeSelect)),link?h("a",{class:"btn",href:link,target:"_blank",rel:"noopener noreferrer",title:"Отвори базата на компанията"},"База на компанията ↗"):h("span",{class:"small muted"},"Няма добавена база")),h("p",{class:"small",style:"white-space:pre-wrap;overflow-wrap:anywhere"},note||"Няма описание за компанията."),write?h("button",{class:"btn ghost",type:"button",onclick:()=>openHrClient(id,m.name)},note?"Редактирай описание":"Добави описание"):null,h("h4",null,"Позиции · "+positions.length),positionView);
+    const total=positions.reduce((n,p)=>n+p.candidates,0);
+    return h("details",{class:"panel box hr-co",open:S.hrOpen.has(id),ontoggle:e=>e.target.open?S.hrOpen.add(id):S.hrOpen.delete(id)},
+      h("summary",null,h("h3",{style:"margin:0"},m.name),h("span",{class:"small muted"},m.error?"⚠ базата не се прочете":positions.length+(positions.length===1?" позиция":" позиции")+" · "+total+" кандидати")),
+      h("div",{class:"hr-co-controls"},paySelect,activeSelect,link?h("a",{class:"btn",href:link,target:"_blank",rel:"noopener noreferrer",title:"Отвори базата на компанията"},"База на компанията ↗"):h("span",{class:"small muted"},"Няма добавена база")),h("p",{class:"small",style:"white-space:pre-wrap;overflow-wrap:anywhere"},note||"Няма описание за компанията."),write?h("button",{class:"btn ghost",type:"button",onclick:()=>openHrClient(id,m.name)},note?"Редактирай описание":"Добави описание"):null,h("h4",null,"Позиции · "+positions.length),positionView);
   };
   const activeCompanies=filtered.filter(m=>m.meta.activeStatus==="active"),inactiveCompanies=filtered.filter(m=>m.meta.activeStatus!=="active");
-  const group=(label,items,muted)=>items.length?h("section",{class:"panel",style:muted?"opacity:.9":""},h("div",{class:"ph"},h("span",null,label),h("span",{class:"small muted"},items.length+" компании")),h("div",{class:"two"},items.map(companyCard))):null;
+  // Компаниите са свити до име и бройки; неактивните са в отделна свита група. Отвореното се помни при опресняване.
+  const setAll=(items,open)=>{items.forEach(m=>open?S.hrOpen.add(hrClientId(m.name)):S.hrOpen.delete(hrClientId(m.name)));schedule();};
+  const group=(label,items,muted)=>{if(!items.length)return null;const all=items.every(m=>S.hrOpen.has(hrClientId(m.name))),key="group:"+label;
+    const head=[h("span",null,label),h("span",{class:"sp"}),h("span",{class:"small muted"},items.length+" компании"),h("button",{class:"btn ghost",type:"button",onclick:e=>{e.preventDefault();setAll(items,!all);}},all?"Свий всички":"Разгъни всички")];
+    const body=h("div",{class:"two",style:"padding:12px"},items.map(companyCard));
+    return muted?h("details",{class:"panel hr-group",style:"opacity:.9",open:S.hrOpen.has(key),ontoggle:e=>e.target.open?S.hrOpen.add(key):S.hrOpen.delete(key)},h("summary",{class:"ph"},...head),body):h("section",{class:"panel"},h("div",{class:"ph"},...head),body);};
   root.append(group("Активни компании",activeCompanies,false),group("Неактивни компании",inactiveCompanies,true));return root;
 }
 function vHr(){

@@ -324,4 +324,12 @@ img{max-width:100%}
 .login-card p{margin:0}
 #gbtn{min-height:44px}
 .who{display:flex;align-items:center;gap:6px}
-
+/* Подбор: свиваеми компании */
+.hr-co summary,.hr-group>summary{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.hr-co summary{justify-content:space-between}
+.hr-co summary::-webkit-details-marker,.hr-group>summary::-webkit-details-marker{display:none}
+.hr-co summary h3::before,.hr-group>summary>span:first-child::before{content:"▸ ";color:var(--muted)}
+.hr-co[open] summary h3::before,.hr-group[open]>summary>span:first-child::before{content:"▾ "}
+.hr-co summary:focus-visible,.hr-group>summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hr-co[open] summary{margin-bottom:10px}
+.hr-co-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}
