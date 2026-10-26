@@ -128,7 +128,31 @@ Resources:
             Statement:
               - Effect: Allow
                 Action: lambda:InvokeFunction
-                Resource: !GetAtt MonthlyReportFunction.Arn
+                Resource: [!GetAtt MonthlyReportFunction.Arn, !GetAtt DailyDigestFunction.Arn]
+
+  DailyDigestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/monthly.daily
+      Timeout: 60
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref TeamHubTable
+        - Statement:
+            - Effect: Allow
+              Action: ses:SendEmail
+              Resource: '*'
+
+  DailyDigestSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      ScheduleExpression: cron(30 8 ? * MON-FRI *)
+      ScheduleExpressionTimezone: Europe/Sofia
+      FlexibleTimeWindow: { Mode: 'OFF' }
+      Target:
+        Arn: !GetAtt DailyDigestFunction.Arn
+        RoleArn: !GetAtt MonthlyReportScheduleRole.Arn
 
   MonthlyReportSchedule:
     Type: AWS::Scheduler::Schedule

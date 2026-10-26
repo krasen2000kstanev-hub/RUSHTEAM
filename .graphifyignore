@@ -1,0 +1,8 @@
+# Graphify: само кодът, без собствените си файлове и документацията
+graph.html
+graph.json
+GRAPH_REPORT.md
+graphify-out/
+node_modules/
+package-lock.json
+*.md

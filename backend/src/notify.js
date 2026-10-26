@@ -20,13 +20,27 @@ const idsForChange = (event) => {
   return ids;
 };
 
+const KIND = { media: 'видео', web: 'сайт', events: 'събитие', design: 'дизайн задача' };
+const WHAT = { tasks: 'споделена задача', shoots: 'снимачен ден', clients: 'клиент', hrclients: 'клиент (подбор)', members: 'права', depts: 'права', time: 'време' };
+const VERB = { created: 'създаде', updated: 'промени', deleted: 'изтри' };
+
+// Човешки текст за имейла: „Красен приключи събитие „ДСК ОБУЧЕНИЕ““ вместо „updated videos/a8F3…“.
+export function describe(event, url = '') {
+  const data = event.newData || event.oldData || {};
+  const what = event.collection === 'videos' ? KIND[data.team] || 'задача' : WHAT[event.collection] || event.collection;
+  const finished = event.action === 'updated' && ((event.newData?.doneAt && !event.oldData?.doneAt) || (event.newData?.done && !event.oldData?.done));
+  const verb = finished ? 'приключи' : VERB[event.action] || event.action;
+  const title = data.title || data.name || data.company || '';
+  const line = `${event.actorName || 'Системата'} ${verb} ${what}${title ? ` „${title}“` : ''}`;
+  return { subject: `Team Hub: ${line}`, body: [line + '.', url && `Отвори: ${url}`].filter(Boolean).join('\n\n') };
+}
+
 export async function handler(event) {
   const env = process.env; const users = await listUsers(env); const affected = idsForChange(event);
   const managers = users.filter((user) => user.active && user.role === 'admin').map((user) => user.id);
   const recipients = [...new Set(users.filter((user) => user.active && user.email && [...affected, ...managers].includes(user.id)).map((user) => user.email))];
   if (!recipients.length || !env.SES_FROM_EMAIL) return { skipped: true };
-  const subject = `Team Hub: ${event.action} ${event.collection}/${event.id}`;
-  const body = ['Има промяна в Team Hub.', `Действие: ${event.action}`, `Обект: ${event.collection}/${event.id}`, `Извършил: ${event.actorName || event.actor || 'системата'}`, `Отвори: ${env.FRONTEND_URL || ''}`].join('\n');
+  const { subject, body } = describe(event, env.FRONTEND_URL);
   await ses.send(new SendEmailCommand({ FromEmailAddress: env.SES_FROM_EMAIL, Destination: { ToAddresses: recipients }, Content: { Simple: { Subject: { Data: subject, Charset: 'UTF-8' }, Body: { Text: { Data: body, Charset: 'UTF-8' } } } } }));
   return { sent: recipients.length };
 }

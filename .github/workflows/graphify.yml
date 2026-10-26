@@ -1,0 +1,42 @@
+name: Update Graphify map
+
+# Картата на кода (graph.html, graph.json, GRAPH_REPORT.md) се обновява сама след всяка промяна на кода.
+# ponytail: имената на групите са в graphify-out/.graphify_labels.json; група, чийто състав се смени много,
+# получава автоматично име, докато някой не я преименува там.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "**.js"
+      - "**.mjs"
+      - "backend/package.json"
+      - ".graphifyignore"
+      - "graphify-out/.graphify_labels.json"
+  workflow_dispatch:
+
+jobs:
+  graph:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build graph
+        run: |
+          pip install graphifyy==0.9.94
+          graphify update . --force
+          cp graphify-out/graph.html graphify-out/graph.json graphify-out/GRAPH_REPORT.md .
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add graph.html graph.json GRAPH_REPORT.md
+          git diff --cached --quiet || (git commit -m "chore: update Graphify map" && git push)

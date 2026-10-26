@@ -11,3 +11,8 @@ backend/template.packaged.yaml
 *.zip
 .DS_Store
 Thumbs.db
+
+# Graphify: пазим само имената на групите; останалото се генерира
+graphify-out/*
+!graphify-out/.graphify_labels.json
+!graphify-out/.graphify_labels.json.sig

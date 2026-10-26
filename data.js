@@ -129,13 +129,16 @@
     syncing = true;
     const batch = subs.slice();
     try {
-      const out = await api("/api/sync", { method: "POST", body: { queries: batch.map((s) => ({ collection: s.collection, where: s.where })) } });
+      const out = await api("/api/sync", { method: "POST", body: { queries: batch.map((s) => ({ collection: s.collection, where: s.where, hash: s.hash })) } });
       if (out.user && (out.user.role !== me.role || JSON.stringify(out.user.teams) !== JSON.stringify(me.teams))) { location.reload(); return; }
       (out.results || []).forEach((result, i) => {
         const sub = batch[i];
         if (!sub || subs.indexOf(sub) < 0) return;
         // Грешка за един списък: пазим последните данни, вместо да ги покажем празни.
         if (result.error && sub.last !== undefined) return;
+        // Нищо не е променено: сървърът праща само отпечатъка, не целия списък.
+        if (result.same && sub.last !== undefined) return;
+        sub.hash = result.hash;
         const docs = result.docs || [];
         const signature = JSON.stringify(docs);
         if (signature === sub.last) return;
