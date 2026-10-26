@@ -204,7 +204,7 @@ function openTask(id){
   $("#task-priority").checked=!!(t&&t.priority);$("#task-done").checked=!!(t&&t.done);$("#task-priority-label").hidden=!S.isAdmin;$("#d-task").showModal();
 }
 function vTasks(){
-  const root=h("div",{style:"display:flex;flex-direction:column;gap:14px"}),today=ymd(new Date()),allItems=Object.entries(S.tasks),items=allItems.filter(([,t])=>S.taskFilter==="mine"?(t.participants||[]).includes(S.uid):S.taskFilter==="overdue"?Boolean(t.due&&t.due<today&&!t.done):true).sort((a,b)=>Number(!!a[1].done)-Number(!!b[1].done)||(Number(!!b[1].priority)-Number(!!a[1].priority))||(b[1].createdAt||0)-(a[1].createdAt||0));
+  const root=h("div",{style:"display:flex;flex-direction:column;gap:14px"}),today=ymd(new Date()),allItems=Object.entries(S.tasks),items=allItems.filter(([,t])=>S.taskFilter==="mine"?(t.participants||[]).includes(S.uid):S.taskFilter==="overdue"?Boolean(t.due&&t.due<today&&!t.done):true).sort((a,b)=>Number(!!a[1].done)-Number(!!b[1].done)||(a[1].due||"9999").localeCompare(b[1].due||"9999")||(b[1].createdAt||0)-(a[1].createdAt||0));
   const filter=h("select",{class:"btn",value:S.taskFilter,"aria-label":"Филтър на задачите",onchange:e=>{S.taskFilter=e.target.value;schedule();}},h("option",{value:"all"},"Всички задачи"),h("option",{value:"mine"},"Моите задачи"),h("option",{value:"overdue"},"Просрочени"));
   root.append(h("div",{class:"bar"},h("div",null,h("h2",null,"Задачи"),h("p",{class:"small muted",style:"margin:2px 0 0"},"Лични, назначени и споделени задачи.")),h("span",{class:"sp"}),filter,h("button",{class:"btn primary w-only",type:"button",onclick:()=>openTask(null)},"+ Нова задача")));
   const panel=h("section",{class:"panel"});if(!items.length)panel.append(h("div",{class:"empty"},"Няма споделени задачи."));
