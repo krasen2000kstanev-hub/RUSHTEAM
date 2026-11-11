@@ -20,7 +20,7 @@ const idsForChange = (event) => {
   return ids;
 };
 
-const KIND = { media: 'видео', web: 'сайт', events: 'събитие', design: 'дизайн задача' };
+const KIND = { media: 'видео', web: 'сайт', events: 'събитие', design: 'дизайн задача', social: 'публикация' };
 const WHAT = { tasks: 'споделена задача', shoots: 'снимачен ден', clients: 'клиент', hrclients: 'клиент (подбор)', members: 'права', depts: 'права', time: 'време' };
 const VERB = { created: 'създаде', updated: 'промени', deleted: 'изтри' };
 

@@ -179,3 +179,12 @@ test('several owners: only newly added ones are checked', () => {
   // смяна на отдел: проверяват се всички
   assert.deepEqual(ownersToCheck({ team: 'web', who: 'a' }, { team: 'media', who: 'a' }), ['a']);
 });
+
+test('social media team: own board, kept by normalizeTeams, closed to other teams', () => {
+  const marketer = { id: 'u_s', role: 'member', teams: ['social'], active: true };
+  assert.deepEqual(normalizeTeams(['social', 'root']), ['social']);
+  assert.equal(canWriteDoc(marketer, K('videos'), 'a', null, { team: 'social' }), true);
+  assert.equal(canReadDoc(marketer, K('videos'), 'a', { team: 'social' }), true);
+  assert.equal(canReadDoc(designer, K('videos'), 'a', { team: 'social' }), false);
+  assert.equal(canWriteDoc(marketer, K('videos'), 'a', null, { team: 'design' }), false);
+});

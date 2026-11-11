@@ -1,5 +1,5 @@
 // Правила за достъп. Чисти функции, за да се тестват без база.
-export const ALL_TEAMS = ['media', 'web', 'events', 'design', 'hr'];
+export const ALL_TEAMS = ['media', 'web', 'events', 'design', 'social', 'hr'];
 const SEGMENT = /^[A-Za-z0-9_\-.~:@+]{1,120}$/;
 
 export function parsePath(path) {

@@ -16,9 +16,10 @@ const TEAMS={
   media:{name:"Видео създаване",one:"видео",add:"+ Ново видео",stages:STAGES},
   web:{name:"Сайтове",one:"сайт",add:"+ Нов сайт",stages:[["brief","Бриф"],["design","Дизайн"],["dev","Разработка"],["backend","Backend"],["content","Съдържание"],["review","Преглед от клиента"],["legal","Юрист"],["done","Пуснат"]]},
   events:{name:"Събития",one:"събитие",add:"+ Ново събитие",stages:[["request","Запитване"],["plan","Планиране"],["vendors","Локация и доставчици"],["promo","Промоция"],["ready","Готово за провеждане"],["done","Проведено"]]},
-  design:{name:"Дизайн",one:"дизайн задача",add:"+ Нова задача",stages:[["brief","Бриф"],["concept","Концепция"],["work","Изработка"],["review","Ревизия"],["done","Предадено"]]}};
-const TASK_TEMPLATES={media:[["Сценарий","Потвърден бриф","Сценарий/структура","Заснемане","Монтаж","Вътрешна ревизия","Одобрение от клиент","Публикуване"]],web:[["Уеб проект","Събрани изисквания","Структура и дизайн","Разработка","QA проверка","Юрист: общи условия, бисквитки, политики","Предаване"]],events:[["Събитие","Дата и локация","Доставчици","Програма","Потвърждение с клиента","Провеждане"]],design:[["Дизайн","Бриф","Концепция","Изработка","Вътрешна ревизия","Предаване"]]};
-const TAB_TEAM={board:"media",web:"web",events:"events",design:"design"},ALLT=["media","web","events","design","hr"],TNAME={media:"Видео",web:"Сайтове",events:"Събития",design:"Дизайн",hr:"Подбор"};
+  design:{name:"Дизайн",one:"дизайн задача",add:"+ Нова задача",stages:[["brief","Бриф"],["concept","Концепция"],["work","Изработка"],["review","Ревизия"],["done","Предадено"]]},
+  social:{name:"Социални мрежи",one:"публикация",add:"+ Нова публикация",stages:[["idea","Идея"],["content","Текст и визия"],["review","Одобрение от клиента"],["scheduled","Планирано"],["done","Публикувано"]]}};
+const TASK_TEMPLATES={media:[["Сценарий","Потвърден бриф","Сценарий/структура","Заснемане","Монтаж","Вътрешна ревизия","Одобрение от клиент","Публикуване"]],web:[["Уеб проект","Събрани изисквания","Структура и дизайн","Разработка","QA проверка","Юрист: общи условия, бисквитки, политики","Предаване"]],events:[["Събитие","Дата и локация","Доставчици","Програма","Потвърждение с клиента","Провеждане"]],design:[["Дизайн","Бриф","Концепция","Изработка","Вътрешна ревизия","Предаване"]],social:[["Публикация","Бриф и платформа","Текст","Визия","Одобрение от клиента","Планиране","Публикуване"]]};
+const TAB_TEAM={board:"media",web:"web",events:"events",design:"design",social:"social"},ALLT=["media","web","events","design","social","hr"],TNAME={media:"Видео",web:"Сайтове",events:"Събития",design:"Дизайн",social:"Социални мрежи",hr:"Подбор"};
 const teamOf=v=>TEAMS[v.team]?v.team:"media",stagesOf=v=>TEAMS[teamOf(v)].stages;
 // Отговорници: `who` е главният (за известията и старите записи), `helpers` са останалите.
 const ownersOf=v=>[...new Set([v.who,...(Array.isArray(v.helpers)?v.helpers:[])].filter(Boolean))];
@@ -172,7 +173,7 @@ function visibleTeamMemberIds(){const mine=myTeams(),manager=Boolean(S.isAdmin||
 function allowed(t){const m=myTeams(),d=S.depts[S.uid]||{},isManager=Boolean(d.manager||S.members[S.uid]?.role==="manager");if(t==="today")return !!S.uid;if(t==="tasks")return !!S.uid&&m.length>0;if(t==="hr")return m.includes("hr");if(t==="team")return m.length>0||isManager;if(TAB_TEAM[t])return m.includes(TAB_TEAM[t]);if(t==="calendar")return m.includes("media")||m.includes("events");if(t==="timer"||t==="reports")return m.some(x=>x!=="hr"&&x!=="events");return m.some(x=>x!=="hr");}
 /* ---------- views ---------- */
 function render(){
-  const onlyHr=!myTeams().some(x=>x!=="hr"&&x!=="events");const rdy=S.booted&&(S.isAdmin||S.deptsLoaded);if(rdy&&!allowed(S.tab))S.tab=["today","tasks","timer","board","web","events","design","due","calendar","reports","team","hr"].find(allowed)||"today";document.body.dataset.tab=S.tab;
+  const onlyHr=!myTeams().some(x=>x!=="hr"&&x!=="events");const rdy=S.booted&&(S.isAdmin||S.deptsLoaded);if(rdy&&!allowed(S.tab))S.tab=["today","tasks","timer","board","web","events","design","social","due","calendar","reports","team","hr"].find(allowed)||"today";document.body.dataset.tab=S.tab;
   $("#timer").hidden=onlyHr||S.tab==="hr"||S.tab==="events";
   if(S.tab==="hr"&&!S.hrPaused&&S.booted&&!S.hr.companies&&!S.hr.loading&&!S.hr.err)loadHr();
   document.body.classList.toggle("ro",!S.canWrite||!S.db);document.body.classList.toggle("adm",S.isAdmin);
@@ -185,7 +186,7 @@ function render(){
   v.textContent="";
   if(!rdy){v.append(h("div",{class:"panel empty"},"Зареждане…"));return;}
   if(!allowed(S.tab)){v.append(h("div",{class:"panel empty"},"Още нямате достъп до нито един екип. Помолете мениджър да ви добави от „Екип и клиенти“."));return;}
-  v.append(({today:vToday,tasks:vTasks,timer:vTimer,board:vBoard,web:vBoard,events:vBoard,design:vBoard,due:vDue,hr:vHr,calendar:vCal,reports:vReports,team:vTeam}[S.tab]||vToday)());
+  v.append(({today:vToday,tasks:vTasks,timer:vTimer,board:vBoard,web:vBoard,events:vBoard,design:vBoard,social:vBoard,due:vDue,hr:vHr,calendar:vCal,reports:vReports,team:vTeam}[S.tab]||vToday)());
   const bd=v.querySelector(".board");if(bd&&scx)bd.scrollLeft=scx;
   v.querySelectorAll(".tw table").forEach(t=>{const hs=[...t.querySelectorAll("thead th")].map(x=>x.textContent);t.querySelectorAll("tbody tr").forEach(r=>[...r.children].forEach((td,i)=>td.setAttribute("data-label",hs[i]||"")));});
 }
@@ -790,7 +791,7 @@ $("#f-client").addEventListener("submit",async ev=>{ev.preventDefault();const id
 arm($("#c-del"),async()=>{if(await tryW(S.db.doc("clients/"+cur.client).update({archived:true})))$("#d-client").close();});
 
 /* ---------- boot ---------- */
-function route(){const t=(location.hash||"").slice(1);S.tab=["today","tasks","timer","board","web","events","design","due","calendar","reports","team","hr"].includes(t)?t:"today";schedule();}
+function route(){const t=(location.hash||"").slice(1);S.tab=["today","tasks","timer","board","web","events","design","social","due","calendar","reports","team","hr"].includes(t)?t:"today";schedule();}
 window.addEventListener("hashchange",route);
 fillSelects();route();
 
