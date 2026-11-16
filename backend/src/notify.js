@@ -21,7 +21,7 @@ const idsForChange = (event) => {
 };
 
 const KIND = { media: 'видео', web: 'сайт', events: 'събитие', design: 'дизайн задача', social: 'публикация' };
-const WHAT = { tasks: 'споделена задача', shoots: 'снимачен ден', clients: 'клиент', hrclients: 'клиент (подбор)', members: 'права', depts: 'права', time: 'време' };
+const WHAT = { tasks: 'споделена задача', shoots: 'снимачен ден', clients: 'клиент', hrclients: 'клиент (подбор)', members: 'права', depts: 'права', time: 'време', schedules: 'график за седмицата' };
 const VERB = { created: 'създаде', updated: 'промени', deleted: 'изтри' };
 
 // Човешки текст за имейла: „Красен приключи събитие „ДСК ОБУЧЕНИЕ““ вместо „updated videos/a8F3…“.

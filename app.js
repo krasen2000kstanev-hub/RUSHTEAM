@@ -38,7 +38,7 @@ const actName=id=>(ACTS.find(a=>a[0]===id)||[0,"Друго"])[1];
 
 const S={db:null,user:null,uid:null,isAdmin:false,canWrite:true,ready:false,
   clients:{},videos:{},shoots:{},tasks:{},members:{},depts:{},people:{},booted:false,hr:{companies:null,err:"",at:0,loading:false},hrPaused:false,prof:{},myDays:{},rep:{},hrClientNotes:{},hrSearch:"",hrOpen:new Set(),
-  tab:"timer",preset:"month",from:"",to:"",fClient:"",fFmt:"",mine:false,fWho:"",taskFilter:"all",dl:null,cal:null,runId:null,hrClientStage:"",hrClientStatus:"all",teamSearch:"",teamFilter:"all"};
+  schedules:{},schWeek:"",tab:"timer",preset:"month",from:"",to:"",fClient:"",fFmt:"",mine:false,fWho:"",taskFilter:"all",dl:null,cal:null,runId:null,hrClientStage:"",hrClientStatus:"all",teamSearch:"",teamFilter:"all"};
 
 /* ---------- time helpers ---------- */
 const p2=n=>String(n).padStart(2,"0");
@@ -170,10 +170,10 @@ const founderId=id=>Boolean(S.depts[id]?.founder||S.people[id]?.role==="founder"
 function myTeams(){return S.isAdmin?ALLT:teamsOf(S.uid);}
 function deptManager(){const d=S.depts[S.uid]||{};return Boolean(S.isAdmin||d.manager);}
 function visibleTeamMemberIds(){const mine=myTeams(),manager=Boolean(S.isAdmin||(S.depts[S.uid]||{}).manager||S.members[S.uid]?.role==="manager");return memberIds().filter(id=>S.isAdmin||manager||id===S.uid||(!founderId(id)&&teamsOf(id).some(t=>mine.includes(t))));}
-function allowed(t){const m=myTeams(),d=S.depts[S.uid]||{},isManager=Boolean(d.manager||S.members[S.uid]?.role==="manager");if(t==="today")return !!S.uid;if(t==="tasks")return !!S.uid&&m.length>0;if(t==="hr")return m.includes("hr");if(t==="team")return m.length>0||isManager;if(TAB_TEAM[t])return m.includes(TAB_TEAM[t]);if(t==="calendar")return m.includes("media")||m.includes("events");if(t==="timer"||t==="reports")return m.some(x=>x!=="hr"&&x!=="events");return m.some(x=>x!=="hr");}
+function allowed(t){const m=myTeams(),d=S.depts[S.uid]||{},isManager=Boolean(d.manager||S.members[S.uid]?.role==="manager");if(t==="today")return !!S.uid;if(t==="tasks"||t==="schedule")return !!S.uid&&m.length>0;if(t==="hr")return m.includes("hr");if(t==="team")return m.length>0||isManager;if(TAB_TEAM[t])return m.includes(TAB_TEAM[t]);if(t==="calendar")return m.includes("media")||m.includes("events");if(t==="timer"||t==="reports")return m.some(x=>x!=="hr"&&x!=="events");return m.some(x=>x!=="hr");}
 /* ---------- views ---------- */
 function render(){
-  const onlyHr=!myTeams().some(x=>x!=="hr"&&x!=="events");const rdy=S.booted&&(S.isAdmin||S.deptsLoaded);if(rdy&&!allowed(S.tab))S.tab=["today","tasks","timer","board","web","events","design","social","due","calendar","reports","team","hr"].find(allowed)||"today";document.body.dataset.tab=S.tab;
+  const onlyHr=!myTeams().some(x=>x!=="hr"&&x!=="events");const rdy=S.booted&&(S.isAdmin||S.deptsLoaded);if(rdy&&!allowed(S.tab))S.tab=["today","tasks","timer","board","web","events","design","social","due","calendar","schedule","reports","team","hr"].find(allowed)||"today";document.body.dataset.tab=S.tab;
   $("#timer").hidden=onlyHr||S.tab==="hr"||S.tab==="events";
   if(S.tab==="hr"&&!S.hrPaused&&S.booted&&!S.hr.companies&&!S.hr.loading&&!S.hr.err)loadHr();
   document.body.classList.toggle("ro",!S.canWrite||!S.db);document.body.classList.toggle("adm",S.isAdmin);
@@ -186,7 +186,7 @@ function render(){
   v.textContent="";
   if(!rdy){v.append(h("div",{class:"panel empty"},"Зареждане…"));return;}
   if(!allowed(S.tab)){v.append(h("div",{class:"panel empty"},"Още нямате достъп до нито един екип. Помолете мениджър да ви добави от „Екип и клиенти“."));return;}
-  v.append(({today:vToday,tasks:vTasks,timer:vTimer,board:vBoard,web:vBoard,events:vBoard,design:vBoard,social:vBoard,due:vDue,hr:vHr,calendar:vCal,reports:vReports,team:vTeam}[S.tab]||vToday)());
+  v.append(({today:vToday,tasks:vTasks,timer:vTimer,board:vBoard,web:vBoard,events:vBoard,design:vBoard,social:vBoard,due:vDue,schedule:vSchedule,hr:vHr,calendar:vCal,reports:vReports,team:vTeam}[S.tab]||vToday)());
   const bd=v.querySelector(".board");if(bd&&scx)bd.scrollLeft=scx;
   v.querySelectorAll(".tw table").forEach(t=>{const hs=[...t.querySelectorAll("thead th")].map(x=>x.textContent);t.querySelectorAll("tbody tr").forEach(r=>[...r.children].forEach((td,i)=>td.setAttribute("data-label",hs[i]||"")));});
 }
@@ -790,8 +790,51 @@ $("#f-client").addEventListener("submit",async ev=>{ev.preventDefault();const id
   if(await tryW(id?ref.update(changes(cur.orig,rec)):ref.set(rec)))$("#d-client").close();});
 arm($("#c-del"),async()=>{if(await tryW(S.db.doc("clients/"+cur.client).update({archived:true})))$("#d-client").close();});
 
+/* ---------- график за седмицата ---------- */
+// Всеки попълва кога му е удобно да работи. Документ „schedules/<понеделник>_<потребител>“; пише само собственикът.
+const WDAYS=[["mon","Пн"],["tue","Вт"],["wed","Ср"],["thu","Чт"],["fri","Пт"],["sat","Сб"],["sun","Нд"]];
+let schUnsub=null;S.schWeek=ymd(weekStart(new Date()));
+function subSchedules(){if(!S.db)return;if(schUnsub)schUnsub();S.schedules={};
+  schUnsub=S.db.collection("schedules").where("week","==",S.schWeek).onSnapshot(s=>{const o={};s.docs.forEach(d=>{o[d.id]=d.data();});S.schedules=o;if(S.tab==="schedule")schedule();},onErr);}
+function schMove(n){S.schWeek=ymd(addDays(pd(S.schWeek),7*n));subSchedules();schedule();}
+const schText=d=>{if(!d)return "";const t=d.from&&d.to?d.from+"–"+d.to:d.from?"от "+d.from:d.to?"до "+d.to:"";return [t,d.note].filter(Boolean).join(" · ");};
+function vSchedule(){
+  const root=h("div",{style:"display:flex;flex-direction:column;gap:16px"}),mon=pd(S.schWeek),today=ymd(new Date()),thisWeek=ymd(weekStart(new Date()));
+  const dates=WDAYS.map((_,i)=>ymd(addDays(mon,i))),mine=S.schedules[S.schWeek+"_"+S.uid];
+  root.append(h("div",{class:"bar"},
+    h("button",{class:"btn",type:"button",onclick:()=>schMove(-1),"aria-label":"Предишна седмица"},"←"),
+    h("b",null,shortDate(dates[0])+" – "+shortDate(dates[6])),
+    h("button",{class:"btn",type:"button",onclick:()=>schMove(1),"aria-label":"Следваща седмица"},"→"),
+    S.schWeek!==thisWeek?h("button",{class:"btn ghost",type:"button",onclick:()=>{S.schWeek=thisWeek;subSchedules();schedule();}},"Тази седмица"):null,
+    h("span",{class:"sp"}),
+    h("button",{class:"btn primary w-only",type:"button",onclick:openSchedule},mine?"Промени моя график":"+ Попълни моя график")));
+  const people=[S.uid,...visibleTeamMemberIds().filter(id=>id!==S.uid)];
+  const head=h("tr",null,h("th",null,"Колега"),WDAYS.map(([,l],i)=>h("th",{class:dates[i]===today?"today":""},l+" "+pd(dates[i]).getDate()+"."+p2(pd(dates[i]).getMonth()+1))));
+  const rows=people.map(id=>{const r=S.schedules[S.schWeek+"_"+id],days=(r&&r.days)||{};
+    return h("tr",null,h("td",null,h("b",null,id===S.uid?nameOf(id)+" (вие)":nameOf(id)),r&&r.note?h("div",{class:"small muted"},r.note):null,!r?h("div",{class:"small muted"},"не е попълнил"):null),
+      WDAYS.map(([k])=>h("td",{class:"small"},r?(schText(days[k])||h("span",{class:"muted"},"—")):"")));});
+  root.append(h("section",{class:"panel"},h("div",{class:"ph"},h("span",null,"Кога на кого му е удобно да работи"),h("span",{class:"small muted"},"Попълва се всяка седмица")),
+    h("div",{class:"tw"},h("table",{class:"sched"},h("thead",null,head),h("tbody",null,rows)))));
+  return root;
+}
+function fillScheduleForm(r){const days=(r&&r.days)||{},box=$("#sch-days");box.textContent="";
+  WDAYS.forEach(([k,l],i)=>{const d=days[k]||{};box.append(h("div",{class:"sch-row"},h("b",null,l+" "+shortDate(ymd(addDays(pd(S.schWeek),i)))),
+    h("input",{type:"time",name:k+"-from",value:d.from||"","aria-label":l+" от"}),h("input",{type:"time",name:k+"-to",value:d.to||"","aria-label":l+" до"}),
+    h("input",{type:"text",name:k+"-note",value:d.note||"",maxLength:200,placeholder:"напр. онлайн, само сутрин","aria-label":l+" бележка"})));});
+  $("#sch-note").value=(r&&r.note)||"";}
+function openSchedule(){$("#sch-h").textContent="Моят график · "+shortDate(S.schWeek)+" – "+shortDate(ymd(addDays(pd(S.schWeek),6)));
+  fillScheduleForm(S.schedules[S.schWeek+"_"+S.uid]);$("#d-sched").showModal();}
+$("#sch-copy").addEventListener("click",async()=>{const prev=ymd(addDays(pd(S.schWeek),-7));
+  try{const snap=await S.db.doc("schedules/"+prev+"_"+S.uid).get();if(!snap.exists){toast("Нямате график за миналата седмица.");return;}fillScheduleForm(snap.data());toast("Копирано. Проверете и натиснете „Запази“.");}catch(e){toast(errMsg(e));}});
+$("#f-sched").addEventListener("submit",async ev=>{ev.preventDefault();const f=ev.target,days={};
+  WDAYS.forEach(([k])=>{const d={from:f[k+"-from"].value,to:f[k+"-to"].value,note:f[k+"-note"].value.trim()};if(d.from&&d.to&&d.to<=d.from){d.bad=1;}if(d.from||d.to||d.note)days[k]=d;});
+  if(Object.values(days).some(d=>d.bad)){toast("Краят трябва да е след началото.");return;}
+  const rec={owner:S.uid,week:S.schWeek,days:days,note:$("#sch-note").value.trim()};
+  // Само собственикът пише в своя график, затова целият запис се праща наведнъж.
+  if(await tryW(S.db.doc("schedules/"+S.schWeek+"_"+S.uid).set(rec),"Графикът е запазен."))$("#d-sched").close();});
+
 /* ---------- boot ---------- */
-function route(){const t=(location.hash||"").slice(1);S.tab=["today","tasks","timer","board","web","events","design","social","due","calendar","reports","team","hr"].includes(t)?t:"today";schedule();}
+function route(){const t=(location.hash||"").slice(1);S.tab=["today","tasks","timer","board","web","events","design","social","due","calendar","schedule","reports","team","hr"].includes(t)?t:"today";schedule();}
 window.addEventListener("hashchange",route);
 fillSelects();route();
 
@@ -806,7 +849,7 @@ fillSelects();route();
   if(!S.canWrite)showBanner("Имате достъп само за преглед.");
   let first=3;const done=()=>{if(first>0&&--first===0){S.ready=true;}};
   subCol("clients",done);subCol("videos",()=>{done();loadProfiles();if($("#d-video").open&&cur.video)renderComments();});subCol("shoots",done);subCol("tasks",()=>{loadProfiles();schedule();});subCol("hrclients",()=>{S.hrClientNotes=S.hrclients||{};schedule();});
-  subCol("members",()=>{loadProfiles();subReports();});subCol("depts",()=>{S.deptsLoaded=true;});
+  subCol("members",()=>{loadProfiles();subReports();});subCol("depts",()=>{S.deptsLoaded=true;});subSchedules();
   if(S.uid){
     db.collection("time/"+S.uid+"/days").where("date",">=",ymd(addDays(new Date(),-14))).onSnapshot(s=>{const o={};s.docs.forEach(d=>{o[d.id]=d.data();});S.myDays=o;schedule();},onErr);
     subReports();

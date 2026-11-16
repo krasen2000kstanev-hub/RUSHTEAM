@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parsePath, collectionKind, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, normalizeTeams, auditChanges, canBeAssigned, videoOwners, ownersToCheck } from '../src/rules.js';
+import { parsePath, collectionKind, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, normalizeTeams, auditChanges, canBeAssigned, videoOwners, ownersToCheck, scheduleOwner } from '../src/rules.js';
 
 const admin = { id: 'u_admin', role: 'admin', teams: [], active: true };
 const manager = { id: 'u_manager', role: 'manager', teams: ['design'], active: true };
@@ -187,4 +187,18 @@ test('social media team: own board, kept by normalizeTeams, closed to other team
   assert.equal(canReadDoc(marketer, K('videos'), 'a', { team: 'social' }), true);
   assert.equal(canReadDoc(designer, K('videos'), 'a', { team: 'social' }), false);
   assert.equal(canWriteDoc(marketer, K('videos'), 'a', null, { team: 'design' }), false);
+});
+
+test('weekly schedule: whole team reads, everyone writes only their own', () => {
+  const mine = { owner: designer.id, week: '2026-11-16', days: {} };
+  const id = `2026-11-16_${designer.id}`;
+  assert.equal(scheduleOwner(id), designer.id);
+  assert.equal(scheduleOwner('u_d'), '');
+  assert.equal(canReadDoc(editor, K('schedules'), id, mine), true);
+  assert.equal(canReadDoc(nobody, K('schedules'), id, mine), false);
+  assert.equal(canWriteDoc(designer, K('schedules'), id, null, mine), true);
+  assert.equal(canWriteDoc(editor, K('schedules'), id, mine, { ...mine, owner: editor.id }), false);
+  assert.equal(canWriteDoc(editor, K('schedules'), `2026-11-16_${editor.id}`, null, mine), false);
+  assert.equal(canWriteDoc(nobody, K('schedules'), `2026-11-16_${nobody.id}`, null, { owner: nobody.id }), false);
+  assert.equal(canWriteDoc(manager, K('schedules'), id, mine, mine), false);
 });

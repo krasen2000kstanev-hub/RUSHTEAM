@@ -17,7 +17,7 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="styles.css?v=20261026-10">
+<link rel="stylesheet" href="styles.css?v=20261116-1">
 </head>
 <body>
 <div id="login" class="login">
@@ -43,6 +43,7 @@
       <a href="#social">Социални мрежи</a>
       <a href="#due">Преглед</a>
       <a href="#calendar">Календар</a>
+      <a href="#schedule">График</a>
       <a href="#reports">Отчети</a>
       <a href="#team">Екип и клиенти</a>
       <a href="#hr">Подбор</a>
@@ -81,6 +82,13 @@
 </form></dialog>
 
 <!-- споделена задача -->
+<dialog id="d-sched"><form id="f-sched">
+  <h2 id="sch-h">Моят график</h2>
+  <p class="small muted" style="margin:0">Попълнете кога ви е удобно да работите. Празен ден значи, че не сте на разположение.</p>
+  <div id="sch-days" class="sch-days"></div>
+  <label class="f">Бележка за седмицата<input type="text" id="sch-note" maxlength="500" placeholder="напр. в сряда съм на изпит"></label>
+  <div class="dfoot"><button type="button" class="btn" id="sch-copy">Като миналата седмица</button><span class="sp"></span><button type="button" class="btn" data-close>Отказ</button><button class="btn primary">Запази</button></div>
+</form></dialog>
 <dialog id="d-task"><form id="f-task">
   <h2 id="task-h">Нова споделена задача</h2>
   <div class="fg">
@@ -219,7 +227,7 @@
 
 <script src="config.js"></script>
 <script src="data.js?v=20261026-9"></script>
-<script src="app.js?v=20261111-1"></script>
+<script src="app.js?v=20261116-1"></script>
 <script>
   // Ако браузърът блокира кеширан скрипт, входът остава достъпен вместо празна страница.
   setTimeout(function () {

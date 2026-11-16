@@ -1,5 +1,5 @@
 import { verifyGoogleIdToken, signSession, verifySession } from './auth.js';
-import { ALL_TEAMS, parsePath, collectionKind, normalizeTeams, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, isFounder, auditChanges, canBeAssigned, ownersToCheck, videoTeam } from './rules.js';
+import { ALL_TEAMS, parsePath, collectionKind, normalizeTeams, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, isFounder, auditChanges, canBeAssigned, ownersToCheck, videoTeam, scheduleOwner } from './rules.js';
 import { appendSheetRow, readHrSummary } from './sheets.js';
 import { createUser, deleteDoc, findUser, getDoc, getUser, listAudit, listDocs, listUsers, putAudit, putDoc, updateUser } from './store.js';
 import { enqueueNotification } from './notify.js';
@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 
 const MAX_BODY_BYTES = 256 * 1024;
 const MAX_SYNC_QUERIES = 80;
+const SCHEDULE_DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 class HttpError extends Error { constructor(status, code, message) { super(message); this.status = status; this.code = code; } }
 const env = () => process.env;
 // Главната таблица на „Подбор“ (листове „Достъп до Бази“ и „Обяви“). Сменя се от „⚙ Таблици“.
@@ -156,6 +157,12 @@ async function handleDoc(request, user, url) {
     for (const id of ownersToCheck(next, existing?.data)) {
       if (!canBeAssigned(toUser(await getUser(env(), id)), videoTeam(next))) throw new HttpError(400, 'bad_assignee', 'Video tasks can only be assigned to this team');
     }
+  }
+  if (kind.kind === 'schedules') {
+    const week = parsed.id.slice(0, 10); const days = plainObject(next.days) ? next.days : {};
+    const time = (v) => v === '' || v === undefined || /^\d{2}:\d{2}$/.test(v);
+    if (next.owner !== scheduleOwner(parsed.id) || next.week !== week || Object.keys(days).some((k) => !SCHEDULE_DAYS.includes(k))
+      || Object.values(days).some((d) => !plainObject(d) || !time(d.from) || !time(d.to) || String(d.note || '').length > 200) || String(next.note || '').length > 500) throw new HttpError(400, 'invalid_argument', 'Invalid schedule');
   }
   if (!canWriteDoc(user, kind, parsed.id, existing?.data || null, next)) throw new HttpError(403, 'permission_denied', 'Not allowed');
   if (JSON.stringify(next).length > MAX_BODY_BYTES) throw new HttpError(413, 'document_too_large', 'Document too large');

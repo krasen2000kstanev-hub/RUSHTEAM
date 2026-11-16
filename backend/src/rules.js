@@ -12,7 +12,7 @@ export function parsePath(path) {
 export function collectionKind(collection) {
   const segments = String(collection || '').split('/');
   if (!segments.every((segment) => SEGMENT.test(segment))) return null;
-  if (segments.length === 1 && ['clients', 'videos', 'shoots', 'members', 'depts', 'tasks', 'hrclients'].includes(segments[0])) return { kind: segments[0] };
+  if (segments.length === 1 && ['clients', 'videos', 'shoots', 'members', 'depts', 'tasks', 'hrclients', 'schedules'].includes(segments[0])) return { kind: segments[0] };
   if (segments.length === 3 && segments[0] === 'time' && segments[2] === 'days') return { kind: 'time', owner: segments[1] };
   return null;
 }
@@ -32,6 +32,8 @@ export const isFounder = (user) => user?.role === 'founder' || user?.role === 'a
 export const isManager = (user) => user?.role === 'manager';
 const usable = (user) => Boolean(user && user.active);
 const manages = (user, data) => user?.role === 'manager' && docTeams(data).some((team) => user.teams.includes(team));
+// График за седмицата: id е „<понеделник>_<потребител>“, всеки пише само своя.
+export const scheduleOwner = (id) => String(id || '').match(/^\d{4}-\d{2}-\d{2}_(.+)$/)?.[1] || '';
 const tracksTime = (user) => user.teams.some((team) => team !== 'hr' && team !== 'events');
 
 export function canReadDoc(user, kind, id, data) {
@@ -48,6 +50,7 @@ export function canReadDoc(user, kind, id, data) {
     case 'videos': return user.teams.includes(docTeam(data));
     case 'shoots': return user.teams.includes('media');
     case 'time': return kind.owner === user.id && tracksTime(user);
+    case 'schedules': return user.teams.length > 0;
     default: return false;
   }
 }
@@ -69,6 +72,7 @@ export function canWriteDoc(user, kind, id, oldData, newData) {
       return (!oldData || user.teams.includes(docTeam(oldData))) && (!newData || user.teams.includes(docTeam(newData)));
     case 'shoots': return user.teams.includes('media');
     case 'time': return kind.owner === user.id && tracksTime(user);
+    case 'schedules': return user.teams.length > 0 && scheduleOwner(id) === user.id && [oldData, newData].every((d) => !d || d.owner === user.id);
     default: return false;
   }
 }
