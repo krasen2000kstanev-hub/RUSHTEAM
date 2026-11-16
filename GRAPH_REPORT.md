@@ -1,48 +1,49 @@
 # Graph Report - RUSHTEAM  (2026-11-16)
 
 ## Corpus Check
-- 21 files · ~17,415 words
+- 21 files · ~17,985 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 9 file(s) not represented in the graph (top: (none) 3, .example 2, .toml 2)
 
 ## Summary
-- 286 nodes · 757 edges · 19 communities (16 shown, 3 thin omitted)
-- Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 31 edges (avg confidence: 0.85)
+- 296 nodes · 780 edges · 20 communities (17 shown, 3 thin omitted)
+- Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 34 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `bbe54d10`
+- Built from commit: `01b6bbff`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - notify.js
-- h
-- app.js
 - index.js
+- rules.js
+- app.js
+- h
 - role-matrix.test.mjs
 - sheets.js
-- tryW
-- handleDoc
-- rules.js
-- data.js
 - store.js
-- auth.js
-- vHrCompanies
+- data.js
 - schedule
-- renderCheck
-- listCollection
+- vHrCompanies
+- auth.js
+- openVideo
+- handleDoc
+- vReports
 - preview-server.js
+- renderCheck
+- renderSvc
 
 ## God Nodes (most connected - your core abstractions)
-1. `h()` - 28 edges
+1. `h()` - 29 edges
 2. `handleDoc()` - 25 edges
 3. `route()` - 25 edges
 4. `schedule()` - 18 edges
 5. `render()` - 17 edges
-6. `vHrCompanies()` - 15 edges
-7. `openVideo()` - 15 edges
-8. `tryW()` - 14 edges
+6. `tryW()` - 15 edges
+7. `vHrCompanies()` - 15 edges
+8. `openVideo()` - 15 edges
 9. `vBoard()` - 13 edges
 10. `env()` - 13 edges
 
@@ -61,71 +62,75 @@
 ## Import Cycles
 - None detected.
 
-## Communities (19 total, 3 thin omitted)
+## Communities (20 total, 3 thin omitted)
 
 ### Community 0 - "notify.js"
-Cohesion: 0.07
-Nodes (39): dependencies, @aws-sdk/client-dynamodb, @aws-sdk/client-lambda, @aws-sdk/client-sesv2, @aws-sdk/lib-dynamodb, devDependencies, wrangler, name (+31 more)
+Cohesion: 0.06
+Nodes (38): dependencies, @aws-sdk/client-dynamodb, @aws-sdk/client-lambda, @aws-sdk/client-sesv2, @aws-sdk/lib-dynamodb, devDependencies, wrangler, name (+30 more)
 
-### Community 1 - "h"
-Cohesion: 0.16
-Nodes (28): allowed(), cardExtra(), deptManager(), dueText(), eventDays(), fill(), fillSelects(), fillTemplateOptions() (+20 more)
-
-### Community 2 - "app.js"
-Cohesion: 0.15
-Nodes (21): dayLabel(), dur(), entryMeta(), exportAudit(), exportCsv(), fillScheduleForm(), hrs(), myEntries() (+13 more)
-
-### Community 3 - "index.js"
+### Community 1 - "index.js"
 Cohesion: 0.17
-Nodes (23): audit(), corsHeaders(), currentUser(), defaultHrSheets(), env(), eventRequest(), handler(), hrSheets() (+15 more)
+Nodes (26): audit(), corsHeaders(), currentUser(), defaultHrSheets(), env(), eventRequest(), handler(), hrSheets() (+18 more)
 
-### Community 4 - "role-matrix.test.mjs"
+### Community 2 - "rules.js"
+Cohesion: 0.14
+Nodes (26): canBeAssigned(), canReadDoc(), canWriteDoc(), docTeam(), docTeams(), isManager(), manages(), normalizeTeams() (+18 more)
+
+### Community 3 - "app.js"
+Cohesion: 0.16
+Nodes (22): addComment(), changeComments(), dayLabel(), deleteComment(), deleteEntry(), deptManager(), dueText(), dur() (+14 more)
+
+### Community 4 - "h"
+Cohesion: 0.19
+Nodes (24): allowed(), busyRow(), cardExtra(), eventDays(), fillScheduleForm(), h(), memberIds(), moveVideo() (+16 more)
+
+### Community 5 - "role-matrix.test.mjs"
 Cohesion: 0.09
 Nodes (16): head, founder, hrClient, hrClientDoc, hrManager, hrMember, mediaClient, mediaManager (+8 more)
 
-### Community 5 - "sheets.js"
+### Community 6 - "sheets.js"
 Cohesion: 0.26
 Nodes (16): accessToken(), appendSheetRow(), b64url(), b64urlText(), col(), encoder, fieldMatches, get() (+8 more)
 
-### Community 6 - "tryW"
-Cohesion: 0.21
-Nodes (16): addComment(), changeComments(), deleteComment(), deleteEntry(), editComment(), errMsg(), exportHrQuickReport(), loadProfiles() (+8 more)
+### Community 7 - "store.js"
+Cohesion: 0.29
+Nodes (13): upsertUser(), createUser(), db, deleteDoc(), findUser(), getDoc(), getUser(), key() (+5 more)
 
-### Community 7 - "handleDoc"
-Cohesion: 0.17
-Nodes (14): handleDoc(), deepMerge(), ownersToCheck(), parsePath(), videoOwners(), videoTeam(), admin, designer (+6 more)
-
-### Community 8 - "rules.js"
-Cohesion: 0.34
-Nodes (14): canBeAssigned(), canReadDoc(), canReadSheets(), canWriteDoc(), canWriteSheets(), docTeam(), docTeams(), isFounder() (+6 more)
-
-### Community 9 - "data.js"
+### Community 8 - "data.js"
 Cohesion: 0.28
 Nodes (11): api(), loadUsers(), offline(), onCredential(), setToken(), showLogin(), signOut(), snapshot() (+3 more)
 
-### Community 10 - "store.js"
-Cohesion: 0.31
-Nodes (12): upsertUser(), createUser(), db, deleteDoc(), findUser(), getDoc(), getUser(), key() (+4 more)
+### Community 9 - "schedule"
+Cohesion: 0.21
+Nodes (14): goalHint(), goalLevel(), loadHr(), onErr(), openGoal(), prevGoal(), route(), schedule() (+6 more)
+
+### Community 10 - "vHrCompanies"
+Cohesion: 0.23
+Nodes (13): exportAudit(), exportHrQuickReport(), hrCanWrite(), hrCompanyModels(), hrErr(), loadProfiles(), openHrClient(), openHrConfig() (+5 more)
 
 ### Community 11 - "auth.js"
 Cohesion: 0.40
 Nodes (9): base64UrlToBytes(), bytesToBase64Url(), decodePart(), encoder, googleKeys(), hmacKey(), signSession(), verifyGoogleIdToken() (+1 more)
 
-### Community 12 - "vHrCompanies"
+### Community 12 - "openVideo"
 Cohesion: 0.29
-Nodes (10): hrCanWrite(), hrCompanyModels(), hrErr(), openHrClient(), openHrConfig(), openHrRow(), saveHrClientMeta(), syncHrRowForm() (+2 more)
+Nodes (10): fill(), fillSelects(), fillTemplateOptions(), linkRow(), openEntry(), openShoot(), openVideo(), pairSelects() (+2 more)
 
-### Community 13 - "schedule"
-Cohesion: 0.46
-Nodes (8): loadHr(), render(), route(), schedule(), schMove(), subSchedules(), vSchedule(), vTasks()
+### Community 13 - "handleDoc"
+Cohesion: 0.32
+Nodes (8): handleDoc(), notify(), plainObject(), writeDepts(), enqueueNotification(), deepMerge(), ownersToCheck(), videoTeam()
 
-### Community 14 - "renderCheck"
-Cohesion: 0.40
-Nodes (6): addStep(), addSvc(), renderCheck(), renderSvc(), saveCheck(), saveSvc()
+### Community 14 - "vReports"
+Cohesion: 0.47
+Nodes (6): exportCsv(), hrs(), repRows(), setPreset(), vReports(), weekStart()
 
-### Community 15 - "listCollection"
-Cohesion: 0.50
-Nodes (5): listCollection(), listDepts(), toUser(), collectionKind(), matchesWhere()
+### Community 16 - "renderCheck"
+Cohesion: 1.00
+Nodes (3): addStep(), renderCheck(), saveCheck()
+
+### Community 17 - "renderSvc"
+Cohesion: 1.00
+Nodes (3): addSvc(), renderSvc(), saveSvc()
 
 ## Knowledge Gaps
 - **1 isolated node(s):** `wrangler`
@@ -140,8 +145,8 @@ _Questions this graph is uniquely positioned to answer:_
 - **What connects `wrangler` to the rest of the system?**
   _1 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `notify.js` be split into smaller, more focused modules?**
-  _Cohesion score 0.0664451827242525 - nodes in this community are weakly interconnected._
-- **Should `app.js` be split into smaller, more focused modules?**
-  _Cohesion score 0.1476923076923077 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06387921022067364 - nodes in this community are weakly interconnected._
+- **Should `rules.js` be split into smaller, more focused modules?**
+  _Cohesion score 0.14285714285714285 - nodes in this community are weakly interconnected._
 - **Should `role-matrix.test.mjs` be split into smaller, more focused modules?**
   _Cohesion score 0.09420289855072464 - nodes in this community are weakly interconnected._
