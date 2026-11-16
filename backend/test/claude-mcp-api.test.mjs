@@ -24,6 +24,7 @@ test('key → mcp → real rules', async () => {
   assert.match(made.path, /^\/mcp\/th_/);
   assert.notEqual(users.u_me.claudeKey, made.key.slice(3));
   assert.equal((await rpc('/mcp/th_wrongwrongwrongwrongwrong', 'tools/list')).status, 401);
+  for (const p of ['/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource' + made.path, '/.well-known/oauth-authorization-server']) assert.equal((await req('GET', p)).statusCode, 404, p);
   assert.equal((await rpc(made.path, 'initialize', { protocolVersion: '2025-06-18' })).body.result.serverInfo.name, 'team-hub');
   const note = await req('POST', made.path, { jsonrpc: '2.0', method: 'notifications/initialized' });
   assert.equal(note.statusCode, 202);

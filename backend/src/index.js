@@ -183,6 +183,8 @@ async function route(request) {
   if (path === '/api/health') return { ok: true, service: 'team-hub-api' };
   if (path === '/api/auth/google' && method === 'POST') { const body = await readJson(request); let claims; try { claims = await verifyGoogleIdToken(body.credential, env()); } catch (error) { throw new HttpError(401, 'not_granted', `Google sign-in failed: ${error.message}`); } const user = await upsertUser(claims); if (!user.active) throw new HttpError(403, 'not_granted', 'Account disabled'); await audit(user, 'login', 'session', user.id); return { token: await signSession(user.id, env().SESSION_SECRET), user: publicUser(user) }; }
   if (path === '/api/auth/test' && method === 'POST' && env().ALLOW_TEST_LOGIN === '1') { const body = await readJson(request); const email = String(body.email || '').trim().toLowerCase(); if (!/^[^@\s]+@example\.test$/.test(email)) throw new HttpError(400, 'invalid_argument', 'Test logins use @example.test'); const user = await upsertUser({ sub: `test:${email}`, email, name: body.name || email, picture: '' }); return { token: await signSession(user.id, env().SESSION_SECRET), user: publicUser(user) }; }
+  // Claude търси OAuth тук; 404 му казва, че вход няма и ключът е в адреса. 401 би пуснал OAuth регистрация.
+  if (path.startsWith('/.well-known/')) throw new HttpError(404, 'invalid_argument', 'Not found');
   // Връзка с Claude: личният ключ е в адреса (/mcp/<ключ>) или в Authorization. Пазим само отпечатъка му.
   const mcpPath = path.match(/^\/mcp(?:\/(th_[A-Za-z0-9_-]{20,80}))?$/);
   if (mcpPath) {
