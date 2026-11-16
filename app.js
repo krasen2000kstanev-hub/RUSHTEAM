@@ -818,7 +818,7 @@ function vSchedule(){
   const goals=people.filter(id=>{const r=S.schedules[S.schWeek+"_"+id];return r&&r.goal!=null;});
   root.append(h("section",{class:"panel"},h("div",{class:"ph"},h("span",null,"Цели за седмицата"),h("span",{class:"small muted"},"Спрямо предишната цел")),
     goals.length?goals.map(id=>{const r=S.schedules[S.schWeek+"_"+id],lv=goalLevel(r.goal,r.goalPrev);
-      return h("div",{class:"drow",style:"grid-template-columns:minmax(0,1fr) auto"},h("span",null,h("b",null,id===S.uid?nameOf(id)+" (вие)":nameOf(id)),": "+goalLabel(r)),
+      return h("div",{class:"drow",style:"grid-template-columns:minmax(0,1fr) auto"},h("span",null,h("b",null,id===S.uid?nameOf(id)+" (вие)":nameOf(id)),": "+goalLabel(r),r.goalNote?h("div",{class:"small muted",style:"white-space:pre-wrap"},r.goalNote):null),
         lv?h("span",{class:"pill goal-"+lv},GOAL_TXT[lv]+" · преди "+r.goalPrev):h("span",{class:"small muted"},"първа цел"));})
     :h("div",{class:"drow muted"},"Още никой не е поставил цел за тази седмица.")));
   const head=h("tr",null,h("th",null,"Колега"),WDAYS.map(([,l],i)=>h("th",{class:dates[i]===today?"today":""},l+" "+pd(dates[i]).getDate()+"."+p2(pd(dates[i]).getMonth()+1))));
@@ -864,11 +864,11 @@ function goalHint(){const v=$("#goal-value").value,prev=cur.goalPrev,el=$("#goal
   if(lv)el.classList.add("goal-"+lv);}
 async function openGoal(){const r=S.schedules[S.schWeek+"_"+S.uid]||{};cur.goalPrev=null;
   $("#goal-h").textContent="Моята цел · "+shortDate(S.schWeek)+" – "+shortDate(ymd(addDays(pd(S.schWeek),6)));
-  $("#goal-value").value=r.goal!=null?r.goal:"";$("#goal-what").value=r.goalWhat||"";$("#goal-hint").textContent="Търся предишната ви цел…";$("#d-goal").showModal();
+  $("#goal-value").value=r.goal!=null?r.goal:"";$("#goal-what").value=r.goalWhat||"";$("#goal-note").value=r.goalNote||"";$("#goal-hint").textContent="Търся предишната ви цел…";$("#d-goal").showModal();
   cur.goalPrev=await prevGoal();if(!$("#goal-what").value&&cur.goalPrev)$("#goal-what").value=cur.goalPrev.goalWhat||"";goalHint();}
 $("#goal-value").addEventListener("input",goalHint);
 $("#f-goal").addEventListener("submit",async ev=>{ev.preventDefault();const v=$("#goal-value").value;
-  const fields={goal:v===""?null:Math.max(0,+v),goalWhat:$("#goal-what").value.trim(),goalPrev:cur.goalPrev?cur.goalPrev.goal:null};
+  const fields={goal:v===""?null:Math.max(0,+v),goalWhat:$("#goal-what").value.trim(),goalNote:$("#goal-note").value.trim(),goalPrev:cur.goalPrev?cur.goalPrev.goal:null};
   if(await saveMine(fields,"Целта е запазена."))$("#d-goal").close();});
 
 /* ---------- Claude ---------- */

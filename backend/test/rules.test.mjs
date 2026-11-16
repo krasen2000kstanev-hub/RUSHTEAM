@@ -207,6 +207,7 @@ test('weekly schedule: busy slots, minutes and goal are validated', () => {
   const id = 'u_d'.replace(/^/, '2026-11-16_');
   const base = { owner: 'u_d', week: '2026-11-16', note: '' };
   assert.equal(validSchedule(id, { ...base, days: { thu: { from: '09:00', to: '18:00', busy: [{ from: '12:00', to: '13:00' }] }, sat: { from: '20:15', to: '' } }, goal: 20, goalWhat: 'часа', goalPrev: 15 }), true);
+  assert.equal(validSchedule(id, { ...base, goalNote: 'x'.repeat(501) }), false);
   assert.equal(validSchedule(id, { ...base, days: { thu: { from: '09:00', to: '18:00', busy: [{ from: '13:00', to: '12:00' }] } } }), false);
   assert.equal(validSchedule(id, { ...base, days: { thu: { from: '25:00', to: '' } } }), false);
   assert.equal(validSchedule(id, { ...base, days: { xyz: {} } }), false);

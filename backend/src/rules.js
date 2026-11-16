@@ -35,7 +35,7 @@ const manages = (user, data) => user?.role === 'manager' && docTeams(data).some(
 // График за седмицата: id е „<понеделник>_<потребител>“, всеки пише само своя.
 export const scheduleOwner = (id) => String(id || '').match(/^\d{4}-\d{2}-\d{2}_(.+)$/)?.[1] || '';
 // Ден: { from, to, note, busy: [{ from, to }] } — „busy“ са заетите часове в работния интервал.
-// Цел: { goal: число, goalWhat: какво се брои, goalPrev: предишната цел при запис (за сравнение) }.
+// Цел: { goal: число, goalWhat: какво се брои, goalPrev: предишната цел при запис (за сравнение), goalNote: свободен текст }.
 const SCHEDULE_DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const okTime = (v) => v === '' || v === undefined || /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
 const okNum = (v) => v === undefined || v === null || (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1e6);
@@ -44,7 +44,7 @@ const okDay = (d) => Boolean(d) && typeof d === 'object' && !Array.isArray(d) &&
 export function validSchedule(id, next) {
   const days = next?.days && typeof next.days === 'object' && !Array.isArray(next.days) ? next.days : {};
   return next?.owner === scheduleOwner(id) && next.week === String(id).slice(0, 10) && Object.keys(days).every((k) => SCHEDULE_DAYS.includes(k))
-    && Object.values(days).every(okDay) && String(next.note || '').length <= 500 && okNum(next.goal) && okNum(next.goalPrev) && String(next.goalWhat || '').length <= 80;
+    && Object.values(days).every(okDay) && String(next.note || '').length <= 500 && okNum(next.goal) && okNum(next.goalPrev) && String(next.goalWhat || '').length <= 80 && String(next.goalNote || '').length <= 500;
 }
 const tracksTime = (user) => user.teams.some((team) => team !== 'hr' && team !== 'events');
 

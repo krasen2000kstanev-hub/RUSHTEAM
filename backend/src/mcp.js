@@ -32,7 +32,7 @@ export const TOOLS = [
   { name: 'save_shared_task', annotations: { readOnlyHint: false, destructiveHint: false }, description: 'Създава (без id) или променя (с id) споделена задача. participants = id-та на колеги; редовият член винаги е включен.', inputSchema: { type: 'object', properties: { id: str, title: str, description: str, due: date, client: str, participants: ids, done: { type: 'boolean' } } } },
   { name: 'get_schedules', annotations: { readOnlyHint: true }, description: 'Графиците и целите на екипа за седмицата на дадена дата (по подразбиране тази седмица).', inputSchema: { type: 'object', properties: { date } } },
   { name: 'save_my_schedule', annotations: { readOnlyHint: false, destructiveHint: false }, description: 'Записва МОЯ график за седмицата. days заменя целия график: ключове mon..sun; ден без ключ = не съм на разположение.', inputSchema: { type: 'object', properties: { date, days: { type: 'object', properties: Object.fromEntries(DAYS.map((d) => [d, daySchema])) }, note: str }, required: ['days'] } },
-  { name: 'set_my_goal', annotations: { readOnlyHint: false, destructiveHint: false }, description: 'Записва МОЯТА цел за седмицата (число + какво се брои) и казва дали е висока/ниска спрямо предишната. Записва се и при висока/ниска.', inputSchema: { type: 'object', properties: { date, goal: { type: 'number', minimum: 0 }, what: str }, required: ['goal'] } },
+  { name: 'set_my_goal', annotations: { readOnlyHint: false, destructiveHint: false }, description: 'Записва МОЯТА цел за седмицата (число + какво се брои) и казва дали е висока/ниска спрямо предишната. Записва се и при висока/ниска.', inputSchema: { type: 'object', properties: { date, goal: { type: 'number', minimum: 0 }, what: str, note: str }, required: ['goal'] } },
 ];
 
 const INSTRUCTIONS = 'Team Hub е вътрешната платформа на екипа. Отговаряй на български. Започни с overview, за да знаеш id-тата на колеги, клиенти и етапи. Преди промени, които засягат колеги (нова задача към друг човек, смяна на отговорник), кажи накратко какво ще направиш. Изтриване няма – насочи човека към сайта.';
@@ -81,7 +81,7 @@ export async function callTool(name, args, deps) {
   }
   if (name === 'get_schedules') {
     const week = weekOf(a.date); const names = await people();
-    return { week, people: (await deps.list('schedules', [['week', '==', week]])).map(({ data: r }) => ({ name: names[r.owner] || r.owner, days: r.days || null, note: r.note || '', goal: r.goal ?? null, goalWhat: r.goalWhat || '', goalPrev: r.goalPrev ?? null })) };
+    return { week, people: (await deps.list('schedules', [['week', '==', week]])).map(({ data: r }) => ({ name: names[r.owner] || r.owner, days: r.days || null, note: r.note || '', goal: r.goal ?? null, goalWhat: r.goalWhat || '', goalNote: r.goalNote || '', goalPrev: r.goalPrev ?? null })) };
   }
   const mine = async (week) => { const cur = await deps.doc('GET', `schedules/${week}_${user.id}`); return cur.exists ? cur.data : null; };
   if (name === 'save_my_schedule') {
@@ -93,7 +93,7 @@ export async function callTool(name, args, deps) {
     const week = weekOf(a.date); let prev = null;
     for (let i = 1; i <= 8 && !prev; i += 1) { const r = await mine(shiftWeek(week, -i)); if (r && r.goal != null) prev = r; }
     const goal = Number(a.goal); if (!Number.isFinite(goal) || goal < 0) throw new ToolError('Целта трябва да е число ≥ 0.');
-    await deps.doc('PUT', `schedules/${week}_${user.id}`, { note: '', ...(await mine(week)), goal, goalWhat: String(a.what || prev?.goalWhat || '').slice(0, 80), goalPrev: prev ? prev.goal : null, owner: user.id, week });
+    await deps.doc('PUT', `schedules/${week}_${user.id}`, { note: '', ...(await mine(week)), goal, goalWhat: String(a.what || prev?.goalWhat || '').slice(0, 80), goalPrev: prev ? prev.goal : null, ...(a.note != null ? { goalNote: String(a.note).slice(0, 500) } : {}), owner: user.id, week });
     const level = !prev || !(prev.goal > 0) ? 'няма предишна цел за сравнение' : goal > prev.goal * 1.2 ? `висока спрямо предишната (${prev.goal})` : goal < prev.goal * 0.8 ? `ниска спрямо предишната (${prev.goal})` : `близо до предишната (${prev.goal})`;
     return { ok: true, week, level };
   }
