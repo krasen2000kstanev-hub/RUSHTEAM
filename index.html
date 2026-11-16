@@ -17,7 +17,7 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="styles.css?v=20261116-2">
+<link rel="stylesheet" href="styles.css?v=20261116-3">
 </head>
 <body>
 <div id="login" class="login">
@@ -48,7 +48,7 @@
       <a href="#team">Екип и клиенти</a>
       <a href="#hr">Подбор</a>
     </nav>
-    <div class="who"><span id="who"></span> <button class="btn ghost" type="button" id="claude-btn" hidden>Claude</button> <button class="btn ghost" type="button" id="signout" hidden>Изход</button></div>
+    <div class="who"><span id="who"></span> <button class="btn ghost" type="button" id="claude-btn" hidden>AI помощник</button> <button class="btn ghost" type="button" id="signout" hidden>Изход</button></div>
   </div>
 
   <div class="banner" id="banner" hidden></div>
@@ -90,14 +90,27 @@
   <div class="dfoot"><button type="button" class="btn" id="sch-copy">Като миналата седмица</button><span class="sp"></span><button type="button" class="btn" data-close>Отказ</button><button class="btn primary">Запази</button></div>
 </form></dialog>
 <dialog id="d-claude"><form id="f-claude" method="dialog">
-  <h2>Работа с Claude</h2>
-  <p class="small muted" style="margin:0">Свържете своя Claude с Team Hub и му казвайте например „добави задача за монтажа до петък“ или „попълни ми графика като миналата седмица“. Claude може само това, което можете и вие. Изтриване през Claude няма.</p>
+  <h2>AI помощник (Claude или ChatGPT)</h2>
+  <p class="small muted" style="margin:0">Свържете своя Claude или ChatGPT с Team Hub и му пишете като на колега: „какво има на дъската на Събития?“, „добави задача за монтажа до петък“, „попълни ми графика като миналата седмица“. Той може само това, което можете и вие. Не трие нищо.</p>
+  <p class="small" style="margin:0"><b>Стъпка 1.</b> Натиснете „Създай ключ“ и после „Копирай адреса“.</p>
   <p id="claude-status" class="small" style="margin:0"></p>
   <div id="claude-new" hidden>
-    <label class="f w">Вашият адрес за Claude (пази се като парола)<input type="text" id="claude-url" readonly></label>
+    <label class="f w">Вашият личен адрес (пазете го като парола, не го пращайте на никого)<input type="text" id="claude-url" readonly></label>
     <button type="button" class="btn" id="claude-copy" style="margin-top:6px">Копирай адреса</button>
-    <p class="small muted" style="margin:6px 0 0">Адресът се показва само сега. В Claude: Настройки → Connectors → Add custom connector → име „Team Hub“ и този адрес.</p>
   </div>
+  <p class="small" style="margin:0"><b>Стъпка 2.</b> Поставете адреса там, където ползвате AI:</p>
+  <details class="ai-help"><summary>В ChatGPT</summary><ol class="small">
+    <li>Отворете Настройки → <b>Apps</b> (Приложения) → <b>Разширени настройки</b> и включете <b>Developer mode</b>.</li>
+    <li>Върнете се в Apps и натиснете <b>Create</b> (Създай).</li>
+    <li>Име: <b>Team Hub</b>. В полето за адрес (URL) поставете копирания адрес. За вход (Authentication) изберете <b>No authentication</b>. Отметнете, че имате доверие, и натиснете <b>Create</b>.</li>
+    <li>В нов чат натиснете <b>+</b> и изберете <b>Team Hub</b>. После пишете нормално.</li>
+  </ol><p class="small muted" style="margin:0">Не виждате Developer mode? Вашият план в ChatGPT може да не го позволява – питайте Красен.</p></details>
+  <details class="ai-help"><summary>В Claude</summary><ol class="small">
+    <li>Отворете Настройки → <b>Connectors</b> → <b>Add custom connector</b>.</li>
+    <li>Име: <b>Team Hub</b>. В полето за адрес (URL) поставете копирания адрес и натиснете <b>Add</b>.</li>
+    <li>В нов чат просто пишете. Първия път Claude ще попита дали да ползва Team Hub – разрешете.</li>
+  </ol></details>
+  <p class="small muted" style="margin:0">Показали сте адреса по погрешка? Натиснете „Нов ключ“ – старият спира веднага.</p>
   <div class="dfoot"><button type="button" class="btn danger" id="claude-off">Спри ключа</button><span class="sp"></span><button type="button" class="btn" data-close>Затвори</button><button type="button" class="btn primary" id="claude-make">Създай ключ</button></div>
 </form></dialog>
 <dialog id="d-goal"><form id="f-goal">
@@ -248,7 +261,7 @@
 
 <script src="config.js"></script>
 <script src="data.js?v=20261026-9"></script>
-<script src="app.js?v=20261116-3"></script>
+<script src="app.js?v=20261116-4"></script>
 <script>
   // Ако браузърът блокира кеширан скрипт, входът остава достъпен вместо празна страница.
   setTimeout(function () {

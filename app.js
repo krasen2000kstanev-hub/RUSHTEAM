@@ -876,7 +876,7 @@ $("#f-goal").addEventListener("submit",async ev=>{ev.preventDefault();const v=$(
 const claudeApi=(m)=>window.teamHubApi("/api/claude-key",{method:m});
 async function claudeStatus(){const st=$("#claude-status");st.textContent="Проверка…";
   try{const r=await claudeApi("GET");$("#claude-off").hidden=!r.active;$("#claude-make").textContent=r.active?"Нов ключ":"Създай ключ";
-    st.textContent=r.active?"Имате активен ключ от "+new Date(r.createdAt).toLocaleDateString("bg-BG")+" „Нов ключ“ спира стария.":"Още нямате ключ.";}catch(e){st.textContent=errMsg(e);}}
+    st.textContent=r.active?"Имате активен ключ от "+new Date(r.createdAt).toLocaleDateString("bg-BG")+" Адресът се показва само при създаване – ако не го пазите, натиснете „Нов ключ“.":"Още нямате ключ.";}catch(e){st.textContent=errMsg(e);}}
 $("#claude-btn").addEventListener("click",()=>{$("#claude-new").hidden=true;$("#d-claude").showModal();claudeStatus();});
 $("#claude-make").addEventListener("click",async()=>{try{const r=await claudeApi("POST");$("#claude-url").value=String((window.TEAM_HUB_CONFIG||{}).apiBase||"").replace(/\/+$/,"")+r.path;$("#claude-new").hidden=false;$("#claude-url").select();await claudeStatus();}catch(e){toast(errMsg(e));}});
 $("#claude-copy").addEventListener("click",async()=>{try{await navigator.clipboard.writeText($("#claude-url").value);toast("Адресът е копиран.");}catch(e){$("#claude-url").select();toast("Копирайте адреса ръчно.");}});

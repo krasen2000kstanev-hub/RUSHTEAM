@@ -30,7 +30,10 @@ test('protocol: initialize, tools/list, notifications', async () => {
   const init = await handleMcp({ jsonrpc: '2.0', id: 0, method: 'initialize', params: { protocolVersion: '2025-03-26' } }, f.deps);
   assert.equal(init.result.protocolVersion, '2025-03-26');
   assert.ok(init.result.capabilities.tools);
-  assert.ok((await handleMcp({ jsonrpc: '2.0', id: 2, method: 'tools/list' }, f.deps)).result.tools.some((t) => t.name === 'save_board_item'));
+  const tools = (await handleMcp({ jsonrpc: '2.0', id: 2, method: 'tools/list' }, f.deps)).result.tools;
+  assert.ok(tools.some((t) => t.name === 'save_board_item'));
+  // ChatGPT/Claude не питат за потвърждение при четене, само при запис.
+  assert.ok(tools.every((t) => t.annotations && t.annotations.readOnlyHint === !t.name.match(/^(save|set)_/)));
   assert.equal(await handleMcp({ jsonrpc: '2.0', method: 'notifications/initialized' }, f.deps), undefined);
   assert.equal((await handleMcp({ jsonrpc: '2.0', id: 3, method: 'nope' }, f.deps)).error.code, -32601);
 });

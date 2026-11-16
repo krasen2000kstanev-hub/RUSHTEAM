@@ -31,7 +31,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .tabs a{padding:10px 14px;border-radius:var(--r);text-decoration:none;color:var(--muted);font-weight:600;font-size:20px}
 .tabs a:hover{color:var(--ink);background:var(--sunken)}
 .tabs a[aria-current="page"]{color:var(--accent-ink);background:var(--accent)}
-.who{margin-left:auto;font-size:13px;color:var(--muted)}
+.who{margin-left:auto;font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:4px 8px}
 
 /* controls */
 .btn{border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:10px 15px;cursor:pointer;font-weight:600;white-space:nowrap;font-size:20px}
@@ -348,3 +348,6 @@ img{max-width:100%}
 .goal-low{color:var(--accent-2)}
 .goal-same{color:var(--ok)}
 @media (max-width:480px){.sch-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.sch-row b{grid-column:1/-1}.sch-row input[type=text],.sch-add{grid-column:1/-1}.sch-busy{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}.sch-busy>span{grid-column:1/-1}}
+.ai-help{border:1px solid var(--line);border-radius:var(--r);padding:8px 12px}
+.ai-help summary{cursor:pointer;font-weight:600}
+.ai-help ol{margin:8px 0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
