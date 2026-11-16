@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parsePath, collectionKind, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, normalizeTeams, auditChanges, canBeAssigned, videoOwners, ownersToCheck, scheduleOwner } from '../src/rules.js';
+import { parsePath, collectionKind, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, normalizeTeams, auditChanges, canBeAssigned, videoOwners, ownersToCheck, scheduleOwner, validSchedule } from '../src/rules.js';
 
 const admin = { id: 'u_admin', role: 'admin', teams: [], active: true };
 const manager = { id: 'u_manager', role: 'manager', teams: ['design'], active: true };
@@ -201,4 +201,16 @@ test('weekly schedule: whole team reads, everyone writes only their own', () => 
   assert.equal(canWriteDoc(editor, K('schedules'), `2026-11-16_${editor.id}`, null, mine), false);
   assert.equal(canWriteDoc(nobody, K('schedules'), `2026-11-16_${nobody.id}`, null, { owner: nobody.id }), false);
   assert.equal(canWriteDoc(manager, K('schedules'), id, mine, mine), false);
+});
+
+test('weekly schedule: busy slots, minutes and goal are validated', () => {
+  const id = 'u_d'.replace(/^/, '2026-11-16_');
+  const base = { owner: 'u_d', week: '2026-11-16', note: '' };
+  assert.equal(validSchedule(id, { ...base, days: { thu: { from: '09:00', to: '18:00', busy: [{ from: '12:00', to: '13:00' }] }, sat: { from: '20:15', to: '' } }, goal: 20, goalWhat: 'часа', goalPrev: 15 }), true);
+  assert.equal(validSchedule(id, { ...base, days: { thu: { from: '09:00', to: '18:00', busy: [{ from: '13:00', to: '12:00' }] } } }), false);
+  assert.equal(validSchedule(id, { ...base, days: { thu: { from: '25:00', to: '' } } }), false);
+  assert.equal(validSchedule(id, { ...base, days: { xyz: {} } }), false);
+  assert.equal(validSchedule(id, { ...base, days: {}, goal: -1 }), false);
+  assert.equal(validSchedule(id, { ...base, days: {}, goal: '20' }), false);
+  assert.equal(validSchedule(id, { ...base, owner: 'u_x', days: {} }), false);
 });

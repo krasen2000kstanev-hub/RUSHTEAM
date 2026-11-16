@@ -339,5 +339,12 @@ img{max-width:100%}
 .sched td{vertical-align:top}
 .sch-days{display:flex;flex-direction:column;gap:8px}
 .sch-row{display:grid;grid-template-columns:6.5em minmax(0,1fr) minmax(0,1fr);gap:6px;align-items:center}
-.sch-row input[type=text]{grid-column:2/-1}
-@media (max-width:480px){.sch-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.sch-row b{grid-column:1/-1}.sch-row input[type=text]{grid-column:1/-1}}
+.sch-row input[type=text],.sch-add{grid-column:2/-1}
+.sch-busies{grid-column:1/-1}
+.sch-add{justify-self:start;font-size:15px}
+.sch-busies{display:flex;flex-direction:column;gap:6px}
+.sch-busy{display:grid;grid-template-columns:6.5em minmax(0,1fr) minmax(0,1fr) auto;gap:6px;align-items:center}
+.goal-high{color:var(--warn)}
+.goal-low{color:var(--accent-2)}
+.goal-same{color:var(--ok)}
+@media (max-width:480px){.sch-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.sch-row b{grid-column:1/-1}.sch-row input[type=text],.sch-add{grid-column:1/-1}.sch-busy{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}.sch-busy>span{grid-column:1/-1}}

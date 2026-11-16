@@ -797,7 +797,12 @@ let schUnsub=null;S.schWeek=ymd(weekStart(new Date()));
 function subSchedules(){if(!S.db)return;if(schUnsub)schUnsub();S.schedules={};
   schUnsub=S.db.collection("schedules").where("week","==",S.schWeek).onSnapshot(s=>{const o={};s.docs.forEach(d=>{o[d.id]=d.data();});S.schedules=o;if(S.tab==="schedule")schedule();},onErr);}
 function schMove(n){S.schWeek=ymd(addDays(pd(S.schWeek),7*n));subSchedules();schedule();}
-const schText=d=>{if(!d)return "";const t=d.from&&d.to?d.from+"–"+d.to:d.from?"от "+d.from:d.to?"до "+d.to:"";return [t,d.note].filter(Boolean).join(" · ");};
+const schSpan=(f,t)=>f&&t?f+"–"+t:f?"от "+f:t?"до "+t:"";
+const schText=d=>{if(!d)return "";const busy=(d.busy||[]).map(b=>"заето "+b.from+"–"+b.to).join(", ");return [schSpan(d.from,d.to),busy,d.note].filter(Boolean).join(" · ");};
+// Цел спрямо предишната: над +20% е висока, под −20% е ниска. Само подсказка — целта се записва и така.
+function goalLevel(v,prev){if(!(prev>0)||!(v>=0))return "";if(v>prev*1.2)return "high";if(v<prev*0.8)return "low";return "same";}
+const GOAL_TXT={high:"висока",low:"ниска",same:"като предишната"};
+const goalLabel=r=>r&&r.goal!=null?r.goal+" "+(r.goalWhat||""):"";
 function vSchedule(){
   const root=h("div",{style:"display:flex;flex-direction:column;gap:16px"}),mon=pd(S.schWeek),today=ymd(new Date()),thisWeek=ymd(weekStart(new Date()));
   const dates=WDAYS.map((_,i)=>ymd(addDays(mon,i))),mine=S.schedules[S.schWeek+"_"+S.uid];
@@ -807,31 +812,64 @@ function vSchedule(){
     h("button",{class:"btn",type:"button",onclick:()=>schMove(1),"aria-label":"Следваща седмица"},"→"),
     S.schWeek!==thisWeek?h("button",{class:"btn ghost",type:"button",onclick:()=>{S.schWeek=thisWeek;subSchedules();schedule();}},"Тази седмица"):null,
     h("span",{class:"sp"}),
-    h("button",{class:"btn primary w-only",type:"button",onclick:openSchedule},mine?"Промени моя график":"+ Попълни моя график")));
+    h("button",{class:"btn w-only",type:"button",onclick:openGoal},mine&&mine.goal!=null?"Промени моята цел":"+ Моята цел"),
+    h("button",{class:"btn primary w-only",type:"button",onclick:openSchedule},mine&&mine.days?"Промени моя график":"+ Попълни моя график")));
   const people=[S.uid,...visibleTeamMemberIds().filter(id=>id!==S.uid)];
+  const goals=people.filter(id=>{const r=S.schedules[S.schWeek+"_"+id];return r&&r.goal!=null;});
+  root.append(h("section",{class:"panel"},h("div",{class:"ph"},h("span",null,"Цели за седмицата"),h("span",{class:"small muted"},"Спрямо предишната цел")),
+    goals.length?goals.map(id=>{const r=S.schedules[S.schWeek+"_"+id],lv=goalLevel(r.goal,r.goalPrev);
+      return h("div",{class:"drow",style:"grid-template-columns:minmax(0,1fr) auto"},h("span",null,h("b",null,id===S.uid?nameOf(id)+" (вие)":nameOf(id)),": "+goalLabel(r)),
+        lv?h("span",{class:"pill goal-"+lv},GOAL_TXT[lv]+" · преди "+r.goalPrev):h("span",{class:"small muted"},"първа цел"));})
+    :h("div",{class:"drow muted"},"Още никой не е поставил цел за тази седмица.")));
   const head=h("tr",null,h("th",null,"Колега"),WDAYS.map(([,l],i)=>h("th",{class:dates[i]===today?"today":""},l+" "+pd(dates[i]).getDate()+"."+p2(pd(dates[i]).getMonth()+1))));
-  const rows=people.map(id=>{const r=S.schedules[S.schWeek+"_"+id],days=(r&&r.days)||{};
-    return h("tr",null,h("td",null,h("b",null,id===S.uid?nameOf(id)+" (вие)":nameOf(id)),r&&r.note?h("div",{class:"small muted"},r.note):null,!r?h("div",{class:"small muted"},"не е попълнил"):null),
-      WDAYS.map(([k])=>h("td",{class:"small"},r?(schText(days[k])||h("span",{class:"muted"},"—")):"")));});
+  const rows=people.map(id=>{const r=S.schedules[S.schWeek+"_"+id],days=r&&r.days,dd=days||{};
+    return h("tr",null,h("td",null,h("b",null,id===S.uid?nameOf(id)+" (вие)":nameOf(id)),r&&r.note?h("div",{class:"small muted"},r.note):null,!days?h("div",{class:"small muted"},"не е попълнил"):null),
+      WDAYS.map(([k])=>h("td",{class:"small"},days?(schText(dd[k])||h("span",{class:"muted"},"—")):"")));});
   root.append(h("section",{class:"panel"},h("div",{class:"ph"},h("span",null,"Кога на кого му е удобно да работи"),h("span",{class:"small muted"},"Попълва се всяка седмица")),
     h("div",{class:"tw"},h("table",{class:"sched"},h("thead",null,head),h("tbody",null,rows)))));
   return root;
 }
+const timeIn=(name,value,label)=>h("input",{type:"time",step:60,name:name,value:value||"","aria-label":label});
+function busyRow(k,l,b){const row=h("div",{class:"sch-busy"},h("span",{class:"small muted"},"заето"),timeIn(k+"-bf",b&&b.from,l+" заето от"),timeIn(k+"-bt",b&&b.to,l+" заето до"),
+  h("button",{type:"button",class:"btn ghost","aria-label":"Махни заетия час",onclick:()=>row.remove()},"✕"));return row;}
 function fillScheduleForm(r){const days=(r&&r.days)||{},box=$("#sch-days");box.textContent="";
-  WDAYS.forEach(([k,l],i)=>{const d=days[k]||{};box.append(h("div",{class:"sch-row"},h("b",null,l+" "+shortDate(ymd(addDays(pd(S.schWeek),i)))),
-    h("input",{type:"time",name:k+"-from",value:d.from||"","aria-label":l+" от"}),h("input",{type:"time",name:k+"-to",value:d.to||"","aria-label":l+" до"}),
-    h("input",{type:"text",name:k+"-note",value:d.note||"",maxLength:200,placeholder:"напр. онлайн, само сутрин","aria-label":l+" бележка"})));});
+  WDAYS.forEach(([k,l],i)=>{const d=days[k]||{},busy=h("div",{class:"sch-busies","data-day":k},(d.busy||[]).map(b=>busyRow(k,l,b)));
+    box.append(h("div",{class:"sch-row"},h("b",null,l+" "+shortDate(ymd(addDays(pd(S.schWeek),i)))),
+    timeIn(k+"-from",d.from,l+" от"),timeIn(k+"-to",d.to,l+" до"),
+    h("input",{type:"text",name:k+"-note",value:d.note||"",maxLength:200,placeholder:"напр. онлайн, само сутрин","aria-label":l+" бележка"}),
+    busy,h("button",{type:"button",class:"btn ghost sch-add",onclick:()=>{if(busy.children.length<6)busy.append(busyRow(k,l));}},"+ заето време")));});
   $("#sch-note").value=(r&&r.note)||"";}
 function openSchedule(){$("#sch-h").textContent="Моят график · "+shortDate(S.schWeek)+" – "+shortDate(ymd(addDays(pd(S.schWeek),6)));
   fillScheduleForm(S.schedules[S.schWeek+"_"+S.uid]);$("#d-sched").showModal();}
 $("#sch-copy").addEventListener("click",async()=>{const prev=ymd(addDays(pd(S.schWeek),-7));
-  try{const snap=await S.db.doc("schedules/"+prev+"_"+S.uid).get();if(!snap.exists){toast("Нямате график за миналата седмица.");return;}fillScheduleForm(snap.data());toast("Копирано. Проверете и натиснете „Запази“.");}catch(e){toast(errMsg(e));}});
-$("#f-sched").addEventListener("submit",async ev=>{ev.preventDefault();const f=ev.target,days={};
-  WDAYS.forEach(([k])=>{const d={from:f[k+"-from"].value,to:f[k+"-to"].value,note:f[k+"-note"].value.trim()};if(d.from&&d.to&&d.to<=d.from){d.bad=1;}if(d.from||d.to||d.note)days[k]=d;});
-  if(Object.values(days).some(d=>d.bad)){toast("Краят трябва да е след началото.");return;}
-  const rec={owner:S.uid,week:S.schWeek,days:days,note:$("#sch-note").value.trim()};
-  // Само собственикът пише в своя график, затова целият запис се праща наведнъж.
-  if(await tryW(S.db.doc("schedules/"+S.schWeek+"_"+S.uid).set(rec),"Графикът е запазен."))$("#d-sched").close();});
+  try{const snap=await S.db.doc("schedules/"+prev+"_"+S.uid).get();if(!snap.exists||!snap.data().days){toast("Нямате график за миналата седмица.");return;}fillScheduleForm(snap.data());toast("Копирано. Проверете и натиснете „Запази“.");}catch(e){toast(errMsg(e));}});
+// Графикът и целта са в един запис, който пише само собственикът. Праща се цял (PUT), защото PATCH
+// слива обектите и изтрит ден или „заето“ време би останало.
+function saveMine(fields,ok){const id=S.schWeek+"_"+S.uid;
+  return tryW(S.db.doc("schedules/"+id).set(Object.assign({note:""},S.schedules[id]||{},fields,{owner:S.uid,week:S.schWeek})),ok);}
+$("#f-sched").addEventListener("submit",async ev=>{ev.preventDefault();const f=ev.target,days={};let bad="";
+  WDAYS.forEach(([k])=>{const d={from:f[k+"-from"].value,to:f[k+"-to"].value,note:f[k+"-note"].value.trim(),busy:[]};
+    if(d.from&&d.to&&d.to<=d.from)bad="Краят на работното време трябва да е след началото.";
+    f.querySelectorAll('[data-day="'+k+'"] .sch-busy').forEach(row=>{const [a,b]=row.querySelectorAll("input");if(!a.value&&!b.value)return;
+      if(!a.value||!b.value||b.value<=a.value){bad="Заетото време трябва да има начало и край, а краят да е след началото.";return;}d.busy.push({from:a.value,to:b.value});});
+    if(!d.busy.length)delete d.busy;if(d.from||d.to||d.note||d.busy)days[k]=d;});
+  if(bad){toast(bad);return;}
+  if(await saveMine({days:days,note:$("#sch-note").value.trim()},"Графикът е запазен."))$("#d-sched").close();});
+// Предишната цел: най-близката от последните 8 седмици.
+async function prevGoal(){for(let i=1;i<=8;i++){try{const snap=await S.db.doc("schedules/"+ymd(addDays(pd(S.schWeek),-7*i))+"_"+S.uid).get();if(snap.exists&&snap.data().goal!=null)return snap.data();}catch(e){return null;}}return null;}
+function goalHint(){const v=$("#goal-value").value,prev=cur.goalPrev,el=$("#goal-hint");el.className="small";
+  if(!prev){el.textContent="Нямате предишна цел за сравнение.";el.classList.add("muted");return;}
+  const lv=v===""?"":goalLevel(+v,prev.goal),base="Предишната ви цел: "+goalLabel(prev)+".";
+  el.textContent=lv==="high"?base+" Тази е висока спрямо нея – може да я запазите и така.":lv==="low"?base+" Тази е ниска спрямо нея – може да я запазите и така.":lv==="same"?base+" Тази е близо до нея.":base;
+  if(lv)el.classList.add("goal-"+lv);}
+async function openGoal(){const r=S.schedules[S.schWeek+"_"+S.uid]||{};cur.goalPrev=null;
+  $("#goal-h").textContent="Моята цел · "+shortDate(S.schWeek)+" – "+shortDate(ymd(addDays(pd(S.schWeek),6)));
+  $("#goal-value").value=r.goal!=null?r.goal:"";$("#goal-what").value=r.goalWhat||"";$("#goal-hint").textContent="Търся предишната ви цел…";$("#d-goal").showModal();
+  cur.goalPrev=await prevGoal();if(!$("#goal-what").value&&cur.goalPrev)$("#goal-what").value=cur.goalPrev.goalWhat||"";goalHint();}
+$("#goal-value").addEventListener("input",goalHint);
+$("#f-goal").addEventListener("submit",async ev=>{ev.preventDefault();const v=$("#goal-value").value;
+  const fields={goal:v===""?null:Math.max(0,+v),goalWhat:$("#goal-what").value.trim(),goalPrev:cur.goalPrev?cur.goalPrev.goal:null};
+  if(await saveMine(fields,"Целта е запазена."))$("#d-goal").close();});
 
 /* ---------- boot ---------- */
 function route(){const t=(location.hash||"").slice(1);S.tab=["today","tasks","timer","board","web","events","design","social","due","calendar","schedule","reports","team","hr"].includes(t)?t:"today";schedule();}

@@ -17,7 +17,7 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="styles.css?v=20261116-1">
+<link rel="stylesheet" href="styles.css?v=20261116-2">
 </head>
 <body>
 <div id="login" class="login">
@@ -84,10 +84,20 @@
 <!-- споделена задача -->
 <dialog id="d-sched"><form id="f-sched">
   <h2 id="sch-h">Моят график</h2>
-  <p class="small muted" style="margin:0">Попълнете кога ви е удобно да работите. Празен ден значи, че не сте на разположение.</p>
+  <p class="small muted" style="margin:0">Попълнете кога ви е удобно да работите, може и с минути (напр. 09:30). Празно „до“ значи без край (напр. след 20:00). С „+ заето време“ отбележете ангажимент вътре в деня. Празен ден значи, че не сте на разположение.</p>
   <div id="sch-days" class="sch-days"></div>
   <label class="f">Бележка за седмицата<input type="text" id="sch-note" maxlength="500" placeholder="напр. в сряда съм на изпит"></label>
   <div class="dfoot"><button type="button" class="btn" id="sch-copy">Като миналата седмица</button><span class="sp"></span><button type="button" class="btn" data-close>Отказ</button><button class="btn primary">Запази</button></div>
+</form></dialog>
+<dialog id="d-goal"><form id="f-goal">
+  <h2 id="goal-h">Моята цел</h2>
+  <p class="small muted" style="margin:0">Каква е целта ви за седмицата? Сравняваме я с предишната ви цел.</p>
+  <div class="fg">
+    <label class="f">Цел (число)<input type="number" id="goal-value" min="0" max="1000000" step="any" inputmode="decimal" placeholder="напр. 20"></label>
+    <label class="f">Какво се брои<input type="text" id="goal-what" maxlength="80" placeholder="напр. часа, срещи, видеа"></label>
+  </div>
+  <p id="goal-hint" class="small" style="margin:0" aria-live="polite"></p>
+  <div class="dfoot"><span class="sp"></span><button type="button" class="btn" data-close>Отказ</button><button class="btn primary">Запази</button></div>
 </form></dialog>
 <dialog id="d-task"><form id="f-task">
   <h2 id="task-h">Нова споделена задача</h2>
@@ -227,7 +237,7 @@
 
 <script src="config.js"></script>
 <script src="data.js?v=20261026-9"></script>
-<script src="app.js?v=20261116-1"></script>
+<script src="app.js?v=20261116-2"></script>
 <script>
   // Ако браузърът блокира кеширан скрипт, входът остава достъпен вместо празна страница.
   setTimeout(function () {
