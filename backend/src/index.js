@@ -3,7 +3,8 @@ import { ALL_TEAMS, parsePath, collectionKind, normalizeTeams, canReadDoc, canWr
 import { appendSheetRow, readHrSummary } from './sheets.js';
 import { createUser, deleteDoc, findUser, getDoc, getUser, listAudit, listDocs, listUsers, putAudit, putDoc, updateUser } from './store.js';
 import { enqueueNotification } from './notify.js';
-import { createHash } from 'node:crypto';
+import { handleMcp } from './mcp.js';
+import { createHash, randomBytes } from 'node:crypto';
 
 const MAX_BODY_BYTES = 256 * 1024;
 const MAX_SYNC_QUERIES = 80;
@@ -16,6 +17,7 @@ const defaultHrSheets = () => { const ids = String(env().HR_SHEET_IDS || '').spl
 async function hrSheets() { return { ...defaultHrSheets(), ...(await getDoc(env(), 'settings', 'hrSheets'))?.data }; }
 const sheetId = (value) => { const text = String(value || '').trim(); const match = text.match(/\/spreadsheets\/d\/([A-Za-z0-9_-]{20,120})/); return (match ? match[1] : text).match(/^[A-Za-z0-9_-]{20,120}$/)?.[0] || ''; };
 const plainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+const keyHash = (key) => createHash('sha256').update(String(key)).digest('hex');
 const publicUser = (user) => ({ id: user.id, email: user.email, name: user.name, picture: user.picture, role: user.role, teams: user.teams });
 
 function corsHeaders(request) {
@@ -170,12 +172,33 @@ async function handleDoc(request, user, url) {
   return { ok: true };
 }
 
+// Claude минава през същия път като сайта: права, проверки, история и известия.
+async function callDoc(user, method, docPath, body) {
+  const url = new URL(`https://local/api/doc?path=${encodeURIComponent(docPath)}`);
+  return handleDoc(new Request(url, { method, body: body === undefined ? undefined : JSON.stringify(body) }), user, url);
+}
+
 async function route(request) {
   const url = new URL(request.url); const path = url.pathname.replace(/\/+$/, '') || '/'; const method = request.method;
   if (path === '/api/health') return { ok: true, service: 'team-hub-api' };
   if (path === '/api/auth/google' && method === 'POST') { const body = await readJson(request); let claims; try { claims = await verifyGoogleIdToken(body.credential, env()); } catch (error) { throw new HttpError(401, 'not_granted', `Google sign-in failed: ${error.message}`); } const user = await upsertUser(claims); if (!user.active) throw new HttpError(403, 'not_granted', 'Account disabled'); await audit(user, 'login', 'session', user.id); return { token: await signSession(user.id, env().SESSION_SECRET), user: publicUser(user) }; }
   if (path === '/api/auth/test' && method === 'POST' && env().ALLOW_TEST_LOGIN === '1') { const body = await readJson(request); const email = String(body.email || '').trim().toLowerCase(); if (!/^[^@\s]+@example\.test$/.test(email)) throw new HttpError(400, 'invalid_argument', 'Test logins use @example.test'); const user = await upsertUser({ sub: `test:${email}`, email, name: body.name || email, picture: '' }); return { token: await signSession(user.id, env().SESSION_SECRET), user: publicUser(user) }; }
+  // Връзка с Claude: личният ключ е в адреса (/mcp/<ключ>) или в Authorization. Пазим само отпечатъка му.
+  const mcpPath = path.match(/^\/mcp(?:\/(th_[A-Za-z0-9_-]{20,80}))?$/);
+  if (mcpPath) {
+    if (method !== 'POST') throw new HttpError(405, 'invalid_argument', 'Use POST');
+    const header = request.headers.get('authorization') || ''; const key = mcpPath[1] || (header.startsWith('Bearer th_') ? header.slice(7) : '');
+    const owner = key && (await listUsers(env())).map((row) => ({ row, user: toUser(row) })).find(({ row, user }) => user.active && row.claudeKey && row.claudeKey === keyHash(key))?.user;
+    if (!owner || !owner.teams.length && !isFounder(owner)) throw new HttpError(401, 'not_granted', 'Невалиден или спрян ключ за Claude');
+    const deps = { user: owner, list: (collection, where) => listCollection(owner, collection, where), doc: (verb, docPath, body) => callDoc(owner, verb, docPath, body), users: async () => (await listUsers(env())).map(toUser).filter((row) => row.active && (isFounder(owner) || row.id === owner.id || row.teams.length > 0)).map((row) => ({ id: row.id, name: row.name })) };
+    const body = await readJson(request);
+    if (Array.isArray(body)) { const out = (await Promise.all(body.map((msg) => handleMcp(msg, deps)))).filter(Boolean); return out.length ? out : undefined; }
+    return handleMcp(body, deps);
+  }
   const user = await requireUser(request);
+  if (path === '/api/claude-key' && method === 'GET') { const row = await getUser(env(), user.id); return { active: Boolean(row?.claudeKey), createdAt: row?.claudeKeyAt || '' }; }
+  if (path === '/api/claude-key' && method === 'POST') { if (!user.teams.length && !isFounder(user)) throw new HttpError(403, 'permission_denied', 'Not allowed'); const key = `th_${randomBytes(24).toString('base64url')}`; const at = new Date().toISOString(); await updateUser(env(), user.id, { claudeKey: keyHash(key), claudeKeyAt: at }); await audit(user, 'created', 'claude-key', user.id); return { key, path: `/mcp/${key}`, createdAt: at }; }
+  if (path === '/api/claude-key' && method === 'DELETE') { await updateUser(env(), user.id, { claudeKey: '', claudeKeyAt: '' }); await audit(user, 'deleted', 'claude-key', user.id); return { ok: true }; }
   if (path === '/api/me' && method === 'GET') return { user: publicUser(user) };
   if (path === '/api/sheets/config' && method === 'GET') { if (!canReadSheets(user)) throw new HttpError(403, 'not_in_manifest', 'Not allowed'); return { sheets: await hrSheets() }; }
   if (path === '/api/sheets/config' && method === 'PUT') { if (!canWriteSheets(user)) throw new HttpError(403, 'not_in_manifest', 'Not allowed'); const body = await readJson(request); if (!plainObject(body)) throw new HttpError(400, 'invalid_argument', 'Invalid sheet configuration'); const next = {}; for (const key of ['master', 'track', 'req', 'ads', 'tasks']) { const value = sheetId(body[key]); if (!value) throw new HttpError(400, 'invalid_argument', 'Invalid spreadsheet link'); next[key] = value; } const before = await hrSheets(); await putDoc(env(), 'settings', 'hrSheets', next, user.id); await audit(user, 'updated', 'settings', 'hrSheets', before, next); hrCache = null; return { sheets: next }; }
@@ -199,7 +222,7 @@ function eventRequest(event) {
 export async function handler(event) {
   const request = event.requestContext ? eventRequest(event) : event; const cors = corsHeaders(request);
   if (request.method === 'OPTIONS') return { statusCode: 204, headers: cors, body: '' };
-  try { const body = await route(request); return { statusCode: 200, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...cors }, body: JSON.stringify(body) }; }
+  try { const body = await route(request); if (body === undefined) return { statusCode: 202, headers: cors, body: '' }; return { statusCode: 200, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...cors }, body: JSON.stringify(body) }; }
   catch (error) { if (error instanceof HttpError) return { statusCode: error.status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...cors }, body: JSON.stringify({ error: error.message, code: error.code }) }; console.error(error); return { statusCode: 500, headers: { 'Content-Type': 'application/json; charset=utf-8', ...cors }, body: JSON.stringify({ error: 'Internal error', code: 'unavailable' }) }; }
 }
 

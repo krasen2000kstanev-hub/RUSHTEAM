@@ -179,7 +179,7 @@ function render(){
   document.body.classList.toggle("ro",!S.canWrite||!S.db);document.body.classList.toggle("adm",S.isAdmin);
   document.querySelectorAll("#tabs a").forEach(a=>{a.hidden=!allowed(a.getAttribute("href").slice(1));if(a.getAttribute("href")==="#"+S.tab)a.setAttribute("aria-current","page");else a.removeAttribute("aria-current");});
   {const ac=document.querySelector('#tabs a[aria-current]'),tb=$("#tabs");if(ac&&tb.scrollWidth>tb.clientWidth)tb.scrollLeft=Math.max(0,ac.offsetLeft-tb.offsetLeft-(tb.clientWidth-ac.offsetWidth)/2);}
-  $("#who").textContent=S.uid?(nameOf(S.uid)+" · "+(S.isAdmin?"основател":"член на екипа")):"";
+  $("#claude-btn").hidden=!S.uid||!myTeams().length;$("#who").textContent=S.uid?(nameOf(S.uid)+" · "+(S.isAdmin?"основател":"член на екипа")):"";
   syncTimerBar();
   const v=$("#view");
   const scx=(v.querySelector(".board")||{}).scrollLeft||0;
@@ -870,6 +870,17 @@ $("#goal-value").addEventListener("input",goalHint);
 $("#f-goal").addEventListener("submit",async ev=>{ev.preventDefault();const v=$("#goal-value").value;
   const fields={goal:v===""?null:Math.max(0,+v),goalWhat:$("#goal-what").value.trim(),goalPrev:cur.goalPrev?cur.goalPrev.goal:null};
   if(await saveMine(fields,"Целта е запазена."))$("#d-goal").close();});
+
+/* ---------- Claude ---------- */
+// Личен ключ за връзката с Claude (MCP). Сървърът пази само отпечатъка, затова адресът се показва веднъж.
+const claudeApi=(m)=>window.teamHubApi("/api/claude-key",{method:m});
+async function claudeStatus(){const st=$("#claude-status");st.textContent="Проверка…";
+  try{const r=await claudeApi("GET");$("#claude-off").hidden=!r.active;$("#claude-make").textContent=r.active?"Нов ключ":"Създай ключ";
+    st.textContent=r.active?"Имате активен ключ от "+new Date(r.createdAt).toLocaleDateString("bg-BG")+" „Нов ключ“ спира стария.":"Още нямате ключ.";}catch(e){st.textContent=errMsg(e);}}
+$("#claude-btn").addEventListener("click",()=>{$("#claude-new").hidden=true;$("#d-claude").showModal();claudeStatus();});
+$("#claude-make").addEventListener("click",async()=>{try{const r=await claudeApi("POST");$("#claude-url").value=String((window.TEAM_HUB_CONFIG||{}).apiBase||"").replace(/\/+$/,"")+r.path;$("#claude-new").hidden=false;$("#claude-url").select();await claudeStatus();}catch(e){toast(errMsg(e));}});
+$("#claude-copy").addEventListener("click",async()=>{try{await navigator.clipboard.writeText($("#claude-url").value);toast("Адресът е копиран.");}catch(e){$("#claude-url").select();toast("Копирайте адреса ръчно.");}});
+arm($("#claude-off"),async()=>{try{await claudeApi("DELETE");$("#claude-new").hidden=true;toast("Ключът е спрян.");claudeStatus();}catch(e){toast(errMsg(e));}});
 
 /* ---------- boot ---------- */
 function route(){const t=(location.hash||"").slice(1);S.tab=["today","tasks","timer","board","web","events","design","social","due","calendar","schedule","reports","team","hr"].includes(t)?t:"today";schedule();}

@@ -13,6 +13,7 @@
 | `styles.css` | целият дизайн, променливите са в `:root` | – |
 | `backend/src/index.js` | API маршрути | правила за достъп |
 | `backend/src/rules.js` | кой какво може да чете/пише + `auditChanges` | достъп до базата |
+| `backend/src/mcp.js` | връзката с Claude (MCP): инструменти, които викат същия `/api/doc` път | собствени правила за достъп |
 | `backend/src/store.js` | DynamoDB (винаги със страниране през `all()`) | бизнес логика |
 
 Раздели (`#today`, `#tasks`, `#timer`, `#board`, `#web`, `#events`, `#design`, `#social`, `#due`, `#calendar`, `#schedule`, `#reports`, `#team`, `#hr`) се рендерират от функциите `vToday`, `vTasks`, … в `app.js`. Един раздел = една функция. Не прави втора версия на съществуващ екран.

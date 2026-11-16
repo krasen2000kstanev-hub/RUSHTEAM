@@ -48,7 +48,7 @@
       <a href="#team">Екип и клиенти</a>
       <a href="#hr">Подбор</a>
     </nav>
-    <div class="who"><span id="who"></span> <button class="btn ghost" type="button" id="signout" hidden>Изход</button></div>
+    <div class="who"><span id="who"></span> <button class="btn ghost" type="button" id="claude-btn" hidden>Claude</button> <button class="btn ghost" type="button" id="signout" hidden>Изход</button></div>
   </div>
 
   <div class="banner" id="banner" hidden></div>
@@ -88,6 +88,17 @@
   <div id="sch-days" class="sch-days"></div>
   <label class="f">Бележка за седмицата<input type="text" id="sch-note" maxlength="500" placeholder="напр. в сряда съм на изпит"></label>
   <div class="dfoot"><button type="button" class="btn" id="sch-copy">Като миналата седмица</button><span class="sp"></span><button type="button" class="btn" data-close>Отказ</button><button class="btn primary">Запази</button></div>
+</form></dialog>
+<dialog id="d-claude"><form id="f-claude" method="dialog">
+  <h2>Работа с Claude</h2>
+  <p class="small muted" style="margin:0">Свържете своя Claude с Team Hub и му казвайте например „добави задача за монтажа до петък“ или „попълни ми графика като миналата седмица“. Claude може само това, което можете и вие. Изтриване през Claude няма.</p>
+  <p id="claude-status" class="small" style="margin:0"></p>
+  <div id="claude-new" hidden>
+    <label class="f w">Вашият адрес за Claude (пази се като парола)<input type="text" id="claude-url" readonly></label>
+    <button type="button" class="btn" id="claude-copy" style="margin-top:6px">Копирай адреса</button>
+    <p class="small muted" style="margin:6px 0 0">Адресът се показва само сега. В Claude: Настройки → Connectors → Add custom connector → име „Team Hub“ и този адрес.</p>
+  </div>
+  <div class="dfoot"><button type="button" class="btn danger" id="claude-off">Спри ключа</button><span class="sp"></span><button type="button" class="btn" data-close>Затвори</button><button type="button" class="btn primary" id="claude-make">Създай ключ</button></div>
 </form></dialog>
 <dialog id="d-goal"><form id="f-goal">
   <h2 id="goal-h">Моята цел</h2>
@@ -237,7 +248,7 @@
 
 <script src="config.js"></script>
 <script src="data.js?v=20261026-9"></script>
-<script src="app.js?v=20261116-2"></script>
+<script src="app.js?v=20261116-3"></script>
 <script>
   // Ако браузърът блокира кеширан скрипт, входът остава достъпен вместо празна страница.
   setTimeout(function () {

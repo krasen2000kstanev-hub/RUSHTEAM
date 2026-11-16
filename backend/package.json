@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test test/*.test.mjs",
+    "test": "node --test --experimental-test-module-mocks test/*.test.mjs",
     "dev": "sam local start-api --template template.yaml --port 8787",
     "build": "sam build --template-file template.yaml",
     "deploy": "sam deploy --guided --template-file template.yaml",
