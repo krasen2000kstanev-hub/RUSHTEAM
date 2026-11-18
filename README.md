@@ -25,7 +25,7 @@
 
 ## Работа с Claude и ChatGPT
 
-Всеки колега натиска „AI помощник“ горе вдясно, създава личен ключ и добавя показания адрес в Claude (Настройки → Connectors → Add custom connector) или в ChatGPT (Developer mode → Create, без вход). Стъпките са в самия прозорец. Claude работи с неговите права, без триене. Код: `backend/src/mcp.js`.
+Всеки колега натиска „AI помощник“ горе вдясно, създава личен ключ и добавя показания адрес в Claude (Настройки → Connectors → Add custom connector) или в ChatGPT (Plugins → + → Add custom MCP server, No authentication → Create as a plugin). Стъпките са в самия прозорец. Claude работи с неговите права, без триене. Код: `backend/src/mcp.js`.
 
 ## Данни
 
