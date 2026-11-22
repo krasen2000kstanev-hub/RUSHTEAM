@@ -1,5 +1,5 @@
 import { verifyGoogleIdToken, signSession, verifySession } from './auth.js';
-import { ALL_TEAMS, parsePath, collectionKind, normalizeTeams, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, isFounder, auditChanges, canBeAssigned, ownersToCheck, videoTeam, validSchedule } from './rules.js';
+import { ALL_TEAMS, parsePath, collectionKind, normalizeTeams, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, isFounder, auditChanges, canBeAssigned, ownersToCheck, videoTeam, validSchedule, validTraining } from './rules.js';
 import { appendSheetRow, readHrSummary } from './sheets.js';
 import { createUser, deleteDoc, findUser, getDoc, getUser, listAudit, listDocs, listUsers, putAudit, putDoc, updateUser } from './store.js';
 import { enqueueNotification } from './notify.js';
@@ -160,6 +160,7 @@ async function handleDoc(request, user, url) {
     }
   }
   if (kind.kind === 'schedules' && !validSchedule(parsed.id, next)) throw new HttpError(400, 'invalid_argument', 'Invalid schedule');
+  if (kind.kind === 'trainings' && !validTraining(next)) throw new HttpError(400, 'invalid_argument', 'Invalid training');
   if (!canWriteDoc(user, kind, parsed.id, existing?.data || null, next)) throw new HttpError(403, 'permission_denied', 'Not allowed');
   if (JSON.stringify(next).length > MAX_BODY_BYTES) throw new HttpError(413, 'document_too_large', 'Document too large');
   try {

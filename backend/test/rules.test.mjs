@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parsePath, collectionKind, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, normalizeTeams, auditChanges, canBeAssigned, videoOwners, ownersToCheck, scheduleOwner, validSchedule } from '../src/rules.js';
+import { parsePath, collectionKind, canReadDoc, canWriteDoc, canReadSheets, canWriteSheets, matchesWhere, deepMerge, normalizeTeams, auditChanges, canBeAssigned, videoOwners, ownersToCheck, scheduleOwner, validSchedule, validTraining } from '../src/rules.js';
 
 const admin = { id: 'u_admin', role: 'admin', teams: [], active: true };
 const manager = { id: 'u_manager', role: 'manager', teams: ['design'], active: true };
@@ -214,4 +214,25 @@ test('weekly schedule: busy slots, minutes and goal are validated', () => {
   assert.equal(validSchedule(id, { ...base, days: {}, goal: -1 }), false);
   assert.equal(validSchedule(id, { ...base, days: {}, goal: '20' }), false);
   assert.equal(validSchedule(id, { ...base, owner: 'u_x', days: {} }), false);
+});
+
+test('trainings: team reads, manager edits, member marks only self', () => {
+  const mat = { kind: 'material', team: 'design', title: 'Figma основи', link: 'https://x', people: [] };
+  const ses = { kind: 'session', team: 'design', title: 'Среща', date: '2026-12-01', start: '10:00', end: '11:00', people: ['u_other'] };
+  assert.equal(validTraining(mat), true);
+  assert.equal(validTraining(ses), true);
+  assert.equal(validTraining({ ...ses, date: '' }), false);
+  assert.equal(validTraining({ ...mat, team: 'nope' }), false);
+  assert.equal(validTraining({ ...mat, title: ' ' }), false);
+  assert.equal(canReadDoc(designer, K('trainings'), 't', mat), true);
+  assert.equal(canReadDoc(editor, K('trainings'), 't', mat), false);
+  assert.equal(canWriteDoc(manager, K('trainings'), 't', null, mat), true);
+  assert.equal(canWriteDoc(manager, K('trainings'), 't', null, { ...mat, team: 'web' }), false);
+  assert.equal(canWriteDoc(designer, K('trainings'), 't', null, mat), false);
+  assert.equal(canWriteDoc(designer, K('trainings'), 't', ses, { ...ses, people: ['u_other', 'u_d'] }), true);
+  assert.equal(canWriteDoc(designer, K('trainings'), 't', ses, { ...ses, people: [] }), false);
+  assert.equal(canWriteDoc(designer, K('trainings'), 't', ses, { ...ses, people: ['u_other', 'u_d'], title: 'X' }), false);
+  assert.equal(canWriteDoc(designer, K('trainings'), 't', ses, null), false);
+  assert.equal(canWriteDoc(editor, K('trainings'), 't', ses, { ...ses, people: ['u_other', 'u_m'] }), false);
+  assert.equal(canWriteDoc(admin, K('trainings'), 't', null, { ...mat, team: 'web' }), true);
 });

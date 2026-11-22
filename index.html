@@ -17,7 +17,7 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="styles.css?v=20261116-3">
+<link rel="stylesheet" href="styles.css?v=20261122-1">
 </head>
 <body>
 <div id="login" class="login">
@@ -44,6 +44,7 @@
       <a href="#due">Преглед</a>
       <a href="#calendar">Календар</a>
       <a href="#schedule">График</a>
+      <a href="#training">Обучения</a>
       <a href="#reports">Отчети</a>
       <a href="#team">Екип и клиенти</a>
       <a href="#hr">Подбор</a>
@@ -114,6 +115,23 @@
   </ol></details>
   <p class="small muted" style="margin:0">Показали сте адреса по погрешка? Натиснете „Нов ключ“ – старият спира веднага.</p>
   <div class="dfoot"><button type="button" class="btn danger" id="claude-off">Спри ключа</button><span class="sp"></span><button type="button" class="btn" data-close>Затвори</button><button type="button" class="btn primary" id="claude-make">Създай ключ</button></div>
+</form></dialog>
+<dialog id="d-train"><form id="f-train">
+  <h2 id="tr-h">Ново обучение</h2>
+  <div class="fg">
+    <label class="f">Вид<select id="tr-kind"><option value="material">Материал (урок, видео, документ)</option><option value="session">Среща (с дата и час)</option></select></label>
+    <label class="f">Отдел<select id="tr-team"></select></label>
+    <label class="f w">Заглавие<input type="text" id="tr-title" required maxlength="140" placeholder="напр. Основи на монтажа в Premiere"></label>
+    <label class="f w">Описание<textarea id="tr-desc" maxlength="2000" placeholder="Какво ще научат, какво да подготвят"></textarea></label>
+    <label class="f w">Линк (видео, документ, папка)<input type="text" id="tr-link" maxlength="500" placeholder="https://"></label>
+  </div>
+  <div class="fg" id="tr-ses" hidden>
+    <label class="f">Дата<input type="date" id="tr-date"></label>
+    <label class="f">Зала / място<input type="text" id="tr-place" maxlength="140" placeholder="напр. голямата зала"></label>
+    <label class="f">Начало<input type="time" id="tr-start"></label>
+    <label class="f">Край<input type="time" id="tr-end"></label>
+  </div>
+  <div class="dfoot"><button type="button" class="btn danger" id="tr-del">Изтрий</button><span class="sp"></span><button type="button" class="btn" data-close>Отказ</button><button class="btn primary">Запази</button></div>
 </form></dialog>
 <dialog id="d-goal"><form id="f-goal">
   <h2 id="goal-h">Моята цел</h2>
@@ -264,7 +282,7 @@
 
 <script src="config.js"></script>
 <script src="data.js?v=20261026-9"></script>
-<script src="app.js?v=20261116-5"></script>
+<script src="app.js?v=20261122-1"></script>
 <script>
   // Ако браузърът блокира кеширан скрипт, входът остава достъпен вместо празна страница.
   setTimeout(function () {

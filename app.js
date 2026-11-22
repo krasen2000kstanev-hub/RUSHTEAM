@@ -38,7 +38,7 @@ const actName=id=>(ACTS.find(a=>a[0]===id)||[0,"Друго"])[1];
 
 const S={db:null,user:null,uid:null,isAdmin:false,canWrite:true,ready:false,
   clients:{},videos:{},shoots:{},tasks:{},members:{},depts:{},people:{},booted:false,hr:{companies:null,err:"",at:0,loading:false},hrPaused:false,prof:{},myDays:{},rep:{},hrClientNotes:{},hrSearch:"",hrOpen:new Set(),
-  schedules:{},schWeek:"",tab:"timer",preset:"month",from:"",to:"",fClient:"",fFmt:"",mine:false,fWho:"",taskFilter:"all",dl:null,cal:null,runId:null,hrClientStage:"",hrClientStatus:"all",teamSearch:"",teamFilter:"all"};
+  schedules:{},trainings:{},trTeam:"",schWeek:"",tab:"timer",preset:"month",from:"",to:"",fClient:"",fFmt:"",mine:false,fWho:"",taskFilter:"all",dl:null,cal:null,runId:null,hrClientStage:"",hrClientStatus:"all",teamSearch:"",teamFilter:"all"};
 
 /* ---------- time helpers ---------- */
 const p2=n=>String(n).padStart(2,"0");
@@ -170,10 +170,10 @@ const founderId=id=>Boolean(S.depts[id]?.founder||S.people[id]?.role==="founder"
 function myTeams(){return S.isAdmin?ALLT:teamsOf(S.uid);}
 function deptManager(){const d=S.depts[S.uid]||{};return Boolean(S.isAdmin||d.manager);}
 function visibleTeamMemberIds(){const mine=myTeams(),manager=Boolean(S.isAdmin||(S.depts[S.uid]||{}).manager||S.members[S.uid]?.role==="manager");return memberIds().filter(id=>S.isAdmin||manager||id===S.uid||(!founderId(id)&&teamsOf(id).some(t=>mine.includes(t))));}
-function allowed(t){const m=myTeams(),d=S.depts[S.uid]||{},isManager=Boolean(d.manager||S.members[S.uid]?.role==="manager");if(t==="today")return !!S.uid;if(t==="tasks"||t==="schedule")return !!S.uid&&m.length>0;if(t==="hr")return m.includes("hr");if(t==="team")return m.length>0||isManager;if(TAB_TEAM[t])return m.includes(TAB_TEAM[t]);if(t==="calendar")return m.includes("media")||m.includes("events");if(t==="timer"||t==="reports")return m.some(x=>x!=="hr"&&x!=="events");return m.some(x=>x!=="hr");}
+function allowed(t){const m=myTeams(),d=S.depts[S.uid]||{},isManager=Boolean(d.manager||S.members[S.uid]?.role==="manager");if(t==="today")return !!S.uid;if(t==="tasks"||t==="schedule"||t==="training")return !!S.uid&&m.length>0;if(t==="hr")return m.includes("hr");if(t==="team")return m.length>0||isManager;if(TAB_TEAM[t])return m.includes(TAB_TEAM[t]);if(t==="calendar")return m.includes("media")||m.includes("events");if(t==="timer"||t==="reports")return m.some(x=>x!=="hr"&&x!=="events");return m.some(x=>x!=="hr");}
 /* ---------- views ---------- */
 function render(){
-  const onlyHr=!myTeams().some(x=>x!=="hr"&&x!=="events");const rdy=S.booted&&(S.isAdmin||S.deptsLoaded);if(rdy&&!allowed(S.tab))S.tab=["today","tasks","timer","board","web","events","design","social","due","calendar","schedule","reports","team","hr"].find(allowed)||"today";document.body.dataset.tab=S.tab;
+  const onlyHr=!myTeams().some(x=>x!=="hr"&&x!=="events");const rdy=S.booted&&(S.isAdmin||S.deptsLoaded);if(rdy&&!allowed(S.tab))S.tab=["today","tasks","timer","board","web","events","design","social","due","calendar","schedule","training","reports","team","hr"].find(allowed)||"today";document.body.dataset.tab=S.tab;
   $("#timer").hidden=onlyHr||S.tab==="hr"||S.tab==="events";
   if(S.tab==="hr"&&!S.hrPaused&&S.booted&&!S.hr.companies&&!S.hr.loading&&!S.hr.err)loadHr();
   document.body.classList.toggle("ro",!S.canWrite||!S.db);document.body.classList.toggle("adm",S.isAdmin);
@@ -186,7 +186,7 @@ function render(){
   v.textContent="";
   if(!rdy){v.append(h("div",{class:"panel empty"},"Зареждане…"));return;}
   if(!allowed(S.tab)){v.append(h("div",{class:"panel empty"},"Още нямате достъп до нито един екип. Помолете мениджър да ви добави от „Екип и клиенти“."));return;}
-  v.append(({today:vToday,tasks:vTasks,timer:vTimer,board:vBoard,web:vBoard,events:vBoard,design:vBoard,social:vBoard,due:vDue,schedule:vSchedule,hr:vHr,calendar:vCal,reports:vReports,team:vTeam}[S.tab]||vToday)());
+  v.append(({today:vToday,tasks:vTasks,timer:vTimer,board:vBoard,web:vBoard,events:vBoard,design:vBoard,social:vBoard,due:vDue,schedule:vSchedule,training:vTraining,hr:vHr,calendar:vCal,reports:vReports,team:vTeam}[S.tab]||vToday)());
   const bd=v.querySelector(".board");if(bd&&scx)bd.scrollLeft=scx;
   v.querySelectorAll(".tw table").forEach(t=>{const hs=[...t.querySelectorAll("thead th")].map(x=>x.textContent);t.querySelectorAll("tbody tr").forEach(r=>[...r.children].forEach((td,i)=>td.setAttribute("data-label",hs[i]||"")));});
 }
@@ -387,6 +387,7 @@ function vCal(){
     sm?h("button",{class:"btn"+(se?"":" primary")+" w-only",type:"button",onclick:()=>openShoot(null)},"+ Снимачен ден"):null));
   const items=[];
   if(sm)Object.entries(S.shoots).forEach(([id,o])=>{if(o.date)items.push({k:"shoot",id:id,date:o.date,start:o.start||"",o:o});});
+  Object.entries(S.trainings||{}).forEach(([id,o])=>{if(o.kind==="session"&&o.date&&mt.includes(o.team))items.push({k:"train",id:id,date:o.date,start:o.start||"",o:o});});
   let nodate=0;if(se)Object.entries(S.videos).forEach(([id,o])=>{if(teamOf(o)!=="events")return;if(o.edate)eventDays(o).forEach(date=>items.push({k:"event",id:id,date,start:o.estart||"",o:o}));else if(!isDone(o))nodate++;});
   items.sort((a,b)=>(a.date+(a.start||"99")).localeCompare(b.date+(b.start||"99")));
   const byDate={};items.forEach(x=>{(byDate[x.date]=byDate[x.date]||[]).push(x);});
@@ -396,7 +397,7 @@ function vCal(){
     if(i>=35&&out&&addDays(first,35).getMonth()!==m.getMonth())break;
     const cell=h(out?"div":"button",{class:"cell"+(out?" out":"")+(ds===today?" today":""),type:out?null:"button",
       "aria-label":out?null:ds,onclick:out?null:()=>{if(!S.canWrite||!S.db)return;if(se&&!sm)openVideo(null,"events",ds);else if(sm)openShoot(null,ds);}},h("span",{class:"n"+(out?" muted":"")},d.getDate()));
-    if(!out){const l=byDate[ds]||[];l.slice(0,3).forEach(x=>cell.append(h("span",{class:"chip"+(x.k==="event"?" ev":""),style:"--c:"+cColor(x.o.client)},x.start||"цял ден")));
+    if(!out){const l=byDate[ds]||[];l.slice(0,3).forEach(x=>cell.append(h("span",{class:"chip"+(x.k==="event"?" ev":x.k==="train"?" tr":""),style:"--c:"+cColor(x.o.client)},x.start||"цял ден")));
       if(l.length>3)cell.append(h("span",{class:"small muted",style:"font-size:10px"},"+"+(l.length-3)));}
     grid.append(cell);}
   const left=h("div",{style:"display:flex;flex-direction:column;gap:8px;min-width:0"},grid,
@@ -410,6 +411,11 @@ function vCal(){
   list.forEach(x=>{const o=x.o;
     if(x.date!==last){last=x.date;n=0;ag.append(h("div",{class:"agd"},h("span",{style:"text-transform:capitalize"},pd(x.date).toLocaleDateString("bg-BG",{weekday:"long",day:"numeric",month:"long"})),h("span",{class:"mono small"},byDate[x.date].length)));}
     n++;
+    if(x.k==="train"){ag.append(fold(x,
+        h("div",{class:"hd"},h("span",{style:"display:flex;gap:8px;align-items:center;min-width:0"},h("span",{class:"ord"},n+"."),h("b",null,o.title)),
+          h("a",{class:"btn ghost",href:"#training","aria-label":"Към обученията",onclick:()=>{S.trTeam=o.team;}},"→")),
+        h("div",{class:"small mono",style:"color:var(--ok,#7bd88f)"},(o.start?o.start+(o.end?"–"+o.end:""):"цял ден")+" · обучение · "+TNAME[o.team]),
+        o.place?h("div",{class:"small muted"},o.place):null));return;}
     if(x.k==="shoot"){const l=safeUrl(o.link),vid=S.videos[o.video];
       ag.append(fold(x,
         h("div",{class:"hd"},h("span",{style:"display:flex;gap:8px;align-items:center;min-width:0"},h("span",{class:"ord"},n+"."),h("span",{class:"dot",style:"--c:"+cColor(o.client)}),h("b",null,o.title)),
@@ -871,6 +877,50 @@ $("#f-goal").addEventListener("submit",async ev=>{ev.preventDefault();const v=$(
   const fields={goal:v===""?null:Math.max(0,+v),goalWhat:$("#goal-what").value.trim(),goalNote:$("#goal-note").value.trim(),goalPrev:cur.goalPrev?cur.goalPrev.goal:null};
   if(await saveMine(fields,"Целта е запазена."))$("#d-goal").close();});
 
+/* ---------- Обучения ---------- */
+// Материали (урок с линк) и срещи (дата, час, зала) по отдели. Добавя мениджърът на отдела, всеки отбелязва само себе си.
+const canTrain=t=>Boolean(S.isAdmin||(deptManager()&&myTeams().includes(t)));
+function vTraining(){
+  const teams=myTeams(),root=h("div",{style:"display:flex;flex-direction:column;gap:16px"}),today=ymd(new Date());
+  if(!teams.includes(S.trTeam))S.trTeam=teams[0];
+  root.append(h("div",{class:"bar"},teams.map(t=>h("button",{class:"btn"+(t===S.trTeam?" primary":""),type:"button","aria-pressed":String(t===S.trTeam),onclick:()=>{S.trTeam=t;schedule();}},TNAME[t])),
+    h("span",{class:"sp"}),canTrain(S.trTeam)?h("button",{class:"btn primary w-only",type:"button",onclick:()=>openTraining(null)},"+ Обучение"):null));
+  const all=Object.entries(S.trainings).filter(([,o])=>o.team===S.trTeam);
+  const ses=all.filter(([,o])=>o.kind==="session").sort((a,b)=>(a[1].date+(a[1].start||"")).localeCompare(b[1].date+(b[1].start||"")));
+  const up=ses.filter(([,o])=>o.date>=today),past=ses.filter(([,o])=>o.date<today).reverse();
+  const mats=all.filter(([,o])=>o.kind==="material").sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));
+  const row=([id,o])=>{const ppl=o.people||[],mine=ppl.includes(S.uid),l=safeUrl(o.link),isS=o.kind==="session";
+    return h("div",{class:"tr-row"},
+      h("div",{style:"min-width:0"},h("b",null,o.title),
+        isS?h("div",{class:"small mono",style:"color:var(--gold)"},shortDate(o.date)+(o.start?" · "+o.start+(o.end?"–"+o.end:""):"")+(o.place?" · "+o.place:"")):null,
+        o.desc?h("div",{class:"small muted",style:"white-space:pre-wrap"},o.desc):null,
+        l?h("div",{class:"small"},ext({url:l})):null,
+        ppl.length?h("div",{class:"small muted"},(isS?"Ще присъстват: ":"Минали са го: ")+ppl.map(nameOf).join(", ")):null),
+      h("div",{class:"tr-act"},
+        h("button",{class:"btn"+(mine?" primary":""),type:"button","aria-pressed":String(mine),onclick:()=>markTraining(id,o)},(mine?"✓ ":"")+(isS?"Ще присъствам":"Минах го")),
+        canTrain(o.team)?h("button",{class:"btn ghost w-only",type:"button","aria-label":"Редактирай",onclick:()=>openTraining(id)},"✎"):null));};
+  const sec=(title,list,empty)=>h("section",{class:"panel"},h("div",{class:"ph"},h("span",null,title),h("span",{class:"mono small"},list.length)),list.length?list.map(row):h("div",{class:"drow muted"},empty));
+  root.append(sec("Предстоящи срещи",up,"Няма планирани срещи."),sec("Материали",mats,"Още няма материали."));
+  if(past.length)root.append(h("details",{class:"panel"},h("summary",{class:"ph"},"Минали срещи ("+past.length+")"),past.map(row)));
+  return root;}
+function markTraining(id,o){const ppl=o.people||[];
+  tryW(S.db.doc("trainings/"+id).update({people:ppl.includes(S.uid)?ppl.filter(x=>x!==S.uid):[...ppl,S.uid]}));}
+function trKind(){const s=$("#tr-kind").value==="session";$("#tr-ses").hidden=!s;$("#tr-date").required=s;}
+function openTraining(id){const o=id?S.trainings[id]:null;cur.train=id;cur.orig=snap(o);
+  const sel=$("#tr-team");sel.textContent="";myTeams().filter(canTrain).forEach(t=>sel.append(h("option",{value:t},TNAME[t])));
+  sel.value=o?o.team:S.trTeam;$("#tr-h").textContent=id?"Редакция: обучение":"Ново обучение";
+  $("#tr-kind").value=o?o.kind:"material";["title","desc","link","date","start","end","place"].forEach(k=>{$("#tr-"+k).value=(o&&o[k])||"";});
+  $("#tr-del").hidden=!id;trKind();$("#d-train").showModal();}
+$("#tr-kind").addEventListener("change",trKind);
+$("#f-train").addEventListener("submit",async ev=>{ev.preventDefault();const ses=$("#tr-kind").value==="session";
+  const rec={kind:ses?"session":"material",team:$("#tr-team").value,title:$("#tr-title").value.trim(),desc:$("#tr-desc").value.trim(),link:$("#tr-link").value.trim(),
+    date:ses?$("#tr-date").value:"",start:ses?$("#tr-start").value:"",end:ses?$("#tr-end").value:"",place:ses?$("#tr-place").value.trim():""};
+  if(ses&&rec.start&&rec.end&&rec.end<=rec.start){toast("Краят трябва да е след началото.");return;}
+  const id=cur.train,ref=id?S.db.doc("trainings/"+id):S.db.collection("trainings").doc();
+  if(!id)Object.assign(rec,{people:[],createdBy:S.uid,createdAt:Date.now()});
+  if(await tryW(id?ref.update(changes(cur.orig,rec)):ref.set(rec))){S.trTeam=rec.team;$("#d-train").close();schedule();}});
+arm($("#tr-del"),async()=>{if(await tryW(S.db.doc("trainings/"+cur.train).delete()))$("#d-train").close();});
+
 /* ---------- Claude ---------- */
 // Личен ключ за връзката с Claude (MCP). Сървърът пази само отпечатъка, затова адресът се показва веднъж.
 const claudeApi=(m)=>window.teamHubApi("/api/claude-key",{method:m});
@@ -883,7 +933,7 @@ $("#claude-copy").addEventListener("click",async()=>{try{await navigator.clipboa
 arm($("#claude-off"),async()=>{try{await claudeApi("DELETE");$("#claude-new").hidden=true;toast("Ключът е спрян.");claudeStatus();}catch(e){toast(errMsg(e));}});
 
 /* ---------- boot ---------- */
-function route(){const t=(location.hash||"").slice(1);S.tab=["today","tasks","timer","board","web","events","design","social","due","calendar","schedule","reports","team","hr"].includes(t)?t:"today";schedule();}
+function route(){const t=(location.hash||"").slice(1);S.tab=["today","tasks","timer","board","web","events","design","social","due","calendar","schedule","training","reports","team","hr"].includes(t)?t:"today";schedule();}
 window.addEventListener("hashchange",route);
 fillSelects();route();
 
@@ -897,7 +947,7 @@ fillSelects();route();
   if(!db){S.ready=true;showBanner("Данните не са достъпни. Влезте отново.");schedule();return;}
   if(!S.canWrite)showBanner("Имате достъп само за преглед.");
   let first=3;const done=()=>{if(first>0&&--first===0){S.ready=true;}};
-  subCol("clients",done);subCol("videos",()=>{done();loadProfiles();if($("#d-video").open&&cur.video)renderComments();});subCol("shoots",done);subCol("tasks",()=>{loadProfiles();schedule();});subCol("hrclients",()=>{S.hrClientNotes=S.hrclients||{};schedule();});
+  subCol("clients",done);subCol("videos",()=>{done();loadProfiles();if($("#d-video").open&&cur.video)renderComments();});subCol("shoots",done);subCol("trainings");subCol("tasks",()=>{loadProfiles();schedule();});subCol("hrclients",()=>{S.hrClientNotes=S.hrclients||{};schedule();});
   subCol("members",()=>{loadProfiles();subReports();});subCol("depts",()=>{S.deptsLoaded=true;});subSchedules();
   if(S.uid){
     db.collection("time/"+S.uid+"/days").where("date",">=",ymd(addDays(new Date(),-14))).onSnapshot(s=>{const o={};s.docs.forEach(d=>{o[d.id]=d.data();});S.myDays=o;schedule();},onErr);

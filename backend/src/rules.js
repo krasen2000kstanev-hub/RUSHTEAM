@@ -12,7 +12,7 @@ export function parsePath(path) {
 export function collectionKind(collection) {
   const segments = String(collection || '').split('/');
   if (!segments.every((segment) => SEGMENT.test(segment))) return null;
-  if (segments.length === 1 && ['clients', 'videos', 'shoots', 'members', 'depts', 'tasks', 'hrclients', 'schedules'].includes(segments[0])) return { kind: segments[0] };
+  if (segments.length === 1 && ['clients', 'videos', 'shoots', 'members', 'depts', 'tasks', 'hrclients', 'schedules', 'trainings'].includes(segments[0])) return { kind: segments[0] };
   if (segments.length === 3 && segments[0] === 'time' && segments[2] === 'days') return { kind: 'time', owner: segments[1] };
   return null;
 }
@@ -46,6 +46,22 @@ export function validSchedule(id, next) {
   return next?.owner === scheduleOwner(id) && next.week === String(id).slice(0, 10) && Object.keys(days).every((k) => SCHEDULE_DAYS.includes(k))
     && Object.values(days).every(okDay) && String(next.note || '').length <= 500 && okNum(next.goal) && okNum(next.goalPrev) && String(next.goalWhat || '').length <= 80 && String(next.goalNote || '').length <= 500;
 }
+// Обучение на отдел: материал (урок с линк) или среща (дата, час, зала). `people` = кой е минал материала / ще присъства.
+const okDate = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
+export function validTraining(next) {
+  const people = next?.people === undefined ? [] : next.people;
+  const title = String(next?.title || '').trim();
+  return ['material', 'session'].includes(next?.kind) && ALL_TEAMS.includes(next?.team) && title.length > 0 && title.length <= 140
+    && String(next.desc || '').length <= 2000 && String(next.link || '').length <= 500 && String(next.place || '').length <= 140
+    && (next.kind === 'material' || okDate(next.date)) && (!next.date || okDate(next.date)) && okTime(next.start) && okTime(next.end)
+    && Array.isArray(people) && people.length <= 200 && people.every((id) => typeof id === 'string' && id.length <= 120);
+}
+// Член на отдела може да промени само себе си в `people` („Минах го“ / „Ще присъствам“).
+const onlySelfMark = (userId, a, b) => {
+  const rest = (d) => JSON.stringify(Object.fromEntries(Object.entries(d).filter(([k]) => k !== 'people').sort()));
+  const sa = new Set(a.people || []), sb = new Set(b.people || []);
+  return rest(a) === rest(b) && [...sa, ...sb].every((id) => id === userId || (sa.has(id) && sb.has(id)));
+};
 const tracksTime = (user) => user.teams.some((team) => team !== 'hr' && team !== 'events');
 
 export function canReadDoc(user, kind, id, data) {
@@ -63,6 +79,7 @@ export function canReadDoc(user, kind, id, data) {
     case 'shoots': return user.teams.includes('media');
     case 'time': return kind.owner === user.id && tracksTime(user);
     case 'schedules': return user.teams.length > 0;
+    case 'trainings': return user.teams.includes(docTeam(data));
     default: return false;
   }
 }
@@ -85,6 +102,9 @@ export function canWriteDoc(user, kind, id, oldData, newData) {
     case 'shoots': return user.teams.includes('media');
     case 'time': return kind.owner === user.id && tracksTime(user);
     case 'schedules': return user.teams.length > 0 && scheduleOwner(id) === user.id && [oldData, newData].every((d) => !d || d.owner === user.id);
+    case 'trainings':
+      if ([oldData, newData].every((d) => !d || manages(user, d))) return true;
+      return Boolean(oldData && newData && user.teams.includes(docTeam(oldData)) && onlySelfMark(user.id, oldData, newData));
     default: return false;
   }
 }
