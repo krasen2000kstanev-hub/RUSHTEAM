@@ -33,7 +33,7 @@ test('protocol: initialize, tools/list, notifications', async () => {
   const tools = (await handleMcp({ jsonrpc: '2.0', id: 2, method: 'tools/list' }, f.deps)).result.tools;
   assert.ok(tools.some((t) => t.name === 'save_board_item'));
   // ChatGPT/Claude не питат за потвърждение при четене, само при запис.
-  assert.ok(tools.every((t) => t.annotations && t.annotations.readOnlyHint === !t.name.match(/^(save|set)_/)));
+  assert.ok(tools.every((t) => t.annotations && t.annotations.readOnlyHint === !t.name.match(/^(save|set|mark)_/)));
   assert.equal(await handleMcp({ jsonrpc: '2.0', method: 'notifications/initialized' }, f.deps), undefined);
   assert.equal((await handleMcp({ jsonrpc: '2.0', id: 3, method: 'nope' }, f.deps)).error.code, -32601);
 });
@@ -73,4 +73,19 @@ test('schedule and goal: kept together, goal compared with the last one', async 
   assert.equal(rec.goalWhat, 'часа');
   assert.equal(rec.days.thu.busy[0].from, '12:00');
   assert.equal(weekOf('2026-11-22'), '2026-11-16');
+});
+
+test('trainings: list hides past sessions, mark toggles only me', async () => {
+  const f = fake();
+  f.db['trainings/old'] = { kind: 'session', team: 'media', title: 'Стара', date: '2020-01-01', people: [] };
+  const { data } = await call(f, 'save_training', { team: 'media', kind: 'session', title: 'Светлина', date: '2099-01-01', start: '10:00' });
+  assert.equal((await call(f, 'save_training', { team: 'media', kind: 'session', title: 'Без дата' })).isError, true);
+  f.db[`trainings/${data.id}`].people = ['u_a'];
+  await call(f, 'mark_training', { id: data.id });
+  assert.deepEqual(f.db[`trainings/${data.id}`].people, ['u_a', 'u_me']);
+  await call(f, 'mark_training', { id: data.id, yes: false });
+  assert.deepEqual(f.db[`trainings/${data.id}`].people, ['u_a']);
+  const list = (await call(f, 'list_trainings', {})).data;
+  assert.deepEqual(list.map((t) => t.title), ['Светлина']);
+  assert.equal((await call(f, 'list_trainings', { include_past: true })).data.length, 2);
 });

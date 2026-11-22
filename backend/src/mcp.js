@@ -10,6 +10,7 @@ export const BOARD_STAGES = {
   design: [['brief', 'Бриф'], ['concept', 'Концепция'], ['work', 'Изработка'], ['review', 'Ревизия'], ['done', 'Предадено']],
   social: [['idea', 'Идея'], ['content', 'Текст и визия'], ['review', 'Одобрение от клиента'], ['scheduled', 'Планирано'], ['done', 'Публикувано']],
 };
+const TRAIN_TEAMS = ['media', 'web', 'events', 'design', 'social', 'hr'];
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const teamOf = (v) => (BOARD_STAGES[v?.team] ? v.team : 'media');
 const isDoneStage = (team, stage) => { const st = BOARD_STAGES[team]; const i = st.findIndex(([id]) => id === stage); return i >= 0 && i >= st.findIndex(([id]) => id === 'done'); };
@@ -33,9 +34,12 @@ export const TOOLS = [
   { name: 'get_schedules', annotations: { readOnlyHint: true }, description: 'Графиците и целите на екипа за седмицата на дадена дата (по подразбиране тази седмица).', inputSchema: { type: 'object', properties: { date } } },
   { name: 'save_my_schedule', annotations: { readOnlyHint: false, destructiveHint: false }, description: 'Записва МОЯ график за седмицата. days заменя целия график: ключове mon..sun; ден без ключ = не съм на разположение.', inputSchema: { type: 'object', properties: { date, days: { type: 'object', properties: Object.fromEntries(DAYS.map((d) => [d, daySchema])) }, note: str }, required: ['days'] } },
   { name: 'set_my_goal', annotations: { readOnlyHint: false, destructiveHint: false }, description: 'Записва МОЯТА цел за седмицата (число + какво се брои) и казва дали е висока/ниска спрямо предишната. Записва се и при висока/ниска.', inputSchema: { type: 'object', properties: { date, goal: { type: 'number', minimum: 0 }, what: str, note: str }, required: ['goal'] } },
+  { name: 'list_trainings', annotations: { readOnlyHint: true }, description: 'Обученията на моите отдели: материали (урок с линк) и срещи (дата, час, зала). По подразбиране без минали срещи.', inputSchema: { type: 'object', properties: { team: { type: 'string', enum: TRAIN_TEAMS }, include_past: { type: 'boolean', description: 'и минали срещи' } } } },
+  { name: 'save_training', annotations: { readOnlyHint: false, destructiveHint: false }, description: 'Създава (без id) или променя (с id) обучение. Само мениджър на отдела или основател. kind: material (урок с линк) или session (среща – трябва date).', inputSchema: { type: 'object', properties: { id: str, team: { type: 'string', enum: TRAIN_TEAMS }, kind: { type: 'string', enum: ['material', 'session'] }, title: str, desc: str, link: str, date, start: time, end: time, place: str } } },
+  { name: 'mark_training', annotations: { readOnlyHint: false, destructiveHint: false }, description: 'Отбелязва мен: при материал „Минах го“, при среща „Ще присъствам“. yes=false маха отметката.', inputSchema: { type: 'object', properties: { id: str, yes: { type: 'boolean' } }, required: ['id'] } },
 ];
 
-const INSTRUCTIONS = 'Team Hub е вътрешната платформа на екипа. Отговаряй на български. Започни с overview, за да знаеш id-тата на колеги, клиенти и етапи. Преди промени, които засягат колеги (нова задача към друг човек, смяна на отговорник), кажи накратко какво ще направиш. Изтриване няма – насочи човека към сайта.';
+const INSTRUCTIONS = 'Team Hub е вътрешната платформа на екипа. Отговаряй на български. Започни с overview, за да знаеш id-тата на колеги, клиенти и етапи. Преди промени, които засягат колеги (нова задача към друг човек, смяна на отговорник), кажи накратко какво ще направиш. Изтриване няма – насочи човека към сайта. Обученията (list_trainings) са по отдели; добавя ги мениджърът.';
 
 // deps: { user, doc(method, path, body) → резултат на /api/doc, list(collection, where) → [{id,data}], users() → [{id,name}] }
 export async function callTool(name, args, deps) {
@@ -96,6 +100,26 @@ export async function callTool(name, args, deps) {
     await deps.doc('PUT', `schedules/${week}_${user.id}`, { note: '', ...(await mine(week)), goal, goalWhat: String(a.what || prev?.goalWhat || '').slice(0, 80), goalPrev: prev ? prev.goal : null, ...(a.note != null ? { goalNote: String(a.note).slice(0, 500) } : {}), owner: user.id, week });
     const level = !prev || !(prev.goal > 0) ? 'няма предишна цел за сравнение' : goal > prev.goal * 1.2 ? `висока спрямо предишната (${prev.goal})` : goal < prev.goal * 0.8 ? `ниска спрямо предишната (${prev.goal})` : `близо до предишната (${prev.goal})`;
     return { ok: true, week, level };
+  }
+  if (name === 'list_trainings') {
+    const names = await people(); const today = sofiaToday();
+    return (await deps.list('trainings', [])).filter(({ data: t }) => (!a.team || t.team === a.team) && (a.include_past || t.kind !== 'session' || t.date >= today))
+      .sort((x, y) => `${x.data.date || '9'}${x.data.start || ''}`.localeCompare(`${y.data.date || '9'}${y.data.start || ''}`))
+      .map(({ id, data: t }) => ({ id, team: t.team, kind: t.kind, title: t.title, desc: t.desc || '', link: t.link || '', date: t.date || '', start: t.start || '', end: t.end || '', place: t.place || '', people: (t.people || []).map((p) => names[p] || p), me: (t.people || []).includes(user.id) }));
+  }
+  if (name === 'save_training') {
+    const pick = Object.fromEntries(['team', 'kind', 'title', 'desc', 'link', 'date', 'start', 'end', 'place'].filter((k) => a[k] !== undefined).map((k) => [k, typeof a[k] === 'string' ? a[k].trim() : a[k]]));
+    if (a.id) { await deps.doc('PATCH', `trainings/${a.id}`, pick); return { ok: true, id: a.id }; }
+    if (!TRAIN_TEAMS.includes(pick.team) || !pick.title) throw new ToolError('За ново обучение трябват team и title.');
+    const kind = pick.kind === 'session' ? 'session' : 'material'; if (kind === 'session' && !pick.date) throw new ToolError('Срещата трябва да има дата (date).');
+    const rec = { desc: '', link: '', date: '', start: '', end: '', place: '', ...pick, kind, people: [], createdBy: user.id, createdAt: Date.now() };
+    const id = `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+    await deps.doc('PUT', `trainings/${id}`, rec); return { ok: true, id };
+  }
+  if (name === 'mark_training') {
+    const cur = await deps.doc('GET', `trainings/${a.id}`); if (!cur.exists) throw new ToolError('Няма такова обучение.');
+    const ppl = (cur.data.people || []).filter((p) => p !== user.id); if (a.yes !== false) ppl.push(user.id);
+    await deps.doc('PATCH', `trainings/${a.id}`, { people: ppl }); return { ok: true, marked: a.yes !== false };
   }
   throw new ToolError(`Непознат инструмент: ${name}`);
 }
